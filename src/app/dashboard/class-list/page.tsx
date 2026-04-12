@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import Link from 'next/link'
 
@@ -11,10 +11,9 @@ export default function ClassListPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="bg-[#5e3a9e] text-white p-6">
+      <div className="bg-gray-50 px-6 pt-6 pb-2">
         <div className="max-w-6xl mx-auto">
-          <Link href="/dashboard" className="text-sm hover:underline mb-2 inline-block">← Back to Dashboard</Link>
-          <h1 className="text-3xl font-bold">Class List</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Class List</h1>
         </div>
       </div>
 
