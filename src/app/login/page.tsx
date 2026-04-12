@@ -19,7 +19,7 @@ export default function LoginPage() {
     if (mobile === '67890' && password === 'foster@123') {
       localStorage.setItem('userMobile', mobile)
       localStorage.setItem('userRole', '8')
-      router.push('/dashboard')
+      router.push('/dashboard/profile')
       return
     }
 
@@ -27,7 +27,7 @@ export default function LoginPage() {
     if (mobile === '8805' && password === 'foster@123') {
       localStorage.setItem('userMobile', mobile)
       localStorage.setItem('userRole', '6')
-      router.push('/dashboard')
+      router.push('/dashboard/profile')
       return
     }
 
@@ -35,7 +35,7 @@ export default function LoginPage() {
     if (mobile === '12345' && password === 'default123') {
       localStorage.setItem('userMobile', mobile)
       localStorage.setItem('userRole', '19')
-      router.push('/dashboard')
+      router.push('/dashboard/profile')
       return
     }
 
