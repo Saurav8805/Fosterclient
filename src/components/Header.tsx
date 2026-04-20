@@ -110,7 +110,7 @@ const Header = () => {
                 <a href="#blogs" className="text-[#333] text-sm py-2 border-b border-gray-100">Blogs</a>
                 <a href="#contact" className="text-[#333] text-sm py-2">Contact</a>
               </nav>
-              <button onClick={() => window.location.href = '/signup'} className="w-full mt-4 bg-gradient-to-r from-[#e91e63] to-[#d81b60] text-white px-6 py-2.5 text-sm font-semibold rounded-full">
+              <button onClick={() => router.push('/login')} className="w-full mt-4 bg-gradient-to-r from-[#e91e63] to-[#d81b60] text-white px-6 py-2.5 text-sm font-semibold rounded-full">
                 Login
               </button>
             </div>

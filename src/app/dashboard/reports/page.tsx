@@ -6,28 +6,85 @@ import Link from 'next/link'
 import { Card, CardHeader, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 
+interface ProgressRecord {
+  id: string
+  subject: string
+  marks: number
+  total_marks: number
+  grade: string
+  percentage: number
+}
+
+interface ProgressData {
+  records: ProgressRecord[]
+  overallPercentage: number
+}
+
 export default function ReportsPage() {
   const router = useRouter()
   const [userRole, setUserRole] = useState<number | null>(null)
+  const [userId, setUserId] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [progressData, setProgressData] = useState<ProgressData | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const role = localStorage.getItem('userRole')
-    if (!role) { router.push('/login'); return }
+    const id = localStorage.getItem('userId')
+    if (!role || !id) { 
+      router.push('/login')
+      return 
+    }
     setUserRole(Number(role))
+    setUserId(id)
   }, [router])
 
-  if (userRole === null) return <div className="flex items-center justify-center min-h-screen">Loading...</div>
+  useEffect(() => {
+    if (userRole === 19 && userId) {
+      fetchProgressData()
+    } else if (userRole !== null) {
+      setLoading(false)
+    }
+  }, [userRole, userId])
+
+  const fetchProgressData = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch(`/api/progress/my-progress?userId=${userId}`)
+      const result = await response.json()
+
+      if (result.success) {
+        setProgressData(result.data)
+      } else {
+        setError('No progress data found')
+      }
+    } catch (err) {
+      console.error('Error fetching progress:', err)
+      setError('Failed to load progress data')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (loading) return <div className="flex items-center justify-center min-h-screen">Loading...</div>
 
   // Student (role 19): view own progress & report card
   if (userRole === 19) {
-    const subjectProgress = [
-      { subject: 'Mathematics', marks: 85, total: 100, grade: 'A', percentage: 85 },
-      { subject: 'Science', marks: 78, total: 100, grade: 'B+', percentage: 78 },
-      { subject: 'English', marks: 92, total: 100, grade: 'A+', percentage: 92 },
-      { subject: 'History', marks: 75, total: 100, grade: 'B', percentage: 75 },
-      { subject: 'Geography', marks: 88, total: 100, grade: 'A', percentage: 88 },
-    ]
-    const overallPercentage = subjectProgress.reduce((acc, curr) => acc + curr.percentage, 0) / subjectProgress.length
+    if (error || !progressData || progressData.records.length === 0) {
+      return (
+        <div className="p-6 max-w-7xl mx-auto">
+          <h1 className="text-3xl font-bold text-gray-900 mb-6">Progress & Reports</h1>
+          <Card>
+            <CardContent className="p-6 text-center">
+              <p className="text-gray-600">{error || 'No progress records available yet'}</p>
+            </CardContent>
+          </Card>
+        </div>
+      )
+    }
+
+    const subjectProgress = progressData.records
+    const overallPercentage = progressData.overallPercentage
 
     const gradeStyle = (p: number) =>
       p >= 80 ? { bar: 'bg-green-600', badge: 'bg-green-100 text-green-800', card: 'bg-green-50', text: 'text-green-700' } :
@@ -83,11 +140,11 @@ export default function ReportsPage() {
               {subjectProgress.map((s, i) => {
                 const c = gradeStyle(s.percentage)
                 return (
-                  <div key={i} className="border-b pb-4 last:border-b-0">
+                  <div key={s.id} className="border-b pb-4 last:border-b-0">
                     <div className="flex justify-between items-center mb-2">
                       <div>
                         <p className="font-semibold text-gray-900">{s.subject}</p>
-                        <p className="text-sm text-gray-600">{s.marks}/{s.total} marks</p>
+                        <p className="text-sm text-gray-600">{s.marks}/{s.total_marks} marks</p>
                       </div>
                       <span className={`px-4 py-2 rounded-lg font-bold text-lg ${c.card} ${c.text}`}>{s.grade}</span>
                     </div>
@@ -117,10 +174,10 @@ export default function ReportsPage() {
                 </thead>
                 <tbody>
                   {subjectProgress.map((s, i) => (
-                    <tr key={i} className="border-b hover:bg-gray-50">
+                    <tr key={s.id} className="border-b hover:bg-gray-50">
                       <td className="py-3 px-4 text-sm text-gray-900">{s.subject}</td>
                       <td className="py-3 px-4 text-sm text-gray-900 text-center">{s.marks}</td>
-                      <td className="py-3 px-4 text-sm text-gray-900 text-center">{s.total}</td>
+                      <td className="py-3 px-4 text-sm text-gray-900 text-center">{s.total_marks}</td>
                       <td className="py-3 px-4 text-sm text-gray-900 text-center">{s.percentage}%</td>
                       <td className="py-3 px-4 text-center">
                         <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${gradeStyle(s.percentage).badge}`}>{s.grade}</span>
@@ -130,7 +187,7 @@ export default function ReportsPage() {
                   <tr className="bg-gray-50 font-semibold">
                     <td className="py-3 px-4 text-sm text-gray-900">Overall</td>
                     <td className="py-3 px-4 text-sm text-gray-900 text-center">{subjectProgress.reduce((a, c) => a + c.marks, 0)}</td>
-                    <td className="py-3 px-4 text-sm text-gray-900 text-center">{subjectProgress.reduce((a, c) => a + c.total, 0)}</td>
+                    <td className="py-3 px-4 text-sm text-gray-900 text-center">{subjectProgress.reduce((a, c) => a + c.total_marks, 0)}</td>
                     <td className="py-3 px-4 text-sm text-gray-900 text-center">{overallPercentage.toFixed(1)}%</td>
                     <td className="py-3 px-4 text-center">
                       <span className="inline-flex px-3 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">

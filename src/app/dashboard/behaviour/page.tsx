@@ -5,29 +5,94 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Card, CardHeader, CardContent } from '@/components/ui/Card'
 
+interface BehaviourRecord {
+  id: string
+  rating: number
+  comment: string
+  date: string
+  teacher: {
+    full_name: string
+  }
+}
+
+interface BehaviourData {
+  records: BehaviourRecord[]
+  overallRating: number
+}
+
 export default function BehaviourPage() {
   const router = useRouter()
   const [userRole, setUserRole] = useState<number | null>(null)
+  const [userId, setUserId] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [behaviourData, setBehaviourData] = useState<BehaviourData | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const role = localStorage.getItem('userRole')
-    if (!role) { router.push('/login'); return }
+    const id = localStorage.getItem('userId')
+    if (!role || !id) { 
+      router.push('/login')
+      return 
+    }
     setUserRole(Number(role))
+    setUserId(id)
   }, [router])
 
-  if (userRole === null) return <div className="flex items-center justify-center min-h-screen">Loading...</div>
+  useEffect(() => {
+    if (userRole === 19 && userId) {
+      fetchBehaviourData()
+    } else if (userRole !== null) {
+      setLoading(false)
+    }
+  }, [userRole, userId])
+
+  const fetchBehaviourData = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch(`/api/behaviour/my-behaviour?userId=${userId}`)
+      const result = await response.json()
+
+      if (result.success) {
+        setBehaviourData(result.data)
+      } else {
+        setError('No behaviour data found')
+      }
+    } catch (err) {
+      console.error('Error fetching behaviour:', err)
+      setError('Failed to load behaviour data')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (loading) return <div className="flex items-center justify-center min-h-screen">Loading...</div>
 
   // Student (role 19): view own behaviour
   if (userRole === 19) {
-    const behaviourData = { overallRating: 4.5, discipline: 5, participation: 4, punctuality: 5, cooperation: 4, leadership: 4 }
-    const behaviourRecords = [
-      { date: '2024-01-15', teacher: 'Mr. John Smith', subject: 'Mathematics', rating: 5, comment: 'Excellent participation in class. Shows great interest in problem-solving.' },
-      { date: '2024-01-10', teacher: 'Ms. Sarah Johnson', subject: 'Science', rating: 4, comment: 'Good behavior and active in group activities.' },
-      { date: '2024-01-05', teacher: 'Mr. David Brown', subject: 'English', rating: 5, comment: 'Outstanding presentation skills and respectful towards peers.' },
-    ]
+    if (error || !behaviourData || behaviourData.records.length === 0) {
+      return (
+        <div className="p-6 max-w-7xl mx-auto">
+          <h1 className="text-3xl font-bold text-gray-900 mb-6">My Behaviour</h1>
+          <Card>
+            <CardContent className="p-6 text-center">
+              <p className="text-gray-600">{error || 'No behaviour records available yet'}</p>
+            </CardContent>
+          </Card>
+        </div>
+      )
+    }
+
+    const formatDate = (dateStr: string) => {
+      return new Date(dateStr).toLocaleDateString('en-IN', { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric' 
+      })
+    }
+
     const getRatingColor = (r: number) => r >= 4.5 ? 'text-green-600' : r >= 3.5 ? 'text-blue-600' : r >= 2.5 ? 'text-yellow-600' : 'text-red-600'
     const getRatingBg = (r: number) => r >= 4.5 ? 'bg-green-100' : r >= 3.5 ? 'bg-blue-100' : r >= 2.5 ? 'bg-yellow-100' : 'bg-red-100'
-    const getBarColor = (r: number) => r >= 4.5 ? 'bg-green-600' : r >= 3.5 ? 'bg-blue-600' : r >= 2.5 ? 'bg-yellow-500' : 'bg-red-600'
 
     return (
       <div className="p-6 max-w-7xl mx-auto">
@@ -41,40 +106,30 @@ export default function BehaviourPage() {
                 <span key={s} className={`text-3xl ${s <= behaviourData.overallRating ? 'text-yellow-400' : 'text-gray-300'}`}>★</span>
               ))}
             </div>
-          </CardContent>
-        </Card>
-        <Card className="mb-6">
-          <CardHeader><h3 className="text-xl font-semibold text-gray-900">Behaviour Categories</h3></CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {(Object.entries(behaviourData).filter(([k]) => k !== 'overallRating') as [string, number][]).map(([cat, val]) => (
-                <div key={cat}>
-                  <div className="flex justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-700 capitalize">{cat}</span>
-                    <span className="text-sm font-medium text-gray-700">{val}/5</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-3">
-                    <div className={`${getBarColor(val)} h-3 rounded-full`} style={{ width: `${(val / 5) * 100}%` }} />
-                  </div>
-                </div>
-              ))}
-            </div>
+            <p className="text-sm text-gray-600 mt-4">Based on {behaviourData.records.length} teacher {behaviourData.records.length === 1 ? 'review' : 'reviews'}</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader><h3 className="text-xl font-semibold text-gray-900">Teacher Comments</h3></CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {behaviourRecords.map((rec, i) => (
-                <div key={i} className="border-l-4 border-blue-500 pl-4 py-2">
+              {behaviourData.records.map((rec, i) => (
+                <div key={rec.id} className="border-l-4 border-blue-500 pl-4 py-2">
                   <div className="flex justify-between items-start mb-2">
                     <div>
-                      <p className="font-semibold text-gray-900">{rec.teacher}</p>
-                      <p className="text-sm text-gray-600">{rec.subject} • {rec.date}</p>
+                      <p className="font-semibold text-gray-900">{rec.teacher.full_name}</p>
+                      <p className="text-sm text-gray-600">{formatDate(rec.date)}</p>
                     </div>
-                    <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${getRatingBg(rec.rating)} ${getRatingColor(rec.rating)}`}>{rec.rating}/5</span>
+                    <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${getRatingBg(rec.rating)} ${getRatingColor(rec.rating)}`}>
+                      {rec.rating}/5
+                    </span>
                   </div>
                   <p className="text-sm text-gray-700 italic">"{rec.comment}"</p>
+                  <div className="flex mt-2">
+                    {[1,2,3,4,5].map((s) => (
+                      <span key={s} className={`text-lg ${s <= rec.rating ? 'text-yellow-400' : 'text-gray-300'}`}>★</span>
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>

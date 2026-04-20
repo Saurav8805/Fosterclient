@@ -2,51 +2,114 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import { Card, CardHeader, CardContent } from '@/components/ui/Card'
+
+interface AttendanceRecord {
+  id: string;
+  date: string;
+  status: string;
+  subject: string | null;
+}
+
+interface AttendanceStats {
+  totalDays: number;
+  present: number;
+  absent: number;
+  leave: number;
+  percentage: number;
+}
 
 export default function StudentAttendancePage() {
   const router = useRouter()
   const [userRole, setUserRole] = useState<number | null>(null)
+  const [loading, setLoading] = useState(true)
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
   const [selectedClass, setSelectedClass] = useState('Nursery')
+  
+  // Student view state
+  const [attendanceData, setAttendanceData] = useState<AttendanceStats>({
+    totalDays: 0,
+    present: 0,
+    absent: 0,
+    leave: 0,
+    percentage: 0
+  })
+  const [recentAttendance, setRecentAttendance] = useState<AttendanceRecord[]>([])
 
   useEffect(() => {
     const role = localStorage.getItem('userRole')
-    if (!role) { router.push('/login'); return }
+    const userId = localStorage.getItem('userId')
+    
+    if (!role || !userId) {
+      router.push('/login')
+      return
+    }
+    
     setUserRole(Number(role))
+    
+    // If student, fetch their attendance
+    if (Number(role) === 19) {
+      fetchStudentAttendance(userId)
+    } else {
+      setLoading(false)
+    }
   }, [router])
 
-  if (userRole === null) return <div className="flex items-center justify-center min-h-screen">Loading...</div>
+  const fetchStudentAttendance = async (userId: string) => {
+    try {
+      const response = await fetch(`/api/attendance/my-attendance?userId=${userId}`)
+      const result = await response.json()
 
-  // Student (role 19): view own attendance summary
+      if (result.success) {
+        setAttendanceData(result.data.statistics)
+        setRecentAttendance(result.data.records.slice(0, 10))
+      }
+    } catch (error) {
+      console.error('Failed to fetch attendance:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (userRole === null || loading) {
+    return <div className="flex items-center justify-center min-h-screen">Loading...</div>
+  }
+
+  // Student (role 19): view own attendance
   if (userRole === 19) {
-    const attendanceData = { totalDays: 180, present: 165, absent: 10, leave: 5, percentage: 91.67 }
-    const recentAttendance = [
-      { date: '2024-01-15', status: 'Present', subject: 'Mathematics' },
-      { date: '2024-01-14', status: 'Present', subject: 'Science' },
-      { date: '2024-01-13', status: 'Absent', subject: 'English' },
-      { date: '2024-01-12', status: 'Present', subject: 'History' },
-      { date: '2024-01-11', status: 'Present', subject: 'Geography' },
-    ]
     return (
       <div className="p-6 max-w-7xl mx-auto">
         <h1 className="text-3xl font-bold text-gray-900 mb-6">My Attendance</h1>
+        
+        {/* Attendance Summary */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-          {[
-            { label: 'Total Days', value: attendanceData.totalDays, color: 'text-gray-900' },
-            { label: 'Present', value: attendanceData.present, color: 'text-green-600' },
-            { label: 'Absent', value: attendanceData.absent, color: 'text-red-600' },
-            { label: 'Attendance %', value: `${attendanceData.percentage}%`, color: 'text-blue-600' },
-          ].map((item) => (
-            <Card key={item.label}>
-              <CardContent className="p-6 text-center">
-                <p className="text-sm text-gray-600 mb-2">{item.label}</p>
-                <p className={`text-3xl font-bold ${item.color}`}>{item.value}</p>
-              </CardContent>
-            </Card>
-          ))}
+          <Card>
+            <CardContent className="p-6 text-center">
+              <p className="text-sm text-gray-600 mb-2">Total Days</p>
+              <p className="text-3xl font-bold text-gray-900">{attendanceData.totalDays}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-6 text-center">
+              <p className="text-sm text-gray-600 mb-2">Present</p>
+              <p className="text-3xl font-bold text-green-600">{attendanceData.present}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-6 text-center">
+              <p className="text-sm text-gray-600 mb-2">Absent</p>
+              <p className="text-3xl font-bold text-red-600">{attendanceData.absent}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-6 text-center">
+              <p className="text-sm text-gray-600 mb-2">Attendance %</p>
+              <p className="text-3xl font-bold text-blue-600">{attendanceData.percentage}%</p>
+            </CardContent>
+          </Card>
         </div>
+
+        {/* Attendance Progress */}
         <Card className="mb-6">
           <CardHeader><h3 className="text-xl font-semibold text-gray-900">Attendance Overview</h3></CardHeader>
           <CardContent>
@@ -62,40 +125,55 @@ export default function StudentAttendancePage() {
                     <span className="text-sm font-medium text-gray-700">{row.count}/{attendanceData.totalDays}</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-3">
-                    <div className={`${row.color} h-3 rounded-full`} style={{ width: `${(row.count / attendanceData.totalDays) * 100}%` }} />
+                    <div 
+                      className={`${row.color} h-3 rounded-full`} 
+                      style={{ width: `${attendanceData.totalDays > 0 ? (row.count / attendanceData.totalDays) * 100 : 0}%` }} 
+                    />
                   </div>
                 </div>
               ))}
             </div>
           </CardContent>
         </Card>
+
+        {/* Recent Attendance */}
         <Card>
           <CardHeader><h3 className="text-xl font-semibold text-gray-900">Recent Attendance</h3></CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Date</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Subject</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recentAttendance.map((record, index) => (
-                    <tr key={index} className="border-b hover:bg-gray-50">
-                      <td className="py-3 px-4 text-sm text-gray-900">{record.date}</td>
-                      <td className="py-3 px-4 text-sm text-gray-900">{record.subject}</td>
-                      <td className="py-3 px-4">
-                        <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${record.status === 'Present' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                          {record.status}
-                        </span>
-                      </td>
+            {recentAttendance.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Date</th>
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Subject</th>
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Status</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {recentAttendance.map((record) => (
+                      <tr key={record.id} className="border-b hover:bg-gray-50">
+                        <td className="py-3 px-4 text-sm text-gray-900">
+                          {new Date(record.date).toLocaleDateString('en-IN')}
+                        </td>
+                        <td className="py-3 px-4 text-sm text-gray-900">{record.subject || 'General Activities'}</td>
+                        <td className="py-3 px-4">
+                          <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${
+                            record.status === 'Present' ? 'bg-green-100 text-green-800' : 
+                            record.status === 'Leave' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-red-100 text-red-800'
+                          }`}>
+                            {record.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-center text-gray-500 py-8">No attendance records found</p>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -108,9 +186,10 @@ export default function StudentAttendancePage() {
     { id: 2, rollNo: '002', name: 'Bob Williams' },
     { id: 3, rollNo: '003', name: 'Carol Smith' },
   ]
+  
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-gray-50 px-6 pt-6 pb-2">
+    <div className="min-h-screen bg-white">
+      <div className="px-6 pt-6 pb-2">
         <div className="max-w-6xl mx-auto">
           <h1 className="text-3xl font-bold text-gray-900">Student Attendance</h1>
         </div>
@@ -164,7 +243,7 @@ export default function StudentAttendancePage() {
             </table>
           </div>
           <div className="p-6 border-t">
-            <button className="bg-[#5e3a9e] text-white px-6 py-2 rounded-lg hover:bg-[#4a2d7e] transition">Submit Attendance</button>
+            <button className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition">Submit Attendance</button>
           </div>
         </div>
       </div>

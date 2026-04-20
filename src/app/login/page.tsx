@@ -11,36 +11,39 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const router = useRouter()
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
 
-    // Admin login - Role Flag 8
-    if (mobile === '67890' && password === 'foster@123') {
-      localStorage.setItem('userMobile', mobile)
-      localStorage.setItem('userRole', '8')
-      router.push('/dashboard/profile')
-      return
-    }
+    try {
+      // Call login API
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ mobile, password }),
+      })
 
-    // Faculty login - Role Flag 6
-    if (mobile === '8805' && password === 'foster@123') {
-      localStorage.setItem('userMobile', mobile)
-      localStorage.setItem('userRole', '6')
-      router.push('/dashboard/profile')
-      return
-    }
+      const data = await response.json()
 
-    // Student login - Role Flag 19
-    if (mobile === '12345' && password === 'default123') {
-      localStorage.setItem('userMobile', mobile)
-      localStorage.setItem('userRole', '19')
-      router.push('/dashboard/profile')
-      return
-    }
+      if (!response.ok) {
+        setError(data.error || 'Login failed')
+        return
+      }
 
-    // Invalid credentials
-    setError('Invalid mobile number or password')
+      // Store user data in localStorage
+      localStorage.setItem('userId', data.user.id)
+      localStorage.setItem('userMobile', data.user.mobile)
+      localStorage.setItem('userRole', data.user.role.toString())
+      localStorage.setItem('userName', data.user.full_name || data.user.mobile)
+
+      // Redirect to dashboard
+      router.push('/dashboard/profile')
+    } catch (error) {
+      console.error('Login error:', error)
+      setError('An error occurred. Please try again.')
+    }
   }
 
   return (

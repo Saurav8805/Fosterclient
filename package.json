@@ -9,19 +9,36 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@supabase/auth-helpers-nextjs": "^0.15.0",
+    "@supabase/supabase-js": "^2.104.0",
+    "bcryptjs": "^3.0.3",
+    "next": "14.0.0",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "next": "14.0.0"
+    "react-dom": "^18.2.0"
   },
   "devDependencies": {
-    "typescript": "^5.2.2",
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20.0.0",
     "@types/react": "^18.2.43",
     "@types/react-dom": "^18.2.17",
-    "postcss": "^8.5.9",
-    "tailwindcss": "^3.4.19",
     "autoprefixer": "^10.4.27",
     "eslint": "^8.0.0",
-    "eslint-config-next": "14.0.0"
-  }
+    "eslint-config-next": "14.0.0",
+    "postcss": "^8.5.9",
+    "tailwindcss": "^3.4.19",
+    "typescript": "^5.2.2"
+  },
+  "description": "",
+  "main": "next.config.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Saurav8805/Fosterclient.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Saurav8805/Fosterclient/issues"
+  },
+  "homepage": "https://github.com/Saurav8805/Fosterclient#readme"
 }
