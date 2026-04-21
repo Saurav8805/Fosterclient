@@ -45,6 +45,7 @@ export interface Database {
         Row: {
           id: string
           user_id: string
+          teacher_id: string | null
           class: string | null
           section: string | null
           roll_no: string | null
@@ -60,6 +61,7 @@ export interface Database {
         Insert: {
           id?: string
           user_id: string
+          teacher_id?: string | null
           class?: string | null
           section?: string | null
           roll_no?: string | null
@@ -75,6 +77,7 @@ export interface Database {
         Update: {
           id?: string
           user_id?: string
+          teacher_id?: string | null
           class?: string | null
           section?: string | null
           roll_no?: string | null

@@ -204,58 +204,261 @@ export default function ReportsPage() {
     )
   }
 
-  // Faculty (role 6) and Admin (role 8): all student reports
-  const reports = [
-    { id: 1, student: 'Alice Johnson', class: 'Nursery', term: 'Term 1', grade: 'A', percentage: 92 },
-    { id: 2, student: 'Bob Williams', class: 'LKG', term: 'Term 1', grade: 'B+', percentage: 85 },
-  ]
+  // Faculty (role 6) and Admin (role 8): manage student progress
+  const [students, setStudents] = useState<any[]>([])
+  const [showModal, setShowModal] = useState(false)
+  const [selectedStudent, setSelectedStudent] = useState<any>(null)
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
+  const [formData, setFormData] = useState({
+    subject: '',
+    marks: '',
+    totalMarks: ''
+  })
+
+  useEffect(() => {
+    if (userRole === 6 || userRole === 8) {
+      fetchStudents()
+    }
+  }, [userRole])
+
+  const fetchStudents = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch('/api/progress/add')
+      const result = await response.json()
+
+      if (result.success) {
+        setStudents(result.data)
+      }
+    } catch (err) {
+      console.error('Error fetching students:', err)
+      setMessage({ type: 'error', text: 'Failed to load students' })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleAddMarks = (student: any) => {
+    setSelectedStudent(student)
+    setFormData({
+      subject: '',
+      marks: '',
+      totalMarks: ''
+    })
+    setShowModal(true)
+    setMessage(null)
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedStudent) return
+
+    setSaving(true)
+    setMessage(null)
+
+    try {
+      const response = await fetch('/api/progress/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          studentId: selectedStudent.id,
+          subject: formData.subject,
+          marks: parseFloat(formData.marks),
+          totalMarks: parseFloat(formData.totalMarks)
+        })
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        setMessage({ type: 'success', text: result.message })
+        setShowModal(false)
+        fetchStudents()
+      } else {
+        setMessage({ type: 'error', text: result.error || 'Failed to add marks' })
+      }
+    } catch (error) {
+      console.error('Failed to add marks:', error)
+      setMessage({ type: 'error', text: 'Failed to add marks. Please try again.' })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (loading) return <div className="flex items-center justify-center min-h-screen">Loading...</div>
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-gray-50 px-6 pt-6 pb-2">
-        <div className="max-w-6xl mx-auto">
-          <h1 className="text-3xl font-bold text-gray-900">Progress & Report Cards</h1>
+    <div className="p-6 max-w-7xl mx-auto">
+      <h1 className="text-3xl font-bold text-gray-900 mb-6">Progress & Report Cards</h1>
+
+      {message && (
+        <div className={`mb-6 p-4 rounded-lg ${
+          message.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 
+          'bg-red-50 text-red-800 border border-red-200'
+        }`}>
+          {message.text}
         </div>
-      </div>
-      <div className="max-w-6xl mx-auto p-6">
-        <div className="bg-white rounded-lg shadow-sm border">
-          <div className="p-6 border-b flex justify-between items-center">
-            <h2 className="text-xl font-semibold">Student Reports</h2>
-            <button className="bg-[#5e3a9e] text-white px-4 py-2 rounded-lg hover:bg-[#4a2d7e] transition">Generate Report</button>
-          </div>
+      )}
+
+      <Card>
+        <CardHeader>
+          <h3 className="text-xl font-semibold text-gray-900">Student Reports</h3>
+        </CardHeader>
+        <CardContent>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Student</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Class</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Term</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Grade</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Percentage</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Roll No</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Avg %</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Subjects</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {reports.map((rep) => (
-                  <tr key={rep.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 text-sm text-gray-900">{rep.student}</td>
-                    <td className="px-6 py-4 text-sm text-gray-900">{rep.class}</td>
-                    <td className="px-6 py-4 text-sm text-gray-900">{rep.term}</td>
-                    <td className="px-6 py-4">
-                      <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">{rep.grade}</span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-900">{rep.percentage}%</td>
-                    <td className="px-6 py-4 text-sm">
-                      <button className="text-[#5e3a9e] hover:underline mr-3">View</button>
-                      <button className="text-[#5e3a9e] hover:underline mr-3">Download</button>
-                      <button className="text-[#5e3a9e] hover:underline">Print</button>
+                {students.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                      No students found
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  students.map((student) => {
+                    const avgPercentage = student.averagePercentage || 0
+                    const gradeColor = avgPercentage >= 80 ? 'bg-green-100 text-green-800' :
+                                      avgPercentage >= 60 ? 'bg-blue-100 text-blue-800' :
+                                      avgPercentage >= 40 ? 'bg-yellow-100 text-yellow-800' :
+                                      'bg-red-100 text-red-800'
+                    return (
+                      <tr key={student.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 text-sm text-gray-900">{student.user?.full_name || 'N/A'}</td>
+                        <td className="px-6 py-4 text-sm text-gray-900">{student.class || 'N/A'}</td>
+                        <td className="px-6 py-4 text-sm text-gray-900">{student.roll_no || 'N/A'}</td>
+                        <td className="px-6 py-4">
+                          {avgPercentage > 0 ? (
+                            <span className={`px-2 py-1 text-xs rounded-full font-semibold ${gradeColor}`}>
+                              {avgPercentage.toFixed(1)}%
+                            </span>
+                          ) : (
+                            <span className="text-sm text-gray-500">N/A</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-900">
+                          {student.progress?.length || 0}
+                        </td>
+                        <td className="px-6 py-4 text-sm">
+                          <button 
+                            onClick={() => handleAddMarks(student)}
+                            className="text-blue-600 hover:text-blue-800 font-medium"
+                          >
+                            Add Marks
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })
+                )}
               </tbody>
             </table>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Modal */}
+      {showModal && selectedStudent && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="p-6 border-b">
+              <h3 className="text-xl font-semibold text-gray-900">Add Marks</h3>
+              <p className="text-sm text-gray-600 mt-1">
+                Student: {selectedStudent.user?.full_name} ({selectedStudent.class})
+              </p>
+            </div>
+            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Subject
+                </label>
+                <select
+                  value={formData.subject}
+                  onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select Subject</option>
+                  <option value="English">English</option>
+                  <option value="Mathematics">Mathematics</option>
+                  <option value="Science">Science</option>
+                  <option value="Social Studies">Social Studies</option>
+                  <option value="Hindi">Hindi</option>
+                  <option value="Art & Craft">Art & Craft</option>
+                  <option value="Physical Education">Physical Education</option>
+                  <option value="Music">Music</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Marks Obtained
+                </label>
+                <input
+                  type="number"
+                  value={formData.marks}
+                  onChange={(e) => setFormData({ ...formData, marks: e.target.value })}
+                  placeholder="e.g., 85"
+                  required
+                  min="0"
+                  step="0.01"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Total Marks
+                </label>
+                <input
+                  type="number"
+                  value={formData.totalMarks}
+                  onChange={(e) => setFormData({ ...formData, totalMarks: e.target.value })}
+                  placeholder="e.g., 100"
+                  required
+                  min="1"
+                  step="0.01"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              {formData.marks && formData.totalMarks && (
+                <div className="bg-blue-50 p-3 rounded-lg">
+                  <p className="text-sm text-gray-700">
+                    Percentage: <span className="font-semibold text-blue-600">
+                      {((parseFloat(formData.marks) / parseFloat(formData.totalMarks)) * 100).toFixed(2)}%
+                    </span>
+                  </p>
+                </div>
+              )}
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  disabled={saving}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+                >
+                  {saving ? 'Saving...' : 'Save Marks'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }

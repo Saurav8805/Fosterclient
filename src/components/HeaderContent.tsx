@@ -8,10 +8,17 @@ export default function HeaderContent() {
   const [userRole, setUserRole] = useState<number | null>(null);
 
   useEffect(() => {
+    const name = localStorage.getItem('userName');
     const mobile = localStorage.getItem('userMobile');
     const role = localStorage.getItem('userRole');
     
-    if (mobile) setUserName(mobile);
+    // Use full name if available, otherwise use mobile
+    if (name) {
+      setUserName(name);
+    } else if (mobile) {
+      setUserName(mobile);
+    }
+    
     if (role) setUserRole(Number(role));
   }, []);
 
