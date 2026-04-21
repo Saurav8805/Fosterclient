@@ -34,7 +34,14 @@ export async function GET(request: NextRequest) {
       // Student
       const { data: studentData } = await supabase
         .from('students')
-        .select('*')
+        .select(`
+          *,
+          teacher:teacher_id (
+            id,
+            full_name,
+            mobile
+          )
+        `)
         .eq('user_id', userId)
         .single();
       additionalData = studentData;
