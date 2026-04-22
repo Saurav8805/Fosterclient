@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
           full_name
         )
       `)
-      .order('created_at', { ascending: false });
+      .order('roll_no', { ascending: true, nullsFirst: false });
 
     if (error) {
       console.error('Students fetch error:', error);

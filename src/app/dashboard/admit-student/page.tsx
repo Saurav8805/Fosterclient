@@ -70,6 +70,27 @@ export default function AdmitStudentPage() {
           credentials: result.data.credentials
         })
         
+        // Trigger refresh in student list page
+        // Method 1: Custom event
+        window.dispatchEvent(new Event('studentAdmitted'))
+        
+        // Method 2: LocalStorage event (works across tabs)
+        localStorage.setItem('studentListRefresh', Date.now().toString())
+        setTimeout(() => {
+          localStorage.removeItem('studentListRefresh')
+        }, 1000)
+        
+        // Method 3: Broadcast Channel API (modern browsers)
+        try {
+          const channel = new BroadcastChannel('student_updates')
+          channel.postMessage({ type: 'STUDENT_ADMITTED', timestamp: Date.now() })
+          channel.close()
+        } catch (e) {
+          console.log('BroadcastChannel not supported')
+        }
+        
+        console.log('Student admitted, refresh signals sent!')
+        
         // Reset form
         setFormData({
           studentName: '',
@@ -250,11 +271,13 @@ export default function AdmitStudentPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Roll Number</label>
                 <input 
-                  type="text" 
+                  type="number" 
+                  min="1"
+                  step="1"
                   className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={formData.rollNo}
                   onChange={(e) => setFormData({...formData, rollNo: e.target.value})}
-                  placeholder="e.g., 001"
+                  placeholder="e.g., 1"
                 />
               </div>
 
@@ -407,7 +430,7 @@ export default function AdmitStudentPage() {
             {/* Info Note */}
             <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-sm text-blue-800">
-                <span className="font-semibold">Note:</span> Default password will be <span className="font-mono font-bold">default123</span>. 
+                <span className="font-semibold">Note:</span> Default password will be <span className="font-mono font-bold">{process.env.DEFAULT_STUDENT_PASSWORD || 'default123'}</span>. 
                 The mobile number will be used as the login ID.
               </p>
             </div>

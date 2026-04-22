@@ -22,11 +22,25 @@ interface ProgressData {
 
 export default function ReportsPage() {
   const router = useRouter()
+  
+  // All hooks must be declared at the top level - before any conditional logic
   const [userRole, setUserRole] = useState<number | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [progressData, setProgressData] = useState<ProgressData | null>(null)
   const [error, setError] = useState<string | null>(null)
+  
+  // Admin/Faculty hooks - must be declared at top level even if not always used
+  const [students, setStudents] = useState<any[]>([])
+  const [showModal, setShowModal] = useState(false)
+  const [selectedStudent, setSelectedStudent] = useState<any>(null)
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
+  const [formData, setFormData] = useState({
+    subject: '',
+    marks: '',
+    totalMarks: ''
+  })
 
   useEffect(() => {
     const role = localStorage.getItem('userRole')
@@ -42,6 +56,8 @@ export default function ReportsPage() {
   useEffect(() => {
     if (userRole === 19 && userId) {
       fetchProgressData()
+    } else if (userRole === 6 || userRole === 8) {
+      fetchStudents()
     } else if (userRole !== null) {
       setLoading(false)
     }
@@ -63,6 +79,70 @@ export default function ReportsPage() {
       setError('Failed to load progress data')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchStudents = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch('/api/progress/add')
+      const result = await response.json()
+
+      if (result.success) {
+        setStudents(result.data)
+      }
+    } catch (err) {
+      console.error('Error fetching students:', err)
+      setMessage({ type: 'error', text: 'Failed to load students' })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleAddMarks = (student: any) => {
+    setSelectedStudent(student)
+    setFormData({
+      subject: '',
+      marks: '',
+      totalMarks: ''
+    })
+    setShowModal(true)
+    setMessage(null)
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedStudent) return
+
+    setSaving(true)
+    setMessage(null)
+
+    try {
+      const response = await fetch('/api/progress/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          studentId: selectedStudent.id,
+          subject: formData.subject,
+          marks: parseFloat(formData.marks),
+          totalMarks: parseFloat(formData.totalMarks)
+        })
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        setMessage({ type: 'success', text: result.message })
+        setShowModal(false)
+        fetchStudents()
+      } else {
+        setMessage({ type: 'error', text: result.error || 'Failed to add marks' })
+      }
+    } catch (error) {
+      console.error('Failed to add marks:', error)
+      setMessage({ type: 'error', text: 'Failed to add marks. Please try again.' })
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -205,87 +285,6 @@ export default function ReportsPage() {
   }
 
   // Faculty (role 6) and Admin (role 8): manage student progress
-  const [students, setStudents] = useState<any[]>([])
-  const [showModal, setShowModal] = useState(false)
-  const [selectedStudent, setSelectedStudent] = useState<any>(null)
-  const [saving, setSaving] = useState(false)
-  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
-  const [formData, setFormData] = useState({
-    subject: '',
-    marks: '',
-    totalMarks: ''
-  })
-
-  useEffect(() => {
-    if (userRole === 6 || userRole === 8) {
-      fetchStudents()
-    }
-  }, [userRole])
-
-  const fetchStudents = async () => {
-    try {
-      setLoading(true)
-      const response = await fetch('/api/progress/add')
-      const result = await response.json()
-
-      if (result.success) {
-        setStudents(result.data)
-      }
-    } catch (err) {
-      console.error('Error fetching students:', err)
-      setMessage({ type: 'error', text: 'Failed to load students' })
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleAddMarks = (student: any) => {
-    setSelectedStudent(student)
-    setFormData({
-      subject: '',
-      marks: '',
-      totalMarks: ''
-    })
-    setShowModal(true)
-    setMessage(null)
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!selectedStudent) return
-
-    setSaving(true)
-    setMessage(null)
-
-    try {
-      const response = await fetch('/api/progress/add', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          studentId: selectedStudent.id,
-          subject: formData.subject,
-          marks: parseFloat(formData.marks),
-          totalMarks: parseFloat(formData.totalMarks)
-        })
-      })
-
-      const result = await response.json()
-
-      if (result.success) {
-        setMessage({ type: 'success', text: result.message })
-        setShowModal(false)
-        fetchStudents()
-      } else {
-        setMessage({ type: 'error', text: result.error || 'Failed to add marks' })
-      }
-    } catch (error) {
-      console.error('Failed to add marks:', error)
-      setMessage({ type: 'error', text: 'Failed to add marks. Please try again.' })
-    } finally {
-      setSaving(false)
-    }
-  }
-
   if (loading) return <div className="flex items-center justify-center min-h-screen">Loading...</div>
 
   return (

@@ -9,19 +9,11 @@ export async function PUT(request: NextRequest) {
       studentId,
       userId,
       fullName,
-      email,
       mobile,
-      dob,
-      bloodGroup,
-      emergencyContact,
       class: studentClass,
       section,
       rollNo,
-      teacherId,
-      address,
-      city,
-      state,
-      pincode
+      teacherId
     } = body;
 
     // Validate required fields
@@ -54,7 +46,6 @@ export async function PUT(request: NextRequest) {
       .from('users')
       .update({
         full_name: fullName,
-        email: email || null,
         mobile: mobile,
         updated_at: new Date().toISOString()
       })
@@ -68,50 +59,37 @@ export async function PUT(request: NextRequest) {
       );
     }
 
+    // Convert rollNo to integer
+    let rollNoValue = null;
+    if (rollNo !== null && rollNo !== undefined && rollNo !== '') {
+      const parsed = parseInt(rollNo, 10);
+      rollNoValue = isNaN(parsed) ? null : parsed;
+    }
+    
     // Update student data
     const studentUpdateData = {
       teacher_id: teacherId || null,
       class: studentClass,
       section: section,
-      roll_no: rollNo || null,
-      dob: dob || null,
-      blood_group: bloodGroup || null,
-      address: address || null,
-      city: city || null,
-      state: state || null,
-      pincode: pincode || null,
-      emergency_contact: emergencyContact || null
+      roll_no: rollNoValue
     };
 
-    console.log('Updating student with data:', {
-      studentId,
-      teacherId,
-      rollNo,
-      studentUpdateData
-    });
-
-    const { data: updatedStudent, error: studentError } = await supabase
+    const { error: studentError } = await supabase
       .from('students')
       .update(studentUpdateData)
-      .eq('id', studentId)
-      .select();
+      .eq('id', studentId);
 
     if (studentError) {
       console.error('Student update error:', studentError);
       return NextResponse.json(
-        { error: 'Failed to update student data', details: studentError.message },
+        { error: 'Failed to update student data' },
         { status: 500 }
       );
     }
 
-    console.log('Student updated successfully:', updatedStudent);
-    console.log('Updated teacher_id:', updatedStudent?.[0]?.teacher_id);
-    console.log('Updated roll_no:', updatedStudent?.[0]?.roll_no);
-
     return NextResponse.json({
       success: true,
-      message: 'Student updated successfully',
-      data: updatedStudent?.[0]
+      message: 'Student updated successfully'
     });
 
   } catch (error) {

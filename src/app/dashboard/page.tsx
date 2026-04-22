@@ -9,19 +9,59 @@ export default function DashboardPage() {
   const [userRole, setUserRole] = useState<number | null>(null)
   const [userName, setUserName] = useState('')
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [stats, setStats] = useState({
+    totalStudents: 0,
+    totalStaff: 0,
+    totalClasses: 3, // Nursery, LKG, UKG
+    revenue: 0
+  })
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const mobile = localStorage.getItem('userMobile')
     const role = localStorage.getItem('userRole')
+    const name = localStorage.getItem('userName')
     
     if (!mobile || !role) {
       router.push('/login')
       return
     }
 
-    // Redirect to profile page by default
-    router.push('/dashboard/profile')
+    setUserRole(Number(role))
+    setUserName(name || 'User')
+    
+    // Fetch stats for admin and faculty
+    if (Number(role) === 8 || Number(role) === 6) {
+      fetchStats()
+    } else {
+      setLoading(false)
+    }
   }, [router])
+
+  const fetchStats = async () => {
+    try {
+      setLoading(true)
+      
+      // Fetch students count
+      const studentsRes = await fetch('/api/students/list')
+      const studentsData = await studentsRes.json()
+      
+      // Fetch staff count
+      const staffRes = await fetch('/api/staff/add')
+      const staffData = await staffRes.json()
+      
+      setStats({
+        totalStudents: studentsData.success ? studentsData.data.length : 0,
+        totalStaff: staffData.success ? staffData.data.length : 0,
+        totalClasses: 3,
+        revenue: 0
+      })
+    } catch (error) {
+      console.error('Failed to fetch stats:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleLogout = () => {
     localStorage.removeItem('userMobile')
@@ -158,7 +198,9 @@ export default function DashboardPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-600">Total Students</p>
-                      <p className="text-3xl font-bold text-blue-600 mt-2">0</p>
+                      <p className="text-3xl font-bold text-blue-600 mt-2">
+                        {loading ? '...' : stats.totalStudents}
+                      </p>
                     </div>
                     <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
                       <span className="text-2xl">👨‍🎓</span>
@@ -170,7 +212,9 @@ export default function DashboardPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-600">Total Staff</p>
-                      <p className="text-3xl font-bold text-green-600 mt-2">0</p>
+                      <p className="text-3xl font-bold text-green-600 mt-2">
+                        {loading ? '...' : stats.totalStaff}
+                      </p>
                     </div>
                     <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
                       <span className="text-2xl">👥</span>
@@ -182,7 +226,7 @@ export default function DashboardPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-600">Total Classes</p>
-                      <p className="text-3xl font-bold text-orange-600 mt-2">0</p>
+                      <p className="text-3xl font-bold text-orange-600 mt-2">{stats.totalClasses}</p>
                     </div>
                     <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
                       <span className="text-2xl">🏫</span>
@@ -194,7 +238,7 @@ export default function DashboardPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-600">Revenue</p>
-                      <p className="text-3xl font-bold text-indigo-600 mt-2">₹0</p>
+                      <p className="text-3xl font-bold text-indigo-600 mt-2">₹{stats.revenue}</p>
                     </div>
                     <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center">
                       <span className="text-2xl">💰</span>
@@ -259,15 +303,19 @@ export default function DashboardPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-white p-6 rounded-lg shadow-sm border">
                   <h3 className="text-lg font-semibold text-gray-800 mb-2">My Classes</h3>
-                  <p className="text-3xl font-bold text-blue-600">0</p>
+                  <p className="text-3xl font-bold text-blue-600">{stats.totalClasses}</p>
                 </div>
                 <div className="bg-white p-6 rounded-lg shadow-sm border">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-2">My Students</h3>
-                  <p className="text-3xl font-bold text-green-600">0</p>
+                  <h3 className="text-lg font-semibold text-gray-800 mb-2">Total Students</h3>
+                  <p className="text-3xl font-bold text-green-600">
+                    {loading ? '...' : stats.totalStudents}
+                  </p>
                 </div>
                 <div className="bg-white p-6 rounded-lg shadow-sm border">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-2">Pending Homework</h3>
-                  <p className="text-3xl font-bold text-orange-600">0</p>
+                  <h3 className="text-lg font-semibold text-gray-800 mb-2">Total Staff</h3>
+                  <p className="text-3xl font-bold text-orange-600">
+                    {loading ? '...' : stats.totalStaff}
+                  </p>
                 </div>
               </div>
             </div>
