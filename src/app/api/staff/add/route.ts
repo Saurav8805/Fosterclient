@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import bcrypt from 'bcryptjs';
+import { getDefaultPassword } from '@/lib/config/auth';
 
 // POST - Add a new staff member
 export async function POST(request: NextRequest) {
@@ -43,8 +44,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate default password (foster@123)
-    const defaultPassword = 'foster@123';
+    // Generate default password from config
+    const defaultPassword = getDefaultPassword(6); // 6 = Faculty role
     const passwordHash = await bcrypt.hash(defaultPassword, 10);
 
     // Create user account with Faculty role (6)

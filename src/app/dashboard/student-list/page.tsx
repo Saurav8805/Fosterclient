@@ -7,42 +7,34 @@ import { Card, CardHeader, CardContent } from '@/components/ui/Card'
 export default function StudentListPage() {
   const router = useRouter()
   const [userRole, setUserRole] = useState<number | null>(null)
-  const [userId, setUserId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
   const [students, setStudents] = useState<any[]>([])
   const [teachers, setTeachers] = useState<any[]>([])
+  const [classes, setClasses] = useState<string[]>([])
+  const [sections, setSections] = useState<string[]>([])
   const [selectedClass, setSelectedClass] = useState('All')
   const [showModal, setShowModal] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [selectedStudent, setSelectedStudent] = useState<any>(null)
   const [saving, setSaving] = useState(false)
-  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [message, setMessage] = useState('')
   const [formData, setFormData] = useState({
     fullName: '',
-    email: '',
     mobile: '',
-    dob: '',
-    bloodGroup: '',
-    emergencyContact: '',
     class: '',
     section: '',
     rollNo: '',
-    teacherId: '',
-    address: '',
-    city: '',
-    state: '',
-    pincode: ''
+    teacherId: ''
   })
 
   useEffect(() => {
     const role = localStorage.getItem('userRole')
-    const id = localStorage.getItem('userId')
-    if (!role || !id) { 
+    if (!role) { 
       router.push('/login')
       return 
     }
     setUserRole(Number(role))
-    setUserId(id)
     
     // Only admin and faculty can access
     if (Number(role) !== 6 && Number(role) !== 8) {
@@ -52,35 +44,102 @@ export default function StudentListPage() {
     
     fetchStudents()
     fetchTeachers()
+    fetchClasses()
+    fetchSections()
   }, [router])
+
+  // Enhanced event listeners for real-time updates
+  useEffect(() => {
+    const handleUpdate = () => {
+      console.log('Student list update triggered')
+      fetchStudents()
+    }
+
+    // Method 1: Custom window event
+    window.addEventListener('studentAdmitted', handleUpdate)
+    window.addEventListener('forceStudentRefresh', handleUpdate)
+    window.addEventListener('studentDeleted', handleUpdate)
+    
+    // Method 2: BroadcastChannel API (works across tabs)
+    let channel: BroadcastChannel | null = null
+    try {
+      channel = new BroadcastChannel('student_updates')
+      channel.addEventListener('message', (event) => {
+        if (event.data.type === 'STUDENT_ADMITTED' || event.data.type === 'STUDENT_DELETED') {
+          console.log('BroadcastChannel: Student list update')
+          handleUpdate()
+        }
+      })
+    } catch (e) {
+      console.log('BroadcastChannel not supported')
+    }
+
+    // Method 3: LocalStorage event (cross-tab)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'studentListRefresh') {
+        console.log('LocalStorage: Student list refresh triggered')
+        handleUpdate()
+      }
+    }
+    window.addEventListener('storage', handleStorageChange)
+
+    // Method 4: Visibility change (when user switches back to tab)
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        console.log('Tab became visible, refreshing student list')
+        handleUpdate()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('studentAdmitted', handleUpdate)
+      window.removeEventListener('forceStudentRefresh', handleUpdate)
+      window.removeEventListener('studentDeleted', handleUpdate)
+      window.removeEventListener('storage', handleStorageChange)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      if (channel) {
+        channel.close()
+      }
+    }
+  }, [])
 
   const fetchStudents = async () => {
     try {
-      if (!loading) setRefreshing(true) // Show refreshing indicator if not initial load
       setLoading(true)
-      const response = await fetch('/api/students/list')
+      console.log('Fetching students from API...')
+      
+      const response = await fetch('/api/students/list', {
+        cache: 'no-store', // Prevent caching
+        headers: {
+          'Cache-Control': 'no-cache',
+        }
+      })
       const result = await response.json()
-
-      console.log('Fetched students:', result);
-
+      
+      console.log('Students API response:', { 
+        success: result.success, 
+        count: result.count,
+        timestamp: result.timestamp 
+      })
+      
       if (result.success) {
         setStudents(result.data)
-        console.log('Students set, count:', result.data.length);
-        // Log first student's teacher info
-        if (result.data.length > 0) {
-          console.log('First student teacher info:', {
-            student: result.data[0].user?.full_name,
-            teacher_id: result.data[0].teacher_id,
-            teacher: result.data[0].teacher
-          });
+        if (!result.serviceKeyConfigured) {
+          setMessage('⚠️ Service role key not configured. Some features may be limited. Please check SETUP-SERVICE-KEY.md for setup instructions.')
+        } else {
+          setMessage('')
         }
+      } else {
+        console.error('Failed to fetch students:', result.error)
+        setMessage(`Error: ${result.error}`)
       }
     } catch (err) {
-      console.error('Error fetching students:', err)
-      setMessage({ type: 'error', text: 'Failed to load students' })
+      console.error('Network error:', err)
+      setMessage('Failed to load students - network error')
     } finally {
       setLoading(false)
-      setRefreshing(false)
     }
   }
 
@@ -88,7 +147,6 @@ export default function StudentListPage() {
     try {
       const response = await fetch('/api/students/teachers')
       const result = await response.json()
-
       if (result.success) {
         setTeachers(result.data)
       }
@@ -97,36 +155,110 @@ export default function StudentListPage() {
     }
   }
 
+  const fetchClasses = async () => {
+    try {
+      const response = await fetch('/api/config/classes')
+      const result = await response.json()
+      if (result.success) {
+        setClasses(['All', ...result.data])
+      }
+    } catch (err) {
+      console.error('Error fetching classes:', err)
+      setClasses(['All', 'Nursery', 'LKG', 'UKG']) // Fallback
+    }
+  }
+
+  const fetchSections = async () => {
+    try {
+      const response = await fetch('/api/config/sections')
+      const result = await response.json()
+      if (result.success) {
+        setSections(result.data)
+      }
+    } catch (err) {
+      console.error('Error fetching sections:', err)
+      setSections(['A', 'B', 'C']) // Fallback
+    }
+  }
+
   const handleEdit = (student: any) => {
     setSelectedStudent(student)
     setFormData({
       fullName: student.user?.full_name || '',
-      email: student.user?.email || '',
       mobile: student.user?.mobile || '',
-      dob: student.dob || '',
-      bloodGroup: student.blood_group || '',
-      emergencyContact: student.emergency_contact || '',
       class: student.class || '',
       section: student.section || '',
-      rollNo: student.roll_no || '',
-      teacherId: student.teacher_id || '',
-      address: student.address || '',
-      city: student.city || '',
-      state: student.state || '',
-      pincode: student.pincode || ''
+      rollNo: student.roll_no ? String(student.roll_no) : '',
+      teacherId: student.teacher_id || ''
     })
     setShowModal(true)
-    setMessage(null)
+    setMessage('')
+  }
+
+  const handleDelete = (student: any) => {
+    setSelectedStudent(student)
+    setShowDeleteModal(true)
+    setMessage('')
+  }
+
+  const confirmDelete = async () => {
+    if (!selectedStudent) return
+
+    setDeleting(true)
+    setMessage('')
+
+    try {
+      console.log('🗑️ Deleting student:', selectedStudent.user?.full_name)
+      
+      const response = await fetch(`/api/students/delete?studentId=${selectedStudent.id}&userId=${selectedStudent.user_id}`, {
+        method: 'DELETE'
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        setMessage('✅ Student deleted successfully!')
+        
+        // Refresh the student list
+        await fetchStudents()
+        
+        // Send refresh signals to other tabs/components
+        window.dispatchEvent(new CustomEvent('studentDeleted', { 
+          detail: { deletedStudent: selectedStudent.user?.full_name } 
+        }))
+        
+        // BroadcastChannel for cross-tab updates
+        try {
+          const channel = new BroadcastChannel('student_updates')
+          channel.postMessage({ 
+            type: 'STUDENT_DELETED', 
+            timestamp: Date.now(),
+            studentName: selectedStudent.user?.full_name 
+          })
+          channel.close()
+        } catch (e) {
+          console.log('BroadcastChannel not supported')
+        }
+        
+        setShowDeleteModal(false)
+        setTimeout(() => setMessage(''), 3000)
+      } else {
+        setMessage(`❌ Error: ${result.error}`)
+      }
+    } catch (error) {
+      console.error('Delete error:', error)
+      setMessage('❌ Failed to delete student. Please try again.')
+    } finally {
+      setDeleting(false)
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedStudent) return
 
-    console.log('Submitting update with teacherId:', formData.teacherId);
-
     setSaving(true)
-    setMessage(null)
+    setMessage('')
 
     try {
       const response = await fetch('/api/students/update', {
@@ -140,21 +272,19 @@ export default function StudentListPage() {
       })
 
       const result = await response.json()
-      console.log('Update response:', result);
 
       if (result.success) {
-        setMessage({ type: 'success', text: 'Student updated successfully!' })
-        setShowModal(false)
-        // Wait a moment before refreshing to ensure database is updated
-        await new Promise(resolve => setTimeout(resolve, 500))
-        await fetchStudents() // Refresh the list
-        console.log('Students list refreshed');
+        setMessage('Student updated successfully!')
+        fetchStudents() // Refresh the list
+        setTimeout(() => {
+          setShowModal(false)
+          setMessage('')
+        }, 1500)
       } else {
-        setMessage({ type: 'error', text: result.error || 'Failed to update student' })
+        setMessage(result.error || 'Failed to update student')
       }
     } catch (error) {
-      console.error('Failed to update student:', error)
-      setMessage({ type: 'error', text: 'Failed to update student. Please try again.' })
+      setMessage('Failed to update student. Please try again.')
     } finally {
       setSaving(false)
     }
@@ -162,7 +292,6 @@ export default function StudentListPage() {
 
   if (loading) return <div className="flex items-center justify-center min-h-screen">Loading...</div>
 
-  const classes = ['All', 'Nursery', 'LKG', 'UKG']
   const filtered = selectedClass === 'All'
     ? students
     : students.filter(s => s.class === selectedClass)
@@ -171,43 +300,51 @@ export default function StudentListPage() {
     <div className="p-6 max-w-7xl mx-auto">
       <h1 className="text-3xl font-bold text-gray-900 mb-6">Student List</h1>
 
-      {refreshing && (
-        <div className="mb-4 p-3 bg-blue-50 text-blue-800 border border-blue-200 rounded-lg flex items-center gap-2">
-          <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-          Refreshing student list...
-        </div>
-      )}
-
-      {message && !showModal && (
-        <div className={`mb-6 p-4 rounded-lg ${
-          message.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 
-          'bg-red-50 text-red-800 border border-red-200'
+      {message && (
+        <div className={`mb-4 p-4 rounded-lg border ${
+          message.includes('Error:') || message.includes('Failed') 
+            ? 'bg-red-50 text-red-800 border-red-200' 
+            : message.includes('⚠️')
+            ? 'bg-yellow-50 text-yellow-800 border-yellow-200'
+            : 'bg-blue-50 text-blue-800 border-blue-200'
         }`}>
-          {message.text}
+          {message}
+          {message.includes('Service role key') && (
+            <div className="mt-2 text-sm">
+              <p>The app will work with limited functionality until the service role key is configured.</p>
+            </div>
+          )}
         </div>
       )}
 
       <Card>
         <CardHeader>
-          <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <h3 className="text-xl font-semibold text-gray-900">All Students</h3>
+              <h3 className="text-xl font-semibold">All Students</h3>
               <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">{filtered.length}</span>
             </div>
             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-gray-700">Filter by Class:</label>
+              <label className="text-sm font-medium text-gray-700">Filter:</label>
               <select
                 value={selectedClass}
                 onChange={(e) => setSelectedClass(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
               >
                 {classes.map((c) => (
                   <option key={c} value={c}>{c}</option>
                 ))}
               </select>
+              <button
+                onClick={() => {
+                  console.log('Manual refresh clicked')
+                  fetchStudents()
+                }}
+                disabled={loading}
+                className="ml-2 px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              >
+                {loading ? '🔄' : '↻'} Refresh
+              </button>
             </div>
           </div>
         </CardHeader>
@@ -233,13 +370,7 @@ export default function StudentListPage() {
                     </td>
                   </tr>
                 ) : (
-                  filtered.map((student) => {
-                    console.log('Rendering student:', {
-                      name: student.user?.full_name,
-                      teacher_id: student.teacher_id,
-                      teacher: student.teacher
-                    });
-                    return (
+                  filtered.map((student) => (
                     <tr key={student.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 text-sm text-gray-900">{student.roll_no || 'N/A'}</td>
                       <td className="px-6 py-4 text-sm text-gray-900 font-medium">{student.user?.full_name || 'N/A'}</td>
@@ -248,20 +379,25 @@ export default function StudentListPage() {
                       <td className="px-6 py-4 text-sm text-gray-900">{student.section || 'N/A'}</td>
                       <td className="px-6 py-4 text-sm text-gray-600">
                         {student.teacher?.full_name || 'Not assigned'}
-                        {student.teacher_id && !student.teacher && (
-                          <span className="text-xs text-red-500 ml-2">(ID: {student.teacher_id.substring(0, 8)}...)</span>
-                        )}
                       </td>
                       <td className="px-6 py-4 text-sm">
                         <button 
                           onClick={() => handleEdit(student)}
-                          className="text-blue-600 hover:text-blue-800 font-medium"
+                          className="text-blue-600 hover:text-blue-800 font-medium mr-3"
                         >
                           Edit
                         </button>
+                        {userRole === 8 && ( // Only admin (role 8) can delete
+                          <button 
+                            onClick={() => handleDelete(student)}
+                            className="text-red-600 hover:text-red-800 font-medium"
+                          >
+                            Delete
+                          </button>
+                        )}
                       </td>
                     </tr>
-                  )})
+                  ))
                 )}
               </tbody>
             </table>
@@ -269,28 +405,21 @@ export default function StudentListPage() {
         </CardContent>
       </Card>
 
-      {/* Edit Modal */}
+      {/* Simple Edit Modal */}
       {showModal && selectedStudent && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full my-8">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full">
             <div className="p-6 border-b">
-              <h3 className="text-xl font-semibold text-gray-900">Edit Student Details</h3>
-              <p className="text-sm text-gray-600 mt-1">
-                Update information for {selectedStudent.user?.full_name}
-              </p>
+              <h3 className="text-xl font-semibold">Edit Student</h3>
             </div>
             <form onSubmit={handleSubmit} className="p-6">
               {message && (
-                <div className={`mb-4 p-3 rounded-lg text-sm ${
-                  message.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 
-                  'bg-red-50 text-red-800 border border-red-200'
-                }`}>
-                  {message.text}
+                <div className="mb-4 p-3 bg-blue-50 text-blue-800 border border-blue-200 rounded-lg">
+                  {message}
                 </div>
               )}
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto pr-2">
-                {/* Full Name */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
                   <input
@@ -298,181 +427,77 @@ export default function StudentListPage() {
                     value={formData.fullName}
                     onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                   />
                 </div>
 
-                {/* Mobile */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Mobile Number *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Mobile *</label>
                   <input
                     type="tel"
                     value={formData.mobile}
                     onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
                     required
-                    pattern="[0-9]{10}"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                   />
                 </div>
 
-                {/* Email */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                  <input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                {/* Date of Birth */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
-                  <input
-                    type="date"
-                    value={formData.dob}
-                    onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                {/* Blood Group */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Blood Group</label>
-                  <select
-                    value={formData.bloodGroup}
-                    onChange={(e) => setFormData({ ...formData, bloodGroup: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Select Blood Group</option>
-                    <option value="A+">A+</option>
-                    <option value="A-">A-</option>
-                    <option value="B+">B+</option>
-                    <option value="B-">B-</option>
-                    <option value="O+">O+</option>
-                    <option value="O-">O-</option>
-                    <option value="AB+">AB+</option>
-                    <option value="AB-">AB-</option>
-                  </select>
-                </div>
-
-                {/* Emergency Contact */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Emergency Contact</label>
-                  <input
-                    type="tel"
-                    value={formData.emergencyContact}
-                    onChange={(e) => setFormData({ ...formData, emergencyContact: e.target.value })}
-                    pattern="[0-9]{10}"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                {/* Class */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Class *</label>
                   <select
                     value={formData.class}
                     onChange={(e) => setFormData({ ...formData, class: e.target.value })}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                   >
                     <option value="">Select Class</option>
-                    <option value="Nursery">Nursery</option>
-                    <option value="LKG">LKG</option>
-                    <option value="UKG">UKG</option>
+                    {classes.filter(c => c !== 'All').map((className) => (
+                      <option key={className} value={className}>{className}</option>
+                    ))}
                   </select>
                 </div>
 
-                {/* Section */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Section *</label>
                   <select
                     value={formData.section}
                     onChange={(e) => setFormData({ ...formData, section: e.target.value })}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                   >
                     <option value="">Select Section</option>
-                    <option value="A">A</option>
-                    <option value="B">B</option>
-                    <option value="C">C</option>
-                  </select>
-                </div>
-
-                {/* Roll Number */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Roll Number</label>
-                  <input
-                    type="text"
-                    value={formData.rollNo}
-                    onChange={(e) => setFormData({ ...formData, rollNo: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                {/* Assigned Teacher */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Assigned Teacher *</label>
-                  <select
-                    required
-                    value={formData.teacherId}
-                    onChange={(e) => setFormData({ ...formData, teacherId: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Select Teacher (Required)</option>
-                    {teachers.map((teacher) => (
-                      <option key={teacher.id} value={teacher.id}>
-                        {teacher.full_name} {teacher.designation ? `(${teacher.designation})` : ''}
-                      </option>
+                    {sections.map((section) => (
+                      <option key={section} value={section}>{section}</option>
                     ))}
                   </select>
                 </div>
 
-                {/* Address */}
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
-                  <textarea
-                    value={formData.address}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                    rows={2}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Roll Number</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={formData.rollNo}
+                    onChange={(e) => setFormData({ ...formData, rollNo: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                   />
                 </div>
 
-                {/* City */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
-                  <input
-                    type="text"
-                    value={formData.city}
-                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                {/* State */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
-                  <input
-                    type="text"
-                    value={formData.state}
-                    onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                {/* Pincode */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Pincode</label>
-                  <input
-                    type="text"
-                    value={formData.pincode}
-                    onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
-                    pattern="[0-9]{6}"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Teacher *</label>
+                  <select
+                    value={formData.teacherId}
+                    onChange={(e) => setFormData({ ...formData, teacherId: e.target.value })}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  >
+                    <option value="">Select Teacher</option>
+                    {teachers.map((teacher) => (
+                      <option key={teacher.id} value={teacher.id}>
+                        {teacher.full_name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
@@ -481,19 +506,80 @@ export default function StudentListPage() {
                   type="button"
                   onClick={() => setShowModal(false)}
                   disabled={saving}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition"
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
                 >
                   {saving ? 'Saving...' : 'Save Changes'}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && selectedStudent && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="p-6 border-b">
+              <h3 className="text-xl font-semibold text-red-600">⚠️ Confirm Delete</h3>
+            </div>
+            <div className="p-6">
+              {message && (
+                <div className={`mb-4 p-3 rounded-lg border ${
+                  message.includes('✅') 
+                    ? 'bg-green-50 text-green-800 border-green-200' 
+                    : 'bg-red-50 text-red-800 border-red-200'
+                }`}>
+                  {message}
+                </div>
+              )}
+              
+              <p className="text-gray-700 mb-4">
+                Are you sure you want to delete <strong>{selectedStudent.user?.full_name}</strong>?
+              </p>
+              
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+                <p className="text-sm text-red-800">
+                  <strong>⚠️ Warning:</strong> This action will permanently delete:
+                </p>
+                <ul className="text-sm text-red-700 mt-2 ml-4 list-disc">
+                  <li>Student record (Roll No: {selectedStudent.roll_no})</li>
+                  <li>User account (Mobile: {selectedStudent.user?.mobile})</li>
+                  <li>All associated data</li>
+                </ul>
+                <p className="text-sm text-red-800 mt-2 font-semibold">
+                  This action cannot be undone!
+                </p>
+              </div>
+
+              <div className="flex gap-3 justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDeleteModal(false)
+                    setMessage('')
+                  }}
+                  disabled={deleting}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  disabled={deleting}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+                >
+                  {deleting ? 'Deleting...' : 'Delete Student'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

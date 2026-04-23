@@ -5,7 +5,14 @@ import { supabase } from '@/lib/supabase';
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const mobile = searchParams.get('mobile') || '8805213893'; // Default to Raju
+    const mobile = searchParams.get('mobile');
+
+    if (!mobile) {
+      return NextResponse.json(
+        { error: 'Mobile number is required' },
+        { status: 400 }
+      );
+    }
 
     // Get student with teacher info
     const { data: student, error: studentError } = await supabase
@@ -70,6 +77,9 @@ export async function GET(request: NextRequest) {
       console.error('Staff fetch error:', staffError);
     }
 
+    // Type assertion for teacher object
+    const teacherData = student.teacher as any;
+    
     return NextResponse.json({
       success: true,
       data: {
@@ -80,7 +90,7 @@ export async function GET(request: NextRequest) {
           studentHasTeacherId: !!student.teacher_id,
           teacherIdValue: student.teacher_id,
           teacherObjectExists: !!student.teacher,
-          teacherName: student.teacher?.full_name || 'Not found',
+          teacherName: teacherData?.full_name || 'Not found',
           totalTeachersInDB: teachers?.length || 0,
           totalStaffInDB: staff?.length || 0
         }

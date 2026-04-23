@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 import bcrypt from 'bcryptjs';
+import { getDefaultPassword } from '@/lib/config/auth';
 
 // POST - Admit a new student
 export async function POST(request: NextRequest) {
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if mobile number already exists
-    const { data: existingUser, error: checkError } = await supabase
+    const { data: existingUser, error: checkError } = await supabaseAdmin
       .from('users')
       .select('mobile')
       .eq('mobile', mobile)
@@ -47,12 +48,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate default password (default123)
-    const defaultPassword = 'default123';
+    // Generate default password from config
+    const defaultPassword = getDefaultPassword(19); // 19 = Student role
     const passwordHash = await bcrypt.hash(defaultPassword, 10);
 
     // Create user account
-    const { data: user, error: userError } = await supabase
+    const { data: user, error: userError } = await supabaseAdmin
       .from('users')
       .insert({
         mobile,
@@ -73,14 +74,21 @@ export async function POST(request: NextRequest) {
     }
 
     // Create student record
-    const { data: student, error: studentError } = await supabase
+    // Convert rollNo to integer - handle empty string, null, undefined, and NaN
+    let rollNoValue = null;
+    if (rollNo !== null && rollNo !== undefined && rollNo !== '') {
+      const parsed = parseInt(rollNo, 10);
+      rollNoValue = isNaN(parsed) ? null : parsed;
+    }
+    
+    const { data: student, error: studentError } = await supabaseAdmin
       .from('students')
       .insert({
         user_id: user.id,
         teacher_id: teacherId || null,
         class: studentClass,
         section: section || 'A',
-        roll_no: rollNo || null,
+        roll_no: rollNoValue,
         dob: dob || null,
         blood_group: bloodGroup || null,
         address: address || null,
@@ -96,7 +104,7 @@ export async function POST(request: NextRequest) {
       console.error('Student creation error:', studentError);
       
       // Rollback: Delete the user if student creation fails
-      await supabase.from('users').delete().eq('id', user.id);
+      await supabaseAdmin.from('users').delete().eq('id', user.id);
       
       return NextResponse.json(
         { error: 'Failed to create student record' },
@@ -129,7 +137,7 @@ export async function POST(request: NextRequest) {
 // GET - Get all students
 export async function GET(request: NextRequest) {
   try {
-    const { data: students, error } = await supabase
+    const { data: students, error } = await supabaseAdmin
       .from('students')
       .select(`
         *,

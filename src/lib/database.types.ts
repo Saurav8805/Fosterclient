@@ -48,7 +48,7 @@ export interface Database {
           teacher_id: string | null
           class: string | null
           section: string | null
-          roll_no: string | null
+          roll_no: number | null
           dob: string | null
           blood_group: string | null
           address: string | null
@@ -64,7 +64,7 @@ export interface Database {
           teacher_id?: string | null
           class?: string | null
           section?: string | null
-          roll_no?: string | null
+          roll_no?: number | null
           dob?: string | null
           blood_group?: string | null
           address?: string | null
@@ -80,7 +80,7 @@ export interface Database {
           teacher_id?: string | null
           class?: string | null
           section?: string | null
-          roll_no?: string | null
+          roll_no?: number | null
           dob?: string | null
           blood_group?: string | null
           address?: string | null

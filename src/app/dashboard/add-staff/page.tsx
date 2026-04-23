@@ -305,7 +305,7 @@ export default function AddStaffPage() {
             {/* Info Note */}
             <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-sm text-blue-800">
-                <span className="font-semibold">Note:</span> Default password will be <span className="font-mono font-bold">foster@123</span>. 
+                <span className="font-semibold">Note:</span> Default password will be <span className="font-mono font-bold">{process.env.DEFAULT_STAFF_PASSWORD || 'foster@123'}</span>. 
                 The mobile number will be used as the login ID. Staff members will have Faculty role (role 6).
               </p>
             </div>
