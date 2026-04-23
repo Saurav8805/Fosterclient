@@ -166,7 +166,7 @@ function DashboardSidebar() {
     <aside className={`${isOpen ? 'w-56' : 'w-0 overflow-hidden'} bg-white border-r border-gray-100 transition-all duration-300 flex flex-col flex-shrink-0 h-full shadow-sm`}>
       {/* Logo */}
       <div className="h-20 flex items-center justify-center pl-7 pr-4 border-b border-gray-100 flex-shrink-0">
-        <Image src="/LOGO-2.png" alt="Foster Kids" width={180} height={60} className="h-14 w-auto object-contain max-w-full" />
+        <Image src="/LOGO-2.png" alt="Foster Kids" width={180} height={60} className="h-14 w-auto object-contain max-w-full" style={{ width: 'auto', height: '3.5rem' }} priority />
       </div>
 
       {/* Menu Items */}

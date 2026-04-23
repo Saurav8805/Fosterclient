@@ -51,7 +51,7 @@ export default function LoginPage() {
       <div className="w-full max-w-[450px]">
         <div className="bg-white rounded-[20px] p-10 sm:p-[30px_25px] shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
           <div className="text-center mb-[35px]">
-            <Image src="/LOGO-2.png" alt="Foster Kids Logo" width={120} height={60} className="mb-5 mx-auto" />
+            <Image src="/LOGO-2.png" alt="Foster Kids Logo" width={120} height={60} className="mb-5 mx-auto" priority />
             <h1 className="text-[28px] sm:text-2xl text-[#333] mb-2">Welcome Back!</h1>
             <p className="text-[#666] text-[15px]">Login to your Foster Kids account</p>
           </div>
@@ -89,7 +89,7 @@ export default function LoginPage() {
               />
             </div>
 
-            <button type="submit" className="bg-[linear-gradient(135deg,#e91e63,#d81b60)] text-white border-none p-[14px] text-base font-semibold rounded-[10px] mt-2.5 transition-all shadow-[0_4px_15px_rgba(233,30,99,0.3)] hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(233,30,99,0.4)]">Login</button>
+            <button type="submit" className="bg-[linear-gradient(135deg,#e91e63,#d81b60)] text-white border-none p-[14px] text-base font-semibold rounded-[10px] mt-2.5 transition-all shadow-[0_4px_15px_rgba(233,30,99,0.3)] hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(233,30,99,0.4)]" suppressHydrationWarning>Login</button>
           </form>
 
           <div className="mt-[30px] text-center">

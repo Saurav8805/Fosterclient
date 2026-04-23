@@ -25,12 +25,18 @@ export default function AdmitStudentPage() {
 
   const [loading, setLoading] = useState(false)
   const [teachers, setTeachers] = useState<any[]>([])
+  const [classes, setClasses] = useState<string[]>([])
+  const [sections, setSections] = useState<string[]>([])
+  const [bloodGroups, setBloodGroups] = useState<string[]>([])
   const [loadingTeachers, setLoadingTeachers] = useState(true)
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string, credentials?: any } | null>(null)
 
   // Fetch teachers on component mount
   useEffect(() => {
     fetchTeachers()
+    fetchClasses()
+    fetchSections()
+    fetchConstants()
   }, [])
 
   const fetchTeachers = async () => {
@@ -46,6 +52,51 @@ export default function AdmitStudentPage() {
       console.error('Failed to fetch teachers:', error)
     } finally {
       setLoadingTeachers(false)
+    }
+  }
+
+  const fetchClasses = async () => {
+    try {
+      const response = await fetch('/api/config/classes')
+      const result = await response.json()
+      if (result.success && result.data.length > 0) {
+        setClasses(result.data)
+        setFormData(prev => ({ ...prev, studentClass: result.data[0] }))
+      } else {
+        setClasses(['Nursery', 'LKG', 'UKG']) // Fallback
+      }
+    } catch (error) {
+      console.error('Failed to fetch classes:', error)
+      setClasses(['Nursery', 'LKG', 'UKG']) // Fallback
+    }
+  }
+
+  const fetchSections = async () => {
+    try {
+      const response = await fetch('/api/config/sections')
+      const result = await response.json()
+      if (result.success && result.data.length > 0) {
+        setSections(result.data)
+        setFormData(prev => ({ ...prev, section: result.data[0] }))
+      } else {
+        setSections(['A', 'B', 'C']) // Fallback
+      }
+    } catch (error) {
+      console.error('Failed to fetch sections:', error)
+      setSections(['A', 'B', 'C']) // Fallback
+    }
+  }
+
+  const fetchConstants = async () => {
+    try {
+      const response = await fetch('/api/config/constants')
+      const result = await response.json()
+      if (result.success) {
+        setBloodGroups(result.data.bloodGroups)
+      }
+    } catch (error) {
+      console.error('Failed to fetch constants:', error)
+      setBloodGroups(['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-']) // Fallback
     }
   }
 
@@ -70,34 +121,52 @@ export default function AdmitStudentPage() {
           credentials: result.data.credentials
         })
         
-        // Trigger refresh in student list page
+        // Trigger refresh in student list page - ENHANCED
+        console.log('🚀 Sending refresh signals for new student admission...')
+        
         // Method 1: Custom event
+        console.log('📡 Dispatching studentAdmitted event')
         window.dispatchEvent(new Event('studentAdmitted'))
         
         // Method 2: LocalStorage event (works across tabs)
+        console.log('💾 Setting localStorage refresh signal')
         localStorage.setItem('studentListRefresh', Date.now().toString())
         setTimeout(() => {
           localStorage.removeItem('studentListRefresh')
-        }, 1000)
+        }, 2000) // Increased timeout
         
         // Method 3: Broadcast Channel API (modern browsers)
         try {
+          console.log('📻 Sending BroadcastChannel message')
           const channel = new BroadcastChannel('student_updates')
-          channel.postMessage({ type: 'STUDENT_ADMITTED', timestamp: Date.now() })
+          channel.postMessage({ 
+            type: 'STUDENT_ADMITTED', 
+            timestamp: Date.now(),
+            studentName: formData.studentName 
+          })
           channel.close()
+          console.log('✅ BroadcastChannel message sent successfully')
         } catch (e) {
-          console.log('BroadcastChannel not supported')
+          console.log('❌ BroadcastChannel not supported:', e)
         }
         
-        console.log('Student admitted, refresh signals sent!')
+        // Method 4: Force refresh after short delay
+        setTimeout(() => {
+          console.log('⏰ Sending delayed refresh signal')
+          window.dispatchEvent(new CustomEvent('forceStudentRefresh', { 
+            detail: { newStudent: formData.studentName } 
+          }))
+        }, 500)
+        
+        console.log('✅ All refresh signals sent!')
         
         // Reset form
         setFormData({
           studentName: '',
           dob: '',
           gender: '',
-          studentClass: 'Nursery',
-          section: 'A',
+          studentClass: classes[0] || 'Nursery',
+          section: sections[0] || 'A',
           rollNo: '',
           bloodGroup: '',
           parentName: '',
@@ -126,8 +195,8 @@ export default function AdmitStudentPage() {
       studentName: '',
       dob: '',
       gender: '',
-      studentClass: 'Nursery',
-      section: 'A',
+      studentClass: classes[0] || 'Nursery',
+      section: sections[0] || 'A',
       rollNo: '',
       bloodGroup: '',
       parentName: '',
@@ -226,14 +295,9 @@ export default function AdmitStudentPage() {
                   onChange={(e) => setFormData({...formData, bloodGroup: e.target.value})}
                 >
                   <option value="">Select Blood Group</option>
-                  <option value="A+">A+</option>
-                  <option value="A-">A-</option>
-                  <option value="B+">B+</option>
-                  <option value="B-">B-</option>
-                  <option value="O+">O+</option>
-                  <option value="O-">O-</option>
-                  <option value="AB+">AB+</option>
-                  <option value="AB-">AB-</option>
+                  {bloodGroups.map((bg) => (
+                    <option key={bg} value={bg}>{bg}</option>
+                  ))}
                 </select>
               </div>
 
@@ -246,9 +310,9 @@ export default function AdmitStudentPage() {
                   value={formData.studentClass}
                   onChange={(e) => setFormData({...formData, studentClass: e.target.value})}
                 >
-                  <option>Nursery</option>
-                  <option>LKG</option>
-                  <option>UKG</option>
+                  {classes.map((className) => (
+                    <option key={className} value={className}>{className}</option>
+                  ))}
                 </select>
               </div>
 
@@ -261,9 +325,9 @@ export default function AdmitStudentPage() {
                   value={formData.section}
                   onChange={(e) => setFormData({...formData, section: e.target.value})}
                 >
-                  <option>A</option>
-                  <option>B</option>
-                  <option>C</option>
+                  {sections.map((section) => (
+                    <option key={section} value={section}>{section}</option>
+                  ))}
                 </select>
               </div>
 

@@ -22,6 +22,7 @@ export default function HomeworkPage() {
   const router = useRouter()
   const [userRole, setUserRole] = useState<number | null>(null)
   const [selectedClass, setSelectedClass] = useState('All')
+  const [classes, setClasses] = useState<string[]>(['All'])
   const [homeworkList, setHomeworkList] = useState<Homework[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -29,6 +30,7 @@ export default function HomeworkPage() {
     const role = localStorage.getItem('userRole')
     if (!role) { router.push('/login'); return }
     setUserRole(Number(role))
+    fetchClasses()
   }, [router])
 
   useEffect(() => {
@@ -57,6 +59,21 @@ export default function HomeworkPage() {
     }
   }
 
+  const fetchClasses = async () => {
+    try {
+      const response = await fetch('/api/config/classes')
+      const result = await response.json()
+      if (result.success && result.data.length > 0) {
+        setClasses(['All', ...result.data])
+      } else {
+        setClasses(['All', 'Nursery', 'LKG', 'UKG']) // Fallback
+      }
+    } catch (error) {
+      console.error('Failed to fetch classes:', error)
+      setClasses(['All', 'Nursery', 'LKG', 'UKG']) // Fallback
+    }
+  }
+
   if (userRole === null) return <div className="flex items-center justify-center min-h-screen">Loading...</div>
 
   const isStudent = userRole === 19
@@ -79,10 +96,9 @@ export default function HomeworkPage() {
                 onChange={(e) => setSelectedClass(e.target.value)}
                 className="px-4 py-2 border rounded-lg"
               >
-                <option>All</option>
-                <option>Nursery</option>
-                <option>LKG</option>
-                <option>UKG</option>
+                {classes.map((className) => (
+                  <option key={className} value={className}>{className}</option>
+                ))}
               </select>
               <button className="ml-auto bg-[#5e3a9e] text-white px-4 py-2 rounded-lg hover:bg-[#4a2d7e] transition text-sm">
                 + Assign Homework

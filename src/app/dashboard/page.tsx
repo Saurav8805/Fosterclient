@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -127,7 +128,7 @@ export default function DashboardPage() {
         <div className="p-4 border-b border-gray-200">
           <div className="flex items-center justify-between">
             {sidebarOpen && (
-              <img src="/LOGO-2.png" alt="Foster Kids" className="h-12 w-auto" />
+              <Image src="/LOGO-2.png" alt="Foster Kids" width={120} height={48} className="h-12 w-auto" style={{ width: 'auto', height: '3rem' }} priority />
             )}
             <button 
               onClick={() => setSidebarOpen(!sidebarOpen)}

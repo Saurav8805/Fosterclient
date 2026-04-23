@@ -1,20 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 
-// GET - Get all students with their details
+// GET - Get all students with their details (Admin/Faculty only)
 export async function GET(request: NextRequest) {
   try {
-    const { data: students, error } = await supabase
+    // Use LEFT JOIN to include all students even if user/teacher data is missing
+    const { data: students, error } = await supabaseAdmin
       .from('students')
       .select(`
         *,
-        user:user_id (
+        user:user_id!left (
           id,
           mobile,
           full_name,
           email
         ),
-        teacher:teacher_id (
+        teacher:teacher_id!left (
           id,
           full_name
         )
@@ -24,20 +25,23 @@ export async function GET(request: NextRequest) {
     if (error) {
       console.error('Students fetch error:', error);
       return NextResponse.json(
-        { error: 'Failed to fetch students' },
+        { error: 'Failed to fetch students', details: error.message, success: false },
         { status: 500 }
       );
     }
 
     return NextResponse.json({
       success: true,
-      data: students
+      data: students || [],
+      count: students?.length || 0,
+      serviceKeyConfigured: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+      timestamp: new Date().toISOString()
     });
 
   } catch (error) {
     console.error('Get students API error:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', success: false, details: String(error) },
       { status: 500 }
     );
   }

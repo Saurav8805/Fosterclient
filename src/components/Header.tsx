@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 
 const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -67,7 +68,7 @@ const Header = () => {
           <div className="flex justify-between items-center">
             {/* Logo */}
             <div className="flex-shrink-0">
-              <img src="/LOGO-2.png" alt="Foster Kids" className="h-16 w-auto object-contain" />
+              <Image src="/LOGO-2.png" alt="Foster Kids" width={120} height={64} className="h-16 w-auto object-contain" style={{ width: 'auto', height: '4rem' }} priority />
             </div>
             
             {/* Desktop Navigation */}
@@ -85,13 +86,13 @@ const Header = () => {
             
             {/* Login Button */}
             <div className="hidden lg:block">
-              <button onClick={() => router.push('/login')} className="bg-gradient-to-r from-[#e91e63] to-[#d81b60] text-white px-6 py-2.5 text-sm font-semibold rounded-full hover:shadow-lg transition-all">
+              <button onClick={() => router.push('/login')} className="bg-gradient-to-r from-[#e91e63] to-[#d81b60] text-white px-6 py-2.5 text-sm font-semibold rounded-full hover:shadow-lg transition-all" suppressHydrationWarning>
                 Login
               </button>
             </div>
             
             {/* Mobile Menu Button */}
-            <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="lg:hidden text-2xl text-[#333]">
+            <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="lg:hidden text-2xl text-[#333]" suppressHydrationWarning>
               {mobileMenuOpen ? '✕' : '☰'}
             </button>
           </div>
@@ -110,7 +111,7 @@ const Header = () => {
                 <a href="#blogs" className="text-[#333] text-sm py-2 border-b border-gray-100">Blogs</a>
                 <a href="#contact" className="text-[#333] text-sm py-2">Contact</a>
               </nav>
-              <button onClick={() => router.push('/login')} className="w-full mt-4 bg-gradient-to-r from-[#e91e63] to-[#d81b60] text-white px-6 py-2.5 text-sm font-semibold rounded-full">
+              <button onClick={() => router.push('/login')} className="w-full mt-4 bg-gradient-to-r from-[#e91e63] to-[#d81b60] text-white px-6 py-2.5 text-sm font-semibold rounded-full" suppressHydrationWarning>
                 Login
               </button>
             </div>
