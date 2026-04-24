@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
+// Force dynamic rendering for this API route
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
 
+    console.log('📊 Fetching progress for user:', userId);
+
     if (!userId) {
+      console.error('❌ Missing userId parameter');
       return NextResponse.json(
         { error: 'User ID is required' },
         { status: 400 }
@@ -16,16 +22,27 @@ export async function GET(request: NextRequest) {
     // Get student record
     const { data: student, error: studentError } = await supabase
       .from('students')
-      .select('id')
+      .select('id, class, section, roll_no')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
 
-    if (studentError || !student) {
+    if (studentError) {
+      console.error('❌ Student fetch error:', studentError);
+      return NextResponse.json(
+        { error: 'Database error while fetching student', details: studentError.message },
+        { status: 500 }
+      );
+    }
+
+    if (!student) {
+      console.log('❌ Student not found for user:', userId);
       return NextResponse.json(
         { error: 'Student not found' },
         { status: 404 }
       );
     }
+
+    console.log('✅ Found student:', student.id);
 
     // Get progress records
     const { data: progress, error: progressError } = await supabase
@@ -35,30 +52,36 @@ export async function GET(request: NextRequest) {
       .order('created_at', { ascending: false });
 
     if (progressError) {
-      console.error('Progress fetch error:', progressError);
+      console.error('❌ Progress fetch error:', progressError);
       return NextResponse.json(
-        { error: 'Failed to fetch progress' },
+        { error: 'Failed to fetch progress', details: progressError.message },
         { status: 500 }
       );
     }
 
+    console.log(`📈 Found ${progress?.length || 0} progress records`);
+
     // Calculate overall percentage
-    const overallPercentage = progress.length > 0
+    const overallPercentage = (progress && progress.length > 0)
       ? progress.reduce((acc, curr) => acc + curr.percentage, 0) / progress.length
       : 0;
+
+    console.log('📊 Overall percentage:', overallPercentage.toFixed(2));
 
     return NextResponse.json({
       success: true,
       data: {
-        records: progress,
-        overallPercentage: parseFloat(overallPercentage.toFixed(2))
-      }
+        records: progress || [],
+        overallPercentage: parseFloat(overallPercentage.toFixed(2)),
+        student: student
+      },
+      timestamp: new Date().toISOString()
     });
 
   } catch (error) {
-    console.error('Progress API error:', error);
+    console.error('❌ Progress API error:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: String(error) },
       { status: 500 }
     );
   }

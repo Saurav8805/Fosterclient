@@ -59,13 +59,14 @@ export default function StudentListPage() {
     window.addEventListener('studentAdmitted', handleUpdate)
     window.addEventListener('forceStudentRefresh', handleUpdate)
     window.addEventListener('studentDeleted', handleUpdate)
+    window.addEventListener('studentUpdated', handleUpdate)
     
     // Method 2: BroadcastChannel API (works across tabs)
     let channel: BroadcastChannel | null = null
     try {
       channel = new BroadcastChannel('student_updates')
       channel.addEventListener('message', (event) => {
-        if (event.data.type === 'STUDENT_ADMITTED' || event.data.type === 'STUDENT_DELETED') {
+        if (event.data.type === 'STUDENT_ADMITTED' || event.data.type === 'STUDENT_DELETED' || event.data.type === 'STUDENT_UPDATED') {
           console.log('BroadcastChannel: Student list update')
           handleUpdate()
         }
@@ -97,6 +98,7 @@ export default function StudentListPage() {
       window.removeEventListener('studentAdmitted', handleUpdate)
       window.removeEventListener('forceStudentRefresh', handleUpdate)
       window.removeEventListener('studentDeleted', handleUpdate)
+      window.removeEventListener('studentUpdated', handleUpdate)
       window.removeEventListener('storage', handleStorageChange)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
       if (channel) {
@@ -108,17 +110,18 @@ export default function StudentListPage() {
   const fetchStudents = async () => {
     try {
       setLoading(true)
-      console.log('Fetching students from API...')
+      console.log('🔄 Fetching students from API...')
       
       const response = await fetch('/api/students/list', {
         cache: 'no-store', // Prevent caching
         headers: {
           'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
         }
       })
       const result = await response.json()
       
-      console.log('Students API response:', { 
+      console.log('📊 Students API response:', { 
         success: result.success, 
         count: result.count,
         timestamp: result.timestamp 
@@ -126,11 +129,8 @@ export default function StudentListPage() {
       
       if (result.success) {
         setStudents(result.data)
-        if (!result.serviceKeyConfigured) {
-          setMessage('⚠️ Service role key not configured. Some features may be limited. Please check SETUP-SERVICE-KEY.md for setup instructions.')
-        } else {
-          setMessage('')
-        }
+        console.log('✅ Students updated in state:', result.data.length)
+        setMessage('') // Clear any previous messages
       } else {
         console.error('Failed to fetch students:', result.error)
         setMessage(`Error: ${result.error}`)
@@ -261,6 +261,8 @@ export default function StudentListPage() {
     setMessage('')
 
     try {
+      console.log('🔄 Updating student with data:', formData)
+      
       const response = await fetch('/api/students/update', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -272,19 +274,49 @@ export default function StudentListPage() {
       })
 
       const result = await response.json()
+      console.log('📝 Update response:', result)
 
       if (result.success) {
-        setMessage('Student updated successfully!')
-        fetchStudents() // Refresh the list
+        setMessage('✅ Student updated successfully!')
+        
+        // Immediately refresh the student list to show updated data
+        console.log('🔄 Refreshing student list...')
+        await fetchStudents()
+        
+        // Send update signals for real-time updates
+        window.dispatchEvent(new CustomEvent('studentUpdated', { 
+          detail: { 
+            updatedStudent: result.data,
+            rollNo: formData.rollNo 
+          } 
+        }))
+        
+        // BroadcastChannel for cross-tab updates
+        try {
+          const channel = new BroadcastChannel('student_updates')
+          channel.postMessage({ 
+            type: 'STUDENT_UPDATED', 
+            timestamp: Date.now(),
+            studentId: selectedStudent.id,
+            newRollNo: formData.rollNo
+          })
+          channel.close()
+        } catch (e) {
+          console.log('BroadcastChannel not supported')
+        }
+        
+        console.log('✅ Student list refreshed and signals sent')
+        
         setTimeout(() => {
           setShowModal(false)
           setMessage('')
         }, 1500)
       } else {
-        setMessage(result.error || 'Failed to update student')
+        setMessage(`❌ Error: ${result.error}`)
       }
     } catch (error) {
-      setMessage('Failed to update student. Please try again.')
+      console.error('Update error:', error)
+      setMessage('❌ Failed to update student. Please try again.')
     } finally {
       setSaving(false)
     }

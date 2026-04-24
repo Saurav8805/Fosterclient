@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 
+// Force dynamic rendering for this API route
+export const dynamic = 'force-dynamic';
+
 // GET - Get all unique sections from students table
 export async function GET(request: NextRequest) {
   try {
