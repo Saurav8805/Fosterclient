@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase-admin';
+import { supabase } from '@/lib/supabase';
+
+// Force dynamic rendering for this API route
+export const dynamic = 'force-dynamic';
 
 // GET - Get all students with their details (Admin/Faculty only)
 export async function GET(request: NextRequest) {
   try {
     // Use LEFT JOIN to include all students even if user/teacher data is missing
-    const { data: students, error } = await supabaseAdmin
+    const { data: students, error } = await supabase
       .from('students')
       .select(`
         *,
@@ -34,7 +37,7 @@ export async function GET(request: NextRequest) {
       success: true,
       data: students || [],
       count: students?.length || 0,
-      serviceKeyConfigured: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+      rlsDisabled: true, // RLS is now disabled
       timestamp: new Date().toISOString()
     });
 

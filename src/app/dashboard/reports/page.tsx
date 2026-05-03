@@ -56,6 +56,18 @@ export default function ReportsPage() {
   useEffect(() => {
     if (userRole === 19 && userId) {
       fetchProgressData()
+      
+      // Listen for progress updates
+      const handleProgressUpdate = () => {
+        console.log('🔄 Progress updated, refreshing data...')
+        fetchProgressData()
+      }
+      
+      window.addEventListener('progressUpdated', handleProgressUpdate)
+      
+      return () => {
+        window.removeEventListener('progressUpdated', handleProgressUpdate)
+      }
     } else if (userRole === 6 || userRole === 8) {
       fetchStudents()
     } else if (userRole !== null) {
@@ -66,16 +78,23 @@ export default function ReportsPage() {
   const fetchProgressData = async () => {
     try {
       setLoading(true)
+      setError(null)
+      console.log('📊 Fetching progress data for user:', userId)
+      
       const response = await fetch(`/api/progress/my-progress?userId=${userId}`)
       const result = await response.json()
 
+      console.log('📈 Progress API response:', result)
+
       if (result.success) {
         setProgressData(result.data)
+        console.log('✅ Progress data loaded successfully')
       } else {
-        setError('No progress data found')
+        console.log('❌ No progress data:', result.error)
+        setError(result.error || 'No progress data found')
       }
     } catch (err) {
-      console.error('Error fetching progress:', err)
+      console.error('❌ Error fetching progress:', err)
       setError('Failed to load progress data')
     } finally {
       setLoading(false)
@@ -85,14 +104,23 @@ export default function ReportsPage() {
   const fetchStudents = async () => {
     try {
       setLoading(true)
+      setMessage(null)
+      console.log('📚 Fetching students for progress management...')
+      
       const response = await fetch('/api/progress/add')
       const result = await response.json()
 
+      console.log('📊 Students API response:', result)
+
       if (result.success) {
-        setStudents(result.data)
+        setStudents(result.data || [])
+        console.log(`✅ Loaded ${result.data?.length || 0} students`)
+      } else {
+        console.error('❌ Failed to fetch students:', result.error)
+        setMessage({ type: 'error', text: result.error || 'Failed to load students' })
       }
     } catch (err) {
-      console.error('Error fetching students:', err)
+      console.error('❌ Error fetching students:', err)
       setMessage({ type: 'error', text: 'Failed to load students' })
     } finally {
       setLoading(false)
@@ -117,6 +145,13 @@ export default function ReportsPage() {
     setSaving(true)
     setMessage(null)
 
+    console.log('💾 Submitting marks:', {
+      studentId: selectedStudent.id,
+      subject: formData.subject,
+      marks: formData.marks,
+      totalMarks: formData.totalMarks
+    })
+
     try {
       const response = await fetch('/api/progress/add', {
         method: 'POST',
@@ -130,16 +165,34 @@ export default function ReportsPage() {
       })
 
       const result = await response.json()
+      console.log('📊 Add marks API response:', result)
 
       if (result.success) {
+        console.log('✅ Marks added/updated successfully')
         setMessage({ type: 'success', text: result.message })
         setShowModal(false)
-        fetchStudents()
+        
+        // Reset form
+        setFormData({
+          subject: '',
+          marks: '',
+          totalMarks: ''
+        })
+        
+        // Refresh students data to show updated progress
+        await fetchStudents()
+        
+        // Trigger custom event for real-time updates
+        window.dispatchEvent(new CustomEvent('progressUpdated', {
+          detail: { studentId: selectedStudent.id, subject: formData.subject }
+        }))
+        
       } else {
+        console.error('❌ Failed to add marks:', result.error)
         setMessage({ type: 'error', text: result.error || 'Failed to add marks' })
       }
     } catch (error) {
-      console.error('Failed to add marks:', error)
+      console.error('❌ Failed to add marks:', error)
       setMessage({ type: 'error', text: 'Failed to add marks. Please try again.' })
     } finally {
       setSaving(false)
@@ -289,14 +342,31 @@ export default function ReportsPage() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      <h1 className="text-3xl font-bold text-gray-900 mb-6">Progress & Report Cards</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold text-gray-900">Progress & Report Cards</h1>
+        <button
+          onClick={fetchStudents}
+          disabled={loading}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+        >
+          {loading ? 'Refreshing...' : 'Refresh Data'}
+        </button>
+      </div>
 
       {message && (
         <div className={`mb-6 p-4 rounded-lg ${
           message.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 
           'bg-red-50 text-red-800 border border-red-200'
         }`}>
-          {message.text}
+          <div className="flex justify-between items-center">
+            <span>{message.text}</span>
+            <button
+              onClick={() => setMessage(null)}
+              className="text-sm underline hover:no-underline"
+            >
+              Dismiss
+            </button>
+          </div>
         </div>
       )}
 
@@ -409,9 +479,13 @@ export default function ReportsPage() {
                   placeholder="e.g., 85"
                   required
                   min="0"
+                  max={formData.totalMarks || undefined}
                   step="0.01"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
+                {formData.marks !== '' && formData.totalMarks !== '' && parseFloat(formData.marks) > parseFloat(formData.totalMarks) && (
+                  <p className="text-red-600 text-xs mt-1">Marks cannot exceed total marks</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -428,11 +502,18 @@ export default function ReportsPage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
-              {formData.marks && formData.totalMarks && (
+              {formData.marks !== '' && formData.totalMarks !== '' && parseFloat(formData.marks) <= parseFloat(formData.totalMarks) && (
                 <div className="bg-blue-50 p-3 rounded-lg">
                   <p className="text-sm text-gray-700">
                     Percentage: <span className="font-semibold text-blue-600">
                       {((parseFloat(formData.marks) / parseFloat(formData.totalMarks)) * 100).toFixed(2)}%
+                    </span>
+                    {' • '}
+                    Grade: <span className="font-semibold text-blue-600">
+                      {(() => {
+                        const pct = (parseFloat(formData.marks) / parseFloat(formData.totalMarks)) * 100
+                        return pct >= 90 ? 'A+' : pct >= 80 ? 'A' : pct >= 70 ? 'B+' : pct >= 60 ? 'B' : pct >= 50 ? 'C' : pct >= 40 ? 'D' : 'F'
+                      })()}
                     </span>
                   </p>
                 </div>
@@ -448,8 +529,8 @@ export default function ReportsPage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={saving}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+                  disabled={saving || (formData.marks !== '' && formData.totalMarks !== '' && parseFloat(formData.marks) > parseFloat(formData.totalMarks))}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {saving ? 'Saving...' : 'Save Marks'}
                 </button>

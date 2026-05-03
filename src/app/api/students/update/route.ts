@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
+// Force dynamic rendering for this API route
+export const dynamic = 'force-dynamic';
+
 // PUT - Update student details
 export async function PUT(request: NextRequest) {
   try {
@@ -41,6 +44,8 @@ export async function PUT(request: NextRequest) {
       }
     }
 
+    console.log(`🔄 Updating student ${studentId} with roll_no: ${rollNo}`);
+
     // Update user data
     const { error: userError } = await supabase
       .from('users')
@@ -54,10 +59,12 @@ export async function PUT(request: NextRequest) {
     if (userError) {
       console.error('User update error:', userError);
       return NextResponse.json(
-        { error: 'Failed to update user data' },
+        { error: 'Failed to update user data', details: userError.message },
         { status: 500 }
       );
     }
+
+    console.log('✅ User data updated successfully');
 
     // Convert rollNo to integer
     let rollNoValue = null;
@@ -65,6 +72,8 @@ export async function PUT(request: NextRequest) {
       const parsed = parseInt(rollNo, 10);
       rollNoValue = isNaN(parsed) ? null : parsed;
     }
+    
+    console.log(`🔢 Converting roll_no: "${rollNo}" -> ${rollNoValue}`);
     
     // Update student data
     const studentUpdateData = {
@@ -74,22 +83,41 @@ export async function PUT(request: NextRequest) {
       roll_no: rollNoValue
     };
 
-    const { error: studentError } = await supabase
+    console.log('📝 Student update data:', studentUpdateData);
+
+    const { data: updatedStudent, error: studentError } = await supabase
       .from('students')
       .update(studentUpdateData)
-      .eq('id', studentId);
+      .eq('id', studentId)
+      .select(`
+        *,
+        user:user_id (
+          id,
+          mobile,
+          full_name,
+          email
+        ),
+        teacher:teacher_id (
+          id,
+          full_name
+        )
+      `)
+      .single();
 
     if (studentError) {
       console.error('Student update error:', studentError);
       return NextResponse.json(
-        { error: 'Failed to update student data' },
+        { error: 'Failed to update student data', details: studentError.message },
         { status: 500 }
       );
     }
 
+    console.log('✅ Student data updated successfully:', updatedStudent?.roll_no);
+
     return NextResponse.json({
       success: true,
-      message: 'Student updated successfully'
+      message: 'Student updated successfully',
+      data: updatedStudent // Return the updated student data
     });
 
   } catch (error) {
