@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardHeader, CardContent } from '@/components/ui/Card'
+import { usersApi } from '@/lib/api'
 
 export default function ProfilePage() {
   const router = useRouter()
@@ -49,29 +50,40 @@ export default function ProfilePage() {
   const fetchProfileData = async (id: string) => {
     try {
       setLoading(true)
-      const response = await fetch(`/api/users/profile?userId=${id}`)
-      const result = await response.json()
+      console.log('🔄 Fetching profile from backend API...')
+      
+      const result = await usersApi.getProfile(id)
+
+      console.log('📊 Profile API response:', result)
 
       if (result.success) {
-        const user = result.user
-        const additional = user.additionalData
+        // Backend returns data directly, not nested under 'user'
+        const profileData = result.data
+        
+        // Check if profileData exists
+        if (!profileData) {
+          setMessage({ type: 'error', text: 'No profile data found' })
+          return
+        }
 
         setFormData({
-          fullName: user.full_name || '',
-          email: user.email || '',
-          mobile: user.mobile || '',
-          dateOfBirth: additional?.dob || '',
-          address: additional?.address || '',
-          city: additional?.city || '',
-          state: additional?.state || '',
-          pincode: additional?.pincode || '',
-          emergencyContact: additional?.emergency_contact || '',
-          bloodGroup: additional?.blood_group || '',
-          class: additional?.class || '',
-          section: additional?.section || '',
-          rollNo: additional?.roll_no || '',
-          teacherName: additional?.teacher?.full_name || ''
+          fullName: profileData.full_name || '',
+          email: profileData.email || '',
+          mobile: profileData.mobile || '',
+          dateOfBirth: profileData.dob || '',
+          address: profileData.address || '',
+          city: profileData.city || '',
+          state: profileData.state || '',
+          pincode: profileData.pincode || '',
+          emergencyContact: profileData.emergency_contact || '',
+          bloodGroup: profileData.blood_group || '',
+          class: profileData.class || '',
+          section: profileData.section || '',
+          rollNo: profileData.roll_no || '',
+          teacherName: profileData.teacher?.full_name || ''
         })
+      } else {
+        setMessage({ type: 'error', text: result.error || 'Failed to load profile data' })
       }
     } catch (error) {
       console.error('Failed to fetch profile:', error)

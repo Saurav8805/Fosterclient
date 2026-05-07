@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Card, CardHeader, CardContent } from '@/components/ui/Card'
+import { staffApi } from '@/lib/api'
 
 interface AttendanceRecord {
   id: string
@@ -59,12 +60,21 @@ export default function StaffAttendancePage() {
     
     try {
       setLoading(true)
-      const response = await fetch(`/api/staff/attendance?userId=${userId}`)
-      const result = await response.json()
+      console.log('🔄 Fetching staff attendance from backend API...')
+      
+      const result = await staffApi.getAttendance()
+
+      console.log('📊 Staff attendance API response:', result)
 
       if (result.success) {
-        setAttendanceData(result.data.stats)
-        setRecentAttendance(result.data.records.slice(0, 5)) // Get last 5 records
+        setAttendanceData(result.data?.stats || {
+          totalDays: 0,
+          present: 0,
+          absent: 0,
+          leave: 0,
+          percentage: 0
+        })
+        setRecentAttendance(result.data?.records?.slice(0, 5) || [])
       }
     } catch (error) {
       console.error('Failed to fetch attendance:', error)
@@ -76,11 +86,14 @@ export default function StaffAttendancePage() {
   const fetchStaffList = async () => {
     try {
       setLoading(true)
-      const response = await fetch('/api/staff/list')
-      const result = await response.json()
+      console.log('🔄 Fetching staff list from backend API...')
+      
+      const result = await staffApi.list()
+
+      console.log('📊 Staff list API response:', result)
 
       if (result.success) {
-        setStaffMembers(result.data)
+        setStaffMembers(result.data || [])
       }
     } catch (error) {
       console.error('Failed to fetch staff:', error)

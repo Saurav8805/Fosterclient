@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { staffApi } from '@/lib/api'
 
 export default function AddStaffPage() {
   const router = useRouter()
@@ -29,19 +30,32 @@ export default function AddStaffPage() {
     setMessage(null)
 
     try {
-      const response = await fetch('/api/staff/add', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      })
+      console.log('🔄 Adding staff member:', formData.fullName)
+      
+      // Add role field (6 = Faculty role for staff)
+      const staffData = {
+        fullName: formData.fullName,
+        mobile: formData.mobile,
+        email: formData.email,
+        designation: formData.designation,
+        department: formData.department,
+        joiningDate: formData.joiningDate,
+        salary: formData.salary,
+        address: formData.address,
+        role: 6  // Faculty role
+      }
+      
+      console.log('📤 Sending staff data:', staffData)
+      
+      const result = await staffApi.add(staffData)
 
-      const result = await response.json()
+      console.log('📝 Add staff response:', result)
 
       if (result.success) {
         setMessage({ 
           type: 'success', 
           text: 'Staff member added successfully!',
-          credentials: result.data.credentials
+          credentials: result.data?.credentials
         })
         
         // Reset form
@@ -305,7 +319,7 @@ export default function AddStaffPage() {
             {/* Info Note */}
             <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-sm text-blue-800">
-                <span className="font-semibold">Note:</span> Default password will be <span className="font-mono font-bold">{process.env.DEFAULT_STAFF_PASSWORD || 'foster@123'}</span>. 
+                <span className="font-semibold">Note:</span> Default password will be <span className="font-mono font-bold">foster@123</span>. 
                 The mobile number will be used as the login ID. Staff members will have Faculty role (role 6).
               </p>
             </div>

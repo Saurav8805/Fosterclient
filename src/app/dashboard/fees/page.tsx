@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardHeader, CardContent } from '@/components/ui/Card'
+import { feesApi } from '@/lib/api'
 
 interface FeeRecord {
   id: string
@@ -59,8 +60,11 @@ export default function FeesPage() {
   const fetchFeesData = async () => {
     try {
       setLoading(true)
-      const response = await fetch(`/api/fees/my-fees?userId=${userId}`)
-      const result = await response.json()
+      console.log('🔄 Fetching fees from backend API...')
+      
+      const result = await feesApi.getMyFees(userId!)
+
+      console.log('📊 Fees API response:', result)
 
       if (result.success && result.data && result.data.length > 0) {
         setFeesData(result.data[0])
@@ -113,35 +117,22 @@ export default function FeesPage() {
     const paidAmount = parseFloat(feeForm.paidAmount)
     const pendingAmount = totalFees - paidAmount
 
-    console.log('Submitting fees:', {
-      studentId: selectedStudent.id,
-      studentName: selectedStudent.user?.full_name,
-      totalFees,
-      paidAmount,
-      pendingAmount,
-      dueDate: feeForm.dueDate,
-      status: feeForm.status
-    })
+    console.log('🔄 Updating fees for:', selectedStudent.user?.full_name)
 
     setSaving(true)
     setMessage(null)
 
     try {
-      const response = await fetch('/api/fees/update', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          studentId: selectedStudent.id,
-          totalFees,
-          paidAmount,
-          pendingAmount,
-          dueDate: feeForm.dueDate,
-          status: feeForm.status
-        })
+      const result = await feesApi.update({
+        studentId: selectedStudent.id,
+        totalFees,
+        paidAmount,
+        pendingAmount,
+        dueDate: feeForm.dueDate,
+        status: feeForm.status
       })
 
-      const result = await response.json()
-      console.log('API Response:', result)
+      console.log('📝 Fees update response:', result)
 
       if (result.success) {
         setMessage({ type: 'success', text: 'Fees updated successfully!' })

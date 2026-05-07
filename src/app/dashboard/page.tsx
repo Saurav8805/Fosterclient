@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
+import { studentsApi, staffApi } from '@/lib/api'
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -43,17 +44,15 @@ export default function DashboardPage() {
     try {
       setLoading(true)
       
-      // Fetch students count
-      const studentsRes = await fetch('/api/students/list')
-      const studentsData = await studentsRes.json()
+      // Fetch students count using the API client
+      const studentsResponse = await studentsApi.list()
       
-      // Fetch staff count
-      const staffRes = await fetch('/api/staff/add')
-      const staffData = await staffRes.json()
+      // Fetch staff count using the API client
+      const staffResponse = await staffApi.list()
       
       setStats({
-        totalStudents: studentsData.success ? studentsData.data.length : 0,
-        totalStaff: staffData.success ? staffData.data.length : 0,
+        totalStudents: studentsResponse.success ? studentsResponse.data?.students?.length || 0 : 0,
+        totalStaff: staffResponse.success ? staffResponse.data?.staff?.length || 0 : 0,
         totalClasses: 3,
         revenue: 0
       })

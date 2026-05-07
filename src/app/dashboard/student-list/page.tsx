@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardHeader, CardContent } from '@/components/ui/Card'
+import { studentsApi, configApi } from '@/lib/api'
 
 export default function StudentListPage() {
   const router = useRouter()
@@ -110,26 +111,18 @@ export default function StudentListPage() {
   const fetchStudents = async () => {
     try {
       setLoading(true)
-      console.log('🔄 Fetching students from API...')
+      console.log('🔄 Fetching students from backend API...')
       
-      const response = await fetch('/api/students/list', {
-        cache: 'no-store', // Prevent caching
-        headers: {
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
-        }
-      })
-      const result = await response.json()
+      const result = await studentsApi.list()
       
       console.log('📊 Students API response:', { 
         success: result.success, 
-        count: result.count,
-        timestamp: result.timestamp 
+        count: result.data?.students?.length
       })
       
       if (result.success) {
-        setStudents(result.data)
-        console.log('✅ Students updated in state:', result.data.length)
+        setStudents(result.data?.students || [])
+        console.log('✅ Students updated in state:', result.data?.students?.length || 0)
         setMessage('') // Clear any previous messages
       } else {
         console.error('Failed to fetch students:', result.error)
@@ -145,10 +138,9 @@ export default function StudentListPage() {
 
   const fetchTeachers = async () => {
     try {
-      const response = await fetch('/api/students/teachers')
-      const result = await response.json()
+      const result = await studentsApi.getTeachers()
       if (result.success) {
-        setTeachers(result.data)
+        setTeachers(result.data || [])
       }
     } catch (err) {
       console.error('Error fetching teachers:', err)
@@ -157,10 +149,9 @@ export default function StudentListPage() {
 
   const fetchClasses = async () => {
     try {
-      const response = await fetch('/api/config/classes')
-      const result = await response.json()
+      const result = await configApi.getClasses()
       if (result.success) {
-        setClasses(['All', ...result.data])
+        setClasses(['All', ...(result.data || [])])
       }
     } catch (err) {
       console.error('Error fetching classes:', err)
@@ -170,10 +161,9 @@ export default function StudentListPage() {
 
   const fetchSections = async () => {
     try {
-      const response = await fetch('/api/config/sections')
-      const result = await response.json()
+      const result = await configApi.getSections()
       if (result.success) {
-        setSections(result.data)
+        setSections(result.data || [])
       }
     } catch (err) {
       console.error('Error fetching sections:', err)
@@ -210,11 +200,7 @@ export default function StudentListPage() {
     try {
       console.log('🗑️ Deleting student:', selectedStudent.user?.full_name)
       
-      const response = await fetch(`/api/students/delete?studentId=${selectedStudent.id}&userId=${selectedStudent.user_id}`, {
-        method: 'DELETE'
-      })
-
-      const result = await response.json()
+      const result = await studentsApi.delete(selectedStudent.id)
 
       if (result.success) {
         setMessage('✅ Student deleted successfully!')
@@ -263,17 +249,15 @@ export default function StudentListPage() {
     try {
       console.log('🔄 Updating student with data:', formData)
       
-      const response = await fetch('/api/students/update', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          studentId: selectedStudent.id,
-          userId: selectedStudent.user_id,
-          ...formData
-        })
+      const result = await studentsApi.update(selectedStudent.id, {
+        fullName: formData.fullName,
+        mobile: formData.mobile,
+        class: formData.class,
+        section: formData.section,
+        rollNo: formData.rollNo,
+        teacherId: formData.teacherId
       })
 
-      const result = await response.json()
       console.log('📝 Update response:', result)
 
       if (result.success) {

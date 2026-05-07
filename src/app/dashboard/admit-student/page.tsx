@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
+import { studentsApi, configApi } from '@/lib/api'
 
 export default function AdmitStudentPage() {
   const [formData, setFormData] = useState({
@@ -42,11 +43,13 @@ export default function AdmitStudentPage() {
   const fetchTeachers = async () => {
     try {
       setLoadingTeachers(true)
-      const response = await fetch('/api/students/teachers')
-      const result = await response.json()
+      console.log('🔄 Fetching teachers from backend API...')
+      
+      const result = await studentsApi.getTeachers()
 
       if (result.success) {
-        setTeachers(result.data)
+        setTeachers(result.data || [])
+        console.log('✅ Teachers loaded:', result.data?.length || 0)
       }
     } catch (error) {
       console.error('Failed to fetch teachers:', error)
@@ -57,9 +60,8 @@ export default function AdmitStudentPage() {
 
   const fetchClasses = async () => {
     try {
-      const response = await fetch('/api/config/classes')
-      const result = await response.json()
-      if (result.success && result.data.length > 0) {
+      const result = await configApi.getClasses()
+      if (result.success && result.data?.length > 0) {
         setClasses(result.data)
         setFormData(prev => ({ ...prev, studentClass: result.data[0] }))
       } else {
@@ -73,9 +75,8 @@ export default function AdmitStudentPage() {
 
   const fetchSections = async () => {
     try {
-      const response = await fetch('/api/config/sections')
-      const result = await response.json()
-      if (result.success && result.data.length > 0) {
+      const result = await configApi.getSections()
+      if (result.success && result.data?.length > 0) {
         setSections(result.data)
         setFormData(prev => ({ ...prev, section: result.data[0] }))
       } else {
@@ -89,10 +90,9 @@ export default function AdmitStudentPage() {
 
   const fetchConstants = async () => {
     try {
-      const response = await fetch('/api/config/constants')
-      const result = await response.json()
+      const result = await configApi.getConstants()
       if (result.success) {
-        setBloodGroups(result.data.bloodGroups)
+        setBloodGroups(result.data?.bloodGroups || ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'])
       }
     } catch (error) {
       console.error('Failed to fetch constants:', error)
@@ -106,19 +106,17 @@ export default function AdmitStudentPage() {
     setMessage(null)
 
     try {
-      const response = await fetch('/api/students/admit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      })
+      console.log('🔄 Admitting student:', formData.studentName)
+      
+      const result = await studentsApi.admit(formData)
 
-      const result = await response.json()
+      console.log('📝 Admission response:', result)
 
       if (result.success) {
         setMessage({ 
           type: 'success', 
           text: 'Student admitted successfully!',
-          credentials: result.data.credentials
+          credentials: result.data?.credentials
         })
         
         // Trigger refresh in student list page - ENHANCED
@@ -494,7 +492,7 @@ export default function AdmitStudentPage() {
             {/* Info Note */}
             <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-sm text-blue-800">
-                <span className="font-semibold">Note:</span> Default password will be <span className="font-mono font-bold">{process.env.DEFAULT_STUDENT_PASSWORD || 'default123'}</span>. 
+                <span className="font-semibold">Note:</span> Default password will be <span className="font-mono font-bold">default123</span>. 
                 The mobile number will be used as the login ID.
               </p>
             </div>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardHeader, CardContent } from '@/components/ui/Card'
+import { attendanceApi } from '@/lib/api'
 
 interface AttendanceRecord {
   id: string;
@@ -70,12 +71,21 @@ export default function StudentAttendancePage() {
 
   const fetchStudentAttendance = async (userId: string) => {
     try {
-      const response = await fetch(`/api/attendance/my-attendance?userId=${userId}`)
-      const result = await response.json()
+      console.log('🔄 Fetching student attendance from backend API...')
+      
+      const result = await attendanceApi.getMyAttendance(userId)
+
+      console.log('📊 Attendance API response:', result)
 
       if (result.success) {
-        setAttendanceData(result.data.statistics)
-        setRecentAttendance(result.data.records.slice(0, 10))
+        setAttendanceData(result.data?.statistics || {
+          totalDays: 0,
+          present: 0,
+          absent: 0,
+          leave: 0,
+          percentage: 0
+        })
+        setRecentAttendance(result.data?.records?.slice(0, 10) || [])
       }
     } catch (error) {
       console.error('Failed to fetch attendance:', error)
@@ -116,16 +126,14 @@ export default function StudentAttendancePage() {
     setMessage(null)
 
     try {
+      console.log('🔄 Saving attendance for', students.length, 'students')
+      
       const promises = students.map(student => 
-        fetch('/api/attendance/mark', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId: student.user_id,
-            date: selectedDate,
-            status: attendanceMap[student.user_id] || 'Present',
-            subject: 'General'
-          })
+        attendanceApi.mark({
+          userId: student.user_id,
+          date: selectedDate,
+          status: attendanceMap[student.user_id] || 'Present',
+          subject: 'General'
         })
       )
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { staffApi } from '@/lib/api'
 
 export default function StaffListPage() {
   const router = useRouter()
@@ -38,16 +39,25 @@ export default function StaffListPage() {
   const fetchStaff = async () => {
     try {
       setLoading(true)
-      const response = await fetch('/api/staff/list')
-      const result = await response.json()
+      console.log('🔄 Fetching staff from backend API...')
+      
+      const result = await staffApi.list()
+      
+      console.log('📊 Staff API response:', { 
+        success: result.success, 
+        count: result.data?.length
+      })
 
       if (result.success) {
-        setStaffMembers(result.data)
+        setStaffMembers(result.data || [])
+        console.log('✅ Staff updated in state:', result.data?.length || 0)
       } else {
         console.error('Failed to fetch staff:', result.error)
+        setMessage({ type: 'error', text: result.error || 'Failed to load staff' })
       }
     } catch (error) {
       console.error('Error fetching staff:', error)
+      setMessage({ type: 'error', text: 'Failed to load staff - network error' })
     } finally {
       setLoading(false)
     }
@@ -56,12 +66,12 @@ export default function StaffListPage() {
   const handleEdit = (staff: any) => {
     setSelectedStaff(staff)
     setFormData({
-      fullName: staff.full_name || '',
-      mobile: staff.mobile || '',
-      email: staff.email || '',
+      fullName: staff.user?.full_name || '',
+      mobile: staff.user?.mobile || '',
+      email: staff.user?.email || '',
       designation: staff.designation || '',
       department: staff.department || '',
-      joiningDate: staff.joining_date || '',
+      joiningDate: staff.date_of_joining || '',
       salary: staff.salary ? String(staff.salary) : ''
     })
     setShowEditModal(true)
@@ -82,23 +92,20 @@ export default function StaffListPage() {
     setMessage(null)
 
     try {
-      const response = await fetch('/api/staff/update', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          staffId: selectedStaff.id,
-          userId: selectedStaff.user_id,
-          fullName: formData.fullName,
-          mobile: formData.mobile,
-          email: formData.email,
-          designation: formData.designation,
-          department: formData.department,
-          joiningDate: formData.joiningDate,
-          salary: formData.salary
-        })
+      console.log('🔄 Updating staff member:', formData)
+      
+      const result = await staffApi.update(selectedStaff.id, {
+        userId: selectedStaff.user_id,
+        fullName: formData.fullName,
+        mobile: formData.mobile,
+        email: formData.email,
+        designation: formData.designation,
+        department: formData.department,
+        joiningDate: formData.joiningDate,
+        salary: formData.salary
       })
 
-      const result = await response.json()
+      console.log('📝 Update response:', result)
 
       if (result.success) {
         setMessage({ type: 'success', text: 'Staff member updated successfully!' })
@@ -125,11 +132,11 @@ export default function StaffListPage() {
     setMessage(null)
 
     try {
-      const response = await fetch(`/api/staff/delete?staffId=${selectedStaff.id}&userId=${selectedStaff.user_id}`, {
-        method: 'DELETE'
-      })
+      console.log('🗑️ Deleting staff member:', selectedStaff.user?.full_name)
+      
+      const result = await staffApi.delete(selectedStaff.id)
 
-      const result = await response.json()
+      console.log('📝 Delete response:', result)
 
       if (result.success) {
         setMessage({ type: 'success', text: 'Staff member deleted successfully!' })
@@ -223,8 +230,8 @@ export default function StaffListPage() {
                   filteredStaff.map((staff, index) => (
                     <tr key={staff.id || index} className="hover:bg-gray-50">
                       <td className="px-6 py-4 text-sm text-gray-900">{index + 1}</td>
-                      <td className="px-6 py-4 text-sm text-gray-900 font-medium">{staff.full_name}</td>
-                      <td className="px-6 py-4 text-sm text-gray-900">{staff.mobile}</td>
+                      <td className="px-6 py-4 text-sm text-gray-900 font-medium">{staff.user?.full_name || 'N/A'}</td>
+                      <td className="px-6 py-4 text-sm text-gray-900">{staff.user?.mobile || 'N/A'}</td>
                       <td className="px-6 py-4 text-sm text-gray-900">{staff.designation || 'N/A'}</td>
                       <td className="px-6 py-4 text-sm text-gray-900">{staff.department || 'N/A'}</td>
                       <td className="px-6 py-4">
@@ -436,7 +443,7 @@ export default function StaffListPage() {
             )}
 
             <p className="text-gray-600 mb-6">
-              Are you sure you want to delete <strong>{selectedStaff?.full_name}</strong>? 
+              Are you sure you want to delete <strong>{selectedStaff?.user?.full_name}</strong>? 
               This action cannot be undone and will permanently remove all associated data.
             </p>
 

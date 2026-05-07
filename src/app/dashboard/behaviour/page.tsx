@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardHeader, CardContent } from '@/components/ui/Card'
+import { behaviourApi } from '@/lib/api'
 
 interface BehaviourRecord {
   id: string
@@ -63,8 +64,11 @@ export default function BehaviourPage() {
   const fetchBehaviourData = async () => {
     try {
       setLoading(true)
-      const response = await fetch(`/api/behaviour/my-behaviour?userId=${userId}`)
-      const result = await response.json()
+      console.log('🔄 Fetching behaviour from backend API...')
+      
+      const result = await behaviourApi.getMyBehaviour(userId!)
+
+      console.log('📊 Behaviour API response:', result)
 
       if (result.success) {
         setBehaviourData(result.data)
@@ -115,19 +119,17 @@ export default function BehaviourPage() {
     setMessage(null)
 
     try {
-      const response = await fetch('/api/behaviour/add', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          studentId: selectedStudent.id,
-          teacherId: userId,
-          rating: formData.rating,
-          comment: formData.comment,
-          date: formData.date
-        })
+      console.log('🔄 Adding behaviour comment for:', selectedStudent.user?.full_name)
+      
+      const result = await behaviourApi.add({
+        studentId: selectedStudent.id,
+        teacherId: userId,
+        rating: formData.rating,
+        comment: formData.comment,
+        date: formData.date
       })
 
-      const result = await response.json()
+      console.log('📝 Behaviour add response:', result)
 
       if (result.success) {
         setMessage({ type: 'success', text: 'Behaviour comment added successfully!' })

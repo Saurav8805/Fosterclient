@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { galleryApi } from '@/lib/api'
 
 export default function GalleryPage() {
   const router = useRouter()
