@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Card, CardHeader, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
+import { progressApi } from '@/lib/api'
 
 interface ProgressRecord {
   id: string
@@ -79,10 +80,9 @@ export default function ReportsPage() {
     try {
       setLoading(true)
       setError(null)
-      console.log('📊 Fetching progress data for user:', userId)
+      console.log('📊 Fetching progress data from backend API...')
       
-      const response = await fetch(`/api/progress/my-progress?userId=${userId}`)
-      const result = await response.json()
+      const result = await progressApi.getMyProgress(userId!)
 
       console.log('📈 Progress API response:', result)
 
@@ -145,31 +145,21 @@ export default function ReportsPage() {
     setSaving(true)
     setMessage(null)
 
-    console.log('💾 Submitting marks:', {
-      studentId: selectedStudent.id,
-      subject: formData.subject,
-      marks: formData.marks,
-      totalMarks: formData.totalMarks
-    })
+    console.log('💾 Submitting marks to backend API...')
 
     try {
-      const response = await fetch('/api/progress/add', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          studentId: selectedStudent.id,
-          subject: formData.subject,
-          marks: parseFloat(formData.marks),
-          totalMarks: parseFloat(formData.totalMarks)
-        })
+      const result = await progressApi.add({
+        studentId: selectedStudent.id,
+        subject: formData.subject,
+        marks: parseFloat(formData.marks),
+        totalMarks: parseFloat(formData.totalMarks)
       })
 
-      const result = await response.json()
       console.log('📊 Add marks API response:', result)
 
       if (result.success) {
         console.log('✅ Marks added/updated successfully')
-        setMessage({ type: 'success', text: result.message })
+        setMessage({ type: 'success', text: result.message || 'Marks added successfully!' })
         setShowModal(false)
         
         // Reset form

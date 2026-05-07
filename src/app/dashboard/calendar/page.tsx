@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { eventsApi } from '@/lib/api'
 
 export default function CalendarPage() {
   const router = useRouter()

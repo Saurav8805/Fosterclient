@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { homeworkApi, configApi } from '@/lib/api'
 
 interface Homework {
   id: string
@@ -42,15 +43,16 @@ export default function HomeworkPage() {
   const fetchHomework = async () => {
     try {
       setLoading(true)
-      const url = selectedClass === 'All' 
-        ? '/api/homework/list'
-        : `/api/homework/list?class=${selectedClass}`
+      console.log('🔄 Fetching homework from backend API...')
       
-      const response = await fetch(url)
-      const result = await response.json()
+      const result = selectedClass === 'All' 
+        ? await homeworkApi.list()
+        : await homeworkApi.list(selectedClass)
+      
+      console.log('📊 Homework API response:', result)
 
       if (result.success) {
-        setHomeworkList(result.data)
+        setHomeworkList(result.data || [])
       }
     } catch (error) {
       console.error('Failed to fetch homework:', error)
@@ -61,9 +63,8 @@ export default function HomeworkPage() {
 
   const fetchClasses = async () => {
     try {
-      const response = await fetch('/api/config/classes')
-      const result = await response.json()
-      if (result.success && result.data.length > 0) {
+      const result = await configApi.getClasses()
+      if (result.success && result.data?.length > 0) {
         setClasses(['All', ...result.data])
       } else {
         setClasses(['All', 'Nursery', 'LKG', 'UKG']) // Fallback
