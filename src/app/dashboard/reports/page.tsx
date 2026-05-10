@@ -69,7 +69,7 @@ export default function ReportsPage() {
       return () => {
         window.removeEventListener('progressUpdated', handleProgressUpdate)
       }
-    } else if (userRole === 6 || userRole === 8) {
+    } else if (userRole === 6 || userRole === 7) {
       fetchStudents()
     } else if (userRole !== null) {
       setLoading(false)
@@ -210,10 +210,10 @@ export default function ReportsPage() {
     const overallPercentage = progressData.overallPercentage
 
     const gradeStyle = (p: number) =>
-      p >= 80 ? { bar: 'bg-green-600', badge: 'bg-green-100 text-green-800', card: 'bg-green-50', text: 'text-green-700' } :
-      p >= 60 ? { bar: 'bg-blue-600', badge: 'bg-blue-100 text-blue-800', card: 'bg-blue-50', text: 'text-blue-700' } :
-      p >= 40 ? { bar: 'bg-yellow-500', badge: 'bg-yellow-100 text-yellow-800', card: 'bg-yellow-50', text: 'text-yellow-700' } :
-               { bar: 'bg-red-600', badge: 'bg-red-100 text-red-800', card: 'bg-red-50', text: 'text-red-700' }
+      p >= 80 ? { bar: 'bg-green-400', badge: 'bg-green-100 text-green-800', card: 'bg-green-50', text: 'text-green-700' } :
+      p >= 60 ? { bar: 'bg-blue-400', badge: 'bg-blue-100 text-blue-800', card: 'bg-blue-50', text: 'text-blue-700' } :
+      p >= 40 ? { bar: 'bg-yellow-400', badge: 'bg-yellow-100 text-yellow-800', card: 'bg-yellow-50', text: 'text-yellow-700' } :
+               { bar: 'bg-red-400', badge: 'bg-red-100 text-red-800', card: 'bg-red-50', text: 'text-red-700' }
 
     return (
       <div className="p-6 max-w-7xl mx-auto">
@@ -337,7 +337,7 @@ export default function ReportsPage() {
         <button
           onClick={fetchStudents}
           disabled={loading}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+          className="px-4 py-2 bg-blue-50 text-blue-700 border-2 border-blue-400 rounded-lg hover:bg-blue-100 transition disabled:opacity-50 font-medium"
         >
           {loading ? 'Refreshing...' : 'Refresh Data'}
         </button>
@@ -520,7 +520,7 @@ export default function ReportsPage() {
                 <button
                   type="submit"
                   disabled={saving || (formData.marks !== '' && formData.totalMarks !== '' && parseFloat(formData.marks) > parseFloat(formData.totalMarks))}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 px-4 py-2 bg-blue-50 text-blue-700 border-2 border-blue-400 rounded-lg hover:bg-blue-100 transition disabled:opacity-50 disabled:cursor-not-allowed font-medium"
                 >
                   {saving ? 'Saving...' : 'Save Marks'}
                 </button>

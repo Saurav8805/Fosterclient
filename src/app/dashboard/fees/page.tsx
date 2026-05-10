@@ -50,7 +50,7 @@ export default function FeesPage() {
   useEffect(() => {
     if (userRole === 19 && userId) {
       fetchFeesData()
-    } else if (userRole === 6 || userRole === 8) {
+    } else if (userRole === 6 || userRole === 7) {
       fetchAllStudentsFees()
     } else if (userRole !== null) {
       setLoading(false)
@@ -200,7 +200,7 @@ export default function FeesPage() {
               <span className="text-sm font-medium text-gray-700">{((feesData.paid_amount / feesData.total_fees) * 100).toFixed(1)}%</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-4 mb-4">
-              <div className="bg-green-600 h-4 rounded-full transition-all" style={{ width: `${(feesData.paid_amount / feesData.total_fees) * 100}%` }} />
+              <div className="bg-green-400 h-4 rounded-full transition-all" style={{ width: `${(feesData.paid_amount / feesData.total_fees) * 100}%` }} />
             </div>
             {feesData.pending_amount > 0 && (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
@@ -420,7 +420,7 @@ export default function FeesPage() {
                 <button
                   type="submit"
                   disabled={saving}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+                  className="flex-1 px-4 py-2 bg-blue-50 text-blue-700 border-2 border-blue-400 rounded-lg hover:bg-blue-100 transition disabled:opacity-50 font-medium"
                 >
                   {saving ? 'Saving...' : 'Save Fees'}
                 </button>

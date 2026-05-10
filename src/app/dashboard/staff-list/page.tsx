@@ -28,8 +28,8 @@ export default function StaffListPage() {
 
   useEffect(() => {
     const role = localStorage.getItem('userRole')
-    if (!role || Number(role) !== 8) {
-      router.push('/dashboard')
+    if (!role) {
+      router.push('/login')
       return
     }
     setUserRole(Number(role))
@@ -195,13 +195,11 @@ export default function StaffListPage() {
                   className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="All">All</option>
-                  <option value="Teacher">Teacher</option>
-                  <option value="Senior Teacher">Senior Teacher</option>
-                  <option value="Head Teacher">Head Teacher</option>
-                  <option value="Principal">Principal</option>
-                  <option value="Vice Principal">Vice Principal</option>
-                  <option value="Admin Staff">Admin Staff</option>
                   <option value="Support Staff">Support Staff</option>
+                  <option value="Teacher">Teacher</option>
+                  <option value="Principal">Principal</option>
+                  <option value="Vice-Principal">Vice-Principal</option>
+                  <option value="Admin">Admin</option>
                 </select>
               </div>
             </div>
@@ -240,7 +238,7 @@ export default function StaffListPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-sm">
-                        {userRole === 8 && (
+                        {userRole === 6 && (
                           <>
                             <button 
                               onClick={() => handleEdit(staff)}
@@ -346,13 +344,11 @@ export default function StaffListPage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">Select Designation</option>
-                    <option value="Teacher">Teacher</option>
-                    <option value="Senior Teacher">Senior Teacher</option>
-                    <option value="Head Teacher">Head Teacher</option>
-                    <option value="Principal">Principal</option>
-                    <option value="Vice Principal">Vice Principal</option>
-                    <option value="Admin Staff">Admin Staff</option>
                     <option value="Support Staff">Support Staff</option>
+                    <option value="Teacher">Teacher</option>
+                    <option value="Principal">Principal</option>
+                    <option value="Vice-Principal">Vice-Principal</option>
+                    <option value="Admin">Admin</option>
                   </select>
                 </div>
 
@@ -367,7 +363,8 @@ export default function StaffListPage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">Select Department</option>
-                    <option value="Pre-Primary">Pre-Primary</option>
+                    <option value="LKG">LKG</option>
+                    <option value="UKG">UKG</option>
                     <option value="Nursery">Nursery</option>
                     <option value="Administration">Administration</option>
                     <option value="Support">Support</option>
@@ -416,7 +413,7 @@ export default function StaffListPage() {
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                  className="px-4 py-2 bg-blue-50 text-blue-700 border-2 border-blue-400 rounded-lg hover:bg-blue-100 disabled:opacity-50 font-medium"
                 >
                   {saving ? 'Saving...' : 'Save Changes'}
                 </button>
@@ -461,7 +458,7 @@ export default function StaffListPage() {
               <button
                 onClick={confirmDelete}
                 disabled={deleting}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+                className="px-4 py-2 bg-red-50 text-red-700 border-2 border-red-400 rounded-lg hover:bg-red-100 disabled:opacity-50 font-medium"
               >
                 {deleting ? 'Deleting...' : 'Delete'}
               </button>

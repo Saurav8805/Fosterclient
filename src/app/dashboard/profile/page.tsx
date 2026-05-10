@@ -12,6 +12,7 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
   const [profileImage, setProfileImage] = useState<string | null>(null)
+  const [isEditing, setIsEditing] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [formData, setFormData] = useState({
@@ -106,10 +107,29 @@ export default function ProfilePage() {
     }
   }
 
+  const handleSaveProfile = async () => {
+    try {
+      const result = await usersApi.updateProfile(userId!, {
+        fullName: formData.fullName,
+        email: formData.email
+      })
+
+      if (result.success) {
+        setMessage({ type: 'success', text: 'Profile updated successfully!' })
+        setIsEditing(false)
+        localStorage.setItem('userName', formData.fullName)
+        setTimeout(() => setMessage(null), 3000)
+      }
+    } catch (error: any) {
+      setMessage({ type: 'error', text: error.message || 'Failed to update profile' })
+    }
+  }
+
   if (loading) return <div className="flex items-center justify-center min-h-screen">Loading...</div>
 
   const isStudent = userRole === 19
-  const roleName = userRole === 8 ? 'Administrator' : userRole === 6 ? 'Faculty' : 'Student'
+  const isAdmin = userRole === 6
+  const roleName = userRole === 6 ? 'Administrator' : userRole === 7 ? 'Faculty' : 'Student'
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -140,7 +160,7 @@ export default function ProfilePage() {
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="absolute bottom-0 right-0 bg-blue-600 text-white p-2 rounded-full hover:bg-blue-700 transition shadow-lg"
+                  className="absolute bottom-0 right-0 bg-blue-50 text-blue-700 border-2 border-blue-400 p-2 rounded-full hover:bg-blue-100 transition shadow-lg"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
@@ -153,24 +173,75 @@ export default function ProfilePage() {
             </div>
 
             <div className="flex-1 text-center md:text-left">
-              <h2 className="text-3xl font-bold text-gray-900">{formData.fullName || 'Complete Your Profile'}</h2>
-              <p className="text-lg text-gray-500 mt-1">{roleName}</p>
-              <div className="flex flex-wrap gap-4 mt-4">
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 8.25h3m-3 3.75h3m-6-3.75H6m.75 3.75H6" />
-                  </svg>
-                  <span>{formData.mobile}</span>
-                </div>
-                {formData.email && (
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
-                    </svg>
-                    <span>{formData.email}</span>
+              {isEditing && isAdmin ? (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                    <input
+                      type="text"
+                      value={formData.fullName}
+                      onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
                   </div>
-                )}
-              </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                    <input
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleSaveProfile}
+                      className="px-4 py-2 bg-blue-50 text-blue-700 border-2 border-blue-400 rounded-lg hover:bg-blue-100 font-medium"
+                    >
+                      Save Changes
+                    </button>
+                    <button
+                      onClick={() => setIsEditing(false)}
+                      className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center gap-3">
+                    <h2 className="text-3xl font-bold text-gray-900">{formData.fullName || 'Complete Your Profile'}</h2>
+                    {isAdmin && (
+                      <button
+                        onClick={() => setIsEditing(true)}
+                        className="text-blue-600 hover:text-blue-700"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-lg text-gray-500 mt-1">{roleName}</p>
+                  <div className="flex flex-wrap gap-4 mt-4">
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 8.25h3m-3 3.75h3m-6-3.75H6m.75 3.75H6" />
+                      </svg>
+                      <span>{formData.mobile}</span>
+                    </div>
+                    {formData.email && (
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+                        </svg>
+                        <span>{formData.email}</span>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </CardContent>

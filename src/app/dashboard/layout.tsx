@@ -160,7 +160,7 @@ function DashboardSidebar() {
     { name: 'Gallery', icon: Icons.gallery, path: '/dashboard/gallery' },
   ]
 
-  const menuItems = userRole === 8 ? adminMenuItems : userRole === 6 ? facultyMenuItems : studentMenuItems
+  const menuItems = userRole === 6 ? adminMenuItems : userRole === 7 ? facultyMenuItems : studentMenuItems
 
   return (
     <aside className={`${isOpen ? 'w-56' : 'w-0 overflow-hidden'} bg-white border-r border-gray-100 transition-all duration-300 flex flex-col flex-shrink-0 h-full shadow-sm`}>

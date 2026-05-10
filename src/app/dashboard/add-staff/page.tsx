@@ -32,7 +32,14 @@ export default function AddStaffPage() {
     try {
       console.log('🔄 Adding staff member:', formData.fullName)
       
-      // Add role field (6 = Faculty role for staff)
+      // Map designation to role
+      // Principal, Vice-Principal, Admin = role 6 (full access)
+      // Teacher, Support Staff = role 7 (teaching staff)
+      let role = 7; // Default to teaching staff
+      if (['Principal', 'Vice-Principal', 'Admin'].includes(formData.designation)) {
+        role = 6; // Full admin access
+      }
+      
       const staffData = {
         fullName: formData.fullName,
         mobile: formData.mobile,
@@ -42,7 +49,7 @@ export default function AddStaffPage() {
         joiningDate: formData.joiningDate,
         salary: formData.salary,
         address: formData.address,
-        role: 6  // Faculty role
+        role: role
       }
       
       console.log('📤 Sending staff data:', staffData)
@@ -185,13 +192,11 @@ export default function AddStaffPage() {
                   onChange={(e) => setFormData({...formData, designation: e.target.value})}
                 >
                   <option value="">Select Designation</option>
-                  <option value="Teacher">Teacher</option>
-                  <option value="Senior Teacher">Senior Teacher</option>
-                  <option value="Head Teacher">Head Teacher</option>
-                  <option value="Principal">Principal</option>
-                  <option value="Vice Principal">Vice Principal</option>
-                  <option value="Admin Staff">Admin Staff</option>
                   <option value="Support Staff">Support Staff</option>
+                  <option value="Teacher">Teacher</option>
+                  <option value="Principal">Principal</option>
+                  <option value="Vice-Principal">Vice-Principal</option>
+                  <option value="Admin">Admin</option>
                 </select>
               </div>
 
@@ -204,7 +209,8 @@ export default function AddStaffPage() {
                   onChange={(e) => setFormData({...formData, department: e.target.value})}
                 >
                   <option value="">Select Department</option>
-                  <option value="Pre-Primary">Pre-Primary</option>
+                  <option value="LKG">LKG</option>
+                  <option value="UKG">UKG</option>
                   <option value="Nursery">Nursery</option>
                   <option value="Administration">Administration</option>
                   <option value="Support">Support</option>
@@ -302,7 +308,7 @@ export default function AddStaffPage() {
               <button 
                 type="submit"
                 disabled={loading}
-                className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
+                className="bg-blue-50 text-blue-700 border-2 border-blue-400 px-6 py-2 rounded-lg hover:bg-blue-100 transition disabled:bg-gray-100 disabled:border-gray-300 disabled:text-gray-400 disabled:cursor-not-allowed font-medium"
               >
                 {loading ? 'Adding...' : 'Add Staff Member'}
               </button>
@@ -320,8 +326,15 @@ export default function AddStaffPage() {
             <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-sm text-blue-800">
                 <span className="font-semibold">Note:</span> Default password will be <span className="font-mono font-bold">foster@123</span>. 
-                The mobile number will be used as the login ID. Staff members will have Faculty role (role 6).
+                The mobile number will be used as the login ID.
               </p>
+              <p className="text-sm text-blue-800 mt-2">
+                <span className="font-semibold">Access Levels:</span>
+              </p>
+              <ul className="text-sm text-blue-800 mt-1 ml-4 list-disc">
+                <li><span className="font-semibold">Principal, Vice-Principal, Admin:</span> Full system access (Role 6)</li>
+                <li><span className="font-semibold">Teacher, Support Staff:</span> Teaching staff access (Role 7)</li>
+              </ul>
             </div>
           </form>
         </div>

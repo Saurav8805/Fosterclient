@@ -34,6 +34,13 @@ export default function LoginPage() {
         localStorage.setItem('userMobile', user.mobile)
         localStorage.setItem('userRole', user.role.toString())
         localStorage.setItem('userName', user.full_name || user.mobile)
+        
+        // Store designation if available (for staff)
+        if (user.additionalData && user.additionalData.designation) {
+          localStorage.setItem('userDesignation', user.additionalData.designation)
+        } else if (user.role === 19) {
+          localStorage.setItem('userDesignation', 'Student')
+        }
 
         // Redirect to dashboard
         router.push('/dashboard/profile')

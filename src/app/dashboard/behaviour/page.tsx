@@ -54,7 +54,7 @@ export default function BehaviourPage() {
   useEffect(() => {
     if (userRole === 19 && userId) {
       fetchBehaviourData()
-    } else if (userRole === 6 || userRole === 8) {
+    } else if (userRole === 6 || userRole === 7) {
       fetchStudents()
     } else if (userRole !== null) {
       setLoading(false)
@@ -371,7 +371,7 @@ export default function BehaviourPage() {
                 <button
                   type="submit"
                   disabled={saving}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+                  className="flex-1 px-4 py-2 bg-blue-50 text-blue-700 border-2 border-blue-400 rounded-lg hover:bg-blue-100 transition disabled:opacity-50 font-medium"
                 >
                   {saving ? 'Saving...' : 'Save Comment'}
                 </button>
