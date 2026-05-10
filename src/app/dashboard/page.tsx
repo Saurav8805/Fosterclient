@@ -116,8 +116,8 @@ export default function DashboardPage() {
     { name: 'Fees', icon: '💰', path: '/dashboard/my-fees' },
   ]
 
-  const menuItems = userRole === 8 ? adminMenuItems : userRole === 6 ? facultyMenuItems : studentMenuItems
-  const roleName = userRole === 8 ? 'Admin' : userRole === 6 ? 'Faculty' : 'Student'
+  const menuItems = userRole === 6 ? adminMenuItems : userRole === 7 ? facultyMenuItems : studentMenuItems
+  const roleName = userRole === 6 ? 'Admin' : userRole === 7 ? 'Faculty' : 'Student'
 
   return (
     <div className="flex h-screen bg-white overflow-hidden">
@@ -179,7 +179,7 @@ export default function DashboardPage() {
                 <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
               </button>
               <Link href="/dashboard/profile">
-                <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold cursor-pointer hover:bg-blue-700 transition">
+                <div className="w-10 h-10 bg-blue-50 border-2 border-blue-400 rounded-full flex items-center justify-center text-blue-700 font-semibold cursor-pointer hover:bg-blue-100 transition">
                   {userName.charAt(0)}
                 </div>
               </Link>
@@ -190,7 +190,7 @@ export default function DashboardPage() {
         {/* Dashboard Content */}
         <main className="flex-1 overflow-y-auto p-6 scrollbar-hide">
           {/* Admin Dashboard */}
-          {userRole === 8 && (
+          {userRole === 6 && (
             <div>
               {/* Stats Cards */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">

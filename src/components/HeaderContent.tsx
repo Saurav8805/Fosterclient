@@ -5,11 +5,13 @@ import Link from 'next/link';
 
 export default function HeaderContent() {
   const [userName, setUserName] = useState('');
+  const [userDesignation, setUserDesignation] = useState('');
   const [userRole, setUserRole] = useState<number | null>(null);
 
   useEffect(() => {
     const name = localStorage.getItem('userName');
     const mobile = localStorage.getItem('userMobile');
+    const designation = localStorage.getItem('userDesignation');
     const role = localStorage.getItem('userRole');
     
     // Use full name if available, otherwise use mobile
@@ -20,16 +22,31 @@ export default function HeaderContent() {
     }
     
     if (role) setUserRole(Number(role));
+    
+    // Set designation with fallback based on role
+    if (designation) {
+      setUserDesignation(designation);
+    } else if (role) {
+      // Fallback designation based on role
+      const roleNum = Number(role);
+      if (roleNum === 6) {
+        setUserDesignation('Administrator');
+      } else if (roleNum === 7) {
+        setUserDesignation('Faculty');
+      } else if (roleNum === 19) {
+        setUserDesignation('Student');
+      }
+    }
   }, []);
-
-  const roleName = userRole === 8 ? 'Administrator' : userRole === 6 ? 'Faculty' : 'Student';
 
   return (
     <header className="flex-shrink-0">
       <div className="px-4 h-20 flex justify-between items-center">
         <div>
           <h1 className="text-lg font-bold text-gray-800">Welcome, {userName}</h1>
-          <p className="text-xs text-gray-400">{roleName}</p>
+          {userDesignation && (
+            <p className="text-xs text-gray-600 font-medium">{userDesignation}</p>
+          )}
         </div>
         <div className="flex items-center gap-3">
           <button className="relative p-2 text-gray-500 hover:bg-gray-100 rounded-full transition">

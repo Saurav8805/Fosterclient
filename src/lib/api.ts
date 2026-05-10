@@ -93,8 +93,19 @@ export const staffApi = {
   add: (data: any) => apiClient.post('/staff/add', data),
   update: (id: string, data: any) => apiClient.put(`/staff/update/${id}`, data),
   delete: (id: string) => apiClient.delete(`/staff/delete/${id}`),
-  getAttendance: (date?: string) => 
-    apiClient.get(`/staff/attendance${date ? `?date=${date}` : ''}`),
+  getAttendance: (params?: { date?: string; staffId?: string; startDate?: string; endDate?: string }) => {
+    let url = '/staff/attendance';
+    if (params) {
+      const queryParams = new URLSearchParams();
+      if (params.date) queryParams.append('date', params.date);
+      if (params.staffId) queryParams.append('staffId', params.staffId);
+      if (params.startDate) queryParams.append('startDate', params.startDate);
+      if (params.endDate) queryParams.append('endDate', params.endDate);
+      const queryString = queryParams.toString();
+      if (queryString) url += `?${queryString}`;
+    }
+    return apiClient.get(url);
+  },
   markAttendance: (data: any) => apiClient.post('/staff/attendance', data),
 };
 
@@ -163,6 +174,8 @@ export const galleryApi = {
 export const usersApi = {
   getProfile: (userId: string) => 
     apiClient.get(`/users/profile?userId=${userId}`),
+  updateProfile: (userId: string, data: any) =>
+    apiClient.put('/users/profile', { userId, ...data }),
 };
 
 export const configApi = {
