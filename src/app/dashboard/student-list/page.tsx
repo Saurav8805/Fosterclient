@@ -14,6 +14,7 @@ export default function StudentListPage() {
   const [classes, setClasses] = useState<string[]>([])
   const [sections, setSections] = useState<string[]>([])
   const [selectedClass, setSelectedClass] = useState('All')
+  const [selectedSection, setSelectedSection] = useState('All')
   const [showModal, setShowModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [selectedStudent, setSelectedStudent] = useState<any>(null)
@@ -162,12 +163,15 @@ export default function StudentListPage() {
   const fetchSections = async () => {
     try {
       const result = await configApi.getSections()
-      if (result.success) {
-        setSections(result.data || [])
+      if (result.success && result.data) {
+        // Always ensure "All" is the first option
+        setSections(['All', ...result.data])
+      } else {
+        setSections(['All', 'A', 'B', 'C']) // Fallback with "All"
       }
     } catch (err) {
       console.error('Error fetching sections:', err)
-      setSections(['A', 'B', 'C']) // Fallback
+      setSections(['All', 'A', 'B', 'C']) // Fallback with "All"
     }
   }
 
@@ -308,9 +312,12 @@ export default function StudentListPage() {
 
   if (loading) return <div className="flex items-center justify-center min-h-screen">Loading...</div>
 
-  const filtered = selectedClass === 'All'
-    ? students
-    : students.filter(s => s.class === selectedClass)
+  // Filter by both class and section
+  const filtered = students.filter(s => {
+    const classMatch = selectedClass === 'All' || s.class === selectedClass
+    const sectionMatch = selectedSection === 'All' || s.section === selectedSection
+    return classMatch && sectionMatch
+  })
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -341,7 +348,7 @@ export default function StudentListPage() {
               <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">{filtered.length}</span>
             </div>
             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-gray-700">Filter:</label>
+              <label className="text-sm font-medium text-gray-700">Class:</label>
               <select
                 value={selectedClass}
                 onChange={(e) => setSelectedClass(e.target.value)}
@@ -351,16 +358,17 @@ export default function StudentListPage() {
                   <option key={c} value={c}>{c}</option>
                 ))}
               </select>
-              <button
-                onClick={() => {
-                  console.log('Manual refresh clicked')
-                  fetchStudents()
-                }}
-                disabled={loading}
-                className="ml-2 px-3 py-2 bg-blue-50 text-blue-700 border-2 border-blue-400 text-sm rounded-lg hover:bg-blue-100 disabled:opacity-50 font-medium"
+              
+              <label className="text-sm font-medium text-gray-700 ml-3">Section:</label>
+              <select
+                value={selectedSection}
+                onChange={(e) => setSelectedSection(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
               >
-                {loading ? '🔄' : '↻'} Refresh
-              </button>
+                {sections.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
             </div>
           </div>
         </CardHeader>
@@ -382,7 +390,9 @@ export default function StudentListPage() {
                 {filtered.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-6 py-10 text-center text-sm text-gray-500">
-                      No students found{selectedClass !== 'All' ? ` for ${selectedClass}` : ''}
+                      No students found
+                      {selectedClass !== 'All' && ` for ${selectedClass}`}
+                      {selectedSection !== 'All' && ` - Section ${selectedSection}`}
                     </td>
                   </tr>
                 ) : (
@@ -482,7 +492,7 @@ export default function StudentListPage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                   >
                     <option value="">Select Section</option>
-                    {sections.map((section) => (
+                    {sections.filter(s => s !== 'All').map((section) => (
                       <option key={section} value={section}>{section}</option>
                     ))}
                   </select>

@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { staffApi } from '@/lib/api'
 
 export default function AddStaffPage() {
   const router = useRouter()
+  const [userRole, setUserRole] = useState<number | null>(null)
   const [formData, setFormData] = useState({
     fullName: '',
     mobile: '',
@@ -23,6 +24,23 @@ export default function AddStaffPage() {
 
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string, credentials?: any } | null>(null)
+
+  // Check role-based access
+  useEffect(() => {
+    const role = localStorage.getItem('userRole')
+    if (!role) {
+      router.push('/login')
+      return
+    }
+    const roleNum = Number(role)
+    setUserRole(roleNum)
+    
+    // Only admin (role 6) can access this page
+    if (roleNum !== 6) {
+      router.push('/dashboard')
+      return
+    }
+  }, [router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

@@ -2,18 +2,25 @@
 
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { studentsApi, configApi } from '@/lib/api'
 
 export default function AdmitStudentPage() {
+  const router = useRouter()
+  const [userRole, setUserRole] = useState<number | null>(null)
   const [formData, setFormData] = useState({
     studentName: '',
     dob: '',
+    age: '',
+    admissionDate: new Date().toISOString().split('T')[0], // Today's date
+    aadharNumber: '',
     gender: '',
     studentClass: 'Nursery',
     section: 'A',
     rollNo: '',
     bloodGroup: '',
     parentName: '',
+    motherName: '',
     mobile: '',
     email: '',
     address: '',
@@ -31,6 +38,51 @@ export default function AdmitStudentPage() {
   const [bloodGroups, setBloodGroups] = useState<string[]>([])
   const [loadingTeachers, setLoadingTeachers] = useState(true)
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string, credentials?: any } | null>(null)
+
+  // Check role-based access
+  useEffect(() => {
+    const role = localStorage.getItem('userRole')
+    if (!role) {
+      router.push('/login')
+      return
+    }
+    const roleNum = Number(role)
+    setUserRole(roleNum)
+    
+    // Only admin (role 6) can access this page
+    if (roleNum !== 6) {
+      router.push('/dashboard')
+      return
+    }
+  }, [router])
+
+  // Calculate age from date of birth
+  const calculateAge = (dob: string): string => {
+    if (!dob) return '';
+    
+    const birthDate = new Date(dob);
+    const today = new Date();
+    
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    
+    // Adjust age if birthday hasn't occurred this year
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    
+    return age.toString();
+  }
+
+  // Handle DOB change and auto-calculate age
+  const handleDobChange = (dob: string) => {
+    const calculatedAge = calculateAge(dob);
+    setFormData({
+      ...formData,
+      dob: dob,
+      age: calculatedAge
+    });
+  }
 
   // Fetch teachers on component mount
   useEffect(() => {
@@ -162,12 +214,16 @@ export default function AdmitStudentPage() {
         setFormData({
           studentName: '',
           dob: '',
+          age: '',
+          admissionDate: new Date().toISOString().split('T')[0], // Reset to today's date
+          aadharNumber: '',
           gender: '',
           studentClass: classes[0] || 'Nursery',
           section: sections[0] || 'A',
           rollNo: '',
           bloodGroup: '',
           parentName: '',
+          motherName: '',
           mobile: '',
           email: '',
           address: '',
@@ -192,12 +248,16 @@ export default function AdmitStudentPage() {
     setFormData({
       studentName: '',
       dob: '',
+      age: '',
+      admissionDate: new Date().toISOString().split('T')[0], // Reset to today's date
+      aadharNumber: '',
       gender: '',
       studentClass: classes[0] || 'Nursery',
       section: sections[0] || 'A',
       rollNo: '',
       bloodGroup: '',
       parentName: '',
+      motherName: '',
       mobile: '',
       email: '',
       address: '',
@@ -264,7 +324,45 @@ export default function AdmitStudentPage() {
                   required
                   className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={formData.dob}
-                  onChange={(e) => setFormData({...formData, dob: e.target.value})}
+                  onChange={(e) => handleDobChange(e.target.value)}
+                />
+              </div>
+
+              {/* Age (Auto-calculated) */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Age (Auto-calculated)</label>
+                <input 
+                  type="text" 
+                  readOnly
+                  className="w-full px-4 py-2 border rounded-lg bg-gray-100 cursor-not-allowed"
+                  value={formData.age ? `${formData.age} years` : 'Enter date of birth'}
+                  placeholder="Auto-calculated from DOB"
+                />
+              </div>
+
+              {/* Admission Date */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Admission Date *</label>
+                <input 
+                  type="date" 
+                  required
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={formData.admissionDate}
+                  onChange={(e) => setFormData({...formData, admissionDate: e.target.value})}
+                />
+              </div>
+
+              {/* Aadhar Number */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Aadhar Number</label>
+                <input 
+                  type="text" 
+                  pattern="[0-9]{12}"
+                  maxLength={12}
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={formData.aadharNumber}
+                  onChange={(e) => setFormData({...formData, aadharNumber: e.target.value})}
+                  placeholder="12-digit Aadhar number (optional)"
                 />
               </div>
 
@@ -365,14 +463,27 @@ export default function AdmitStudentPage() {
 
               {/* Parent/Guardian Name */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Parent/Guardian Name *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Father Name *</label>
                 <input 
                   type="text" 
                   required
                   className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={formData.parentName}
                   onChange={(e) => setFormData({...formData, parentName: e.target.value})}
-                  placeholder="Enter parent/guardian name"
+                  placeholder="Enter father's name"
+                />
+              </div>
+
+              {/* Mother Name */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Mother Name *</label>
+                <input 
+                  type="text" 
+                  required
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={formData.motherName}
+                  onChange={(e) => setFormData({...formData, motherName: e.target.value})}
+                  placeholder="Enter mother's name"
                 />
               </div>
 

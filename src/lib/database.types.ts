@@ -46,11 +46,20 @@ export interface Database {
           id: string
           user_id: string
           teacher_id: string | null
+          student_name: string | null
+          mobile: string | null
+          email: string | null
           class: string | null
           section: string | null
           roll_no: number | null
           dob: string | null
+          age: number | null
+          gender: string | null
+          admission_date: string | null
+          aadhar_number: string | null
           blood_group: string | null
+          parent_name: string | null
+          mother_name: string | null
           address: string | null
           city: string | null
           state: string | null
@@ -62,11 +71,20 @@ export interface Database {
           id?: string
           user_id: string
           teacher_id?: string | null
+          student_name?: string | null
+          mobile?: string | null
+          email?: string | null
           class?: string | null
           section?: string | null
           roll_no?: number | null
           dob?: string | null
+          age?: number | null
+          gender?: string | null
+          admission_date?: string | null
+          aadhar_number?: string | null
           blood_group?: string | null
+          parent_name?: string | null
+          mother_name?: string | null
           address?: string | null
           city?: string | null
           state?: string | null
@@ -78,11 +96,20 @@ export interface Database {
           id?: string
           user_id?: string
           teacher_id?: string | null
+          student_name?: string | null
+          mobile?: string | null
+          email?: string | null
           class?: string | null
           section?: string | null
           roll_no?: number | null
           dob?: string | null
+          age?: number | null
+          gender?: string | null
+          admission_date?: string | null
+          aadhar_number?: string | null
           blood_group?: string | null
+          parent_name?: string | null
+          mother_name?: string | null
           address?: string | null
           city?: string | null
           state?: string | null
