@@ -4,9 +4,17 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { staffApi } from '@/lib/api'
 
+interface StaffCredentials {
+  mobile: string;
+  password: string;
+}
+
+interface AddStaffResponse {
+  credentials?: StaffCredentials;
+}
+
 export default function AddStaffPage() {
   const router = useRouter()
-  const [userRole, setUserRole] = useState<number | null>(null)
   const [formData, setFormData] = useState({
     fullName: '',
     mobile: '',
@@ -23,7 +31,7 @@ export default function AddStaffPage() {
   })
 
   const [loading, setLoading] = useState(false)
-  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string, credentials?: any } | null>(null)
+  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string, credentials?: StaffCredentials } | null>(null)
 
   // Check role-based access
   useEffect(() => {
@@ -33,7 +41,6 @@ export default function AddStaffPage() {
       return
     }
     const roleNum = Number(role)
-    setUserRole(roleNum)
     
     // Only admin (role 6) can access this page
     if (roleNum !== 6) {
@@ -72,7 +79,7 @@ export default function AddStaffPage() {
       
       console.log('📤 Sending staff data:', staffData)
       
-      const result = await staffApi.add(staffData)
+      const result = await staffApi.add(staffData) as { success: boolean; data?: AddStaffResponse; error?: string }
 
       console.log('📝 Add staff response:', result)
 
