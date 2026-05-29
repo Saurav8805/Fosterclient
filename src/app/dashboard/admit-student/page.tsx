@@ -1,13 +1,11 @@
 ﻿'use client';
 
-import Link from 'next/link'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { studentsApi, configApi } from '@/lib/api'
 
 export default function AdmitStudentPage() {
   const router = useRouter()
-  const [userRole, setUserRole] = useState<number | null>(null)
   const [formData, setFormData] = useState({
     studentName: '',
     dob: '',
@@ -47,7 +45,6 @@ export default function AdmitStudentPage() {
       return
     }
     const roleNum = Number(role)
-    setUserRole(roleNum)
     
     // Only admin (role 6) can access this page
     if (roleNum !== 6) {
