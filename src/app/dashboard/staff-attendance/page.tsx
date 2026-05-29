@@ -34,6 +34,14 @@ export default function StaffAttendancePage() {
   const [showEndCalendar, setShowEndCalendar] = useState(false)
   const [startCalendarMonth, setStartCalendarMonth] = useState(new Date())
   const [endCalendarMonth, setEndCalendarMonth] = useState(new Date())
+
+  // Individual staff attendance view state
+  const [selectedStaff, setSelectedStaff] = useState<string>('')
+  const [startDate, setStartDate] = useState<string>('')
+  const [endDate, setEndDate] = useState<string>('')
+  const [viewLoading, setViewLoading] = useState(false)
+  const [attendanceRecords, setAttendanceRecords] = useState<any[]>([])
+  const [stats, setStats] = useState<any>(null)
   
   // Detailed View State (when clicking on a staff member)
   const [selectedStaffDetail, setSelectedStaffDetail] = useState<any>(null)
