@@ -110,6 +110,23 @@ export const staffApi = {
 };
 
 export const attendanceApi = {
+  // Student attendance (bulk operations)
+  getStudentAttendance: (params?: { date?: string; studentId?: string; startDate?: string; endDate?: string }) => {
+    let url = '/attendance/student';
+    if (params) {
+      const queryParams = new URLSearchParams();
+      if (params.date) queryParams.append('date', params.date);
+      if (params.studentId) queryParams.append('studentId', params.studentId);
+      if (params.startDate) queryParams.append('startDate', params.startDate);
+      if (params.endDate) queryParams.append('endDate', params.endDate);
+      const queryString = queryParams.toString();
+      if (queryString) url += `?${queryString}`;
+    }
+    return apiClient.get(url);
+  },
+  markStudentAttendance: (data: any) => apiClient.post('/attendance/student', data),
+  
+  // Legacy single student attendance
   mark: (data: any) => apiClient.post('/attendance/mark', data),
   getMyAttendance: (studentId: string, startDate?: string, endDate?: string) => {
     let url = `/attendance/my-attendance?studentId=${studentId}`;
@@ -180,6 +197,7 @@ export const usersApi = {
 
 export const configApi = {
   getClasses: () => apiClient.get('/config/classes'),
+  getClassStats: () => apiClient.get('/config/class-stats'),
   getSections: () => apiClient.get('/config/sections'),
   getDepartments: () => apiClient.get('/config/departments'),
   getDesignations: () => apiClient.get('/config/designations'),

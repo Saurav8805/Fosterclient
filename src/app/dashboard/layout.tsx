@@ -136,16 +136,13 @@ function DashboardSidebar() {
     { name: 'Profile', icon: Icons.profile, path: '/dashboard/profile' },
     { name: 'Student List', icon: Icons.studentList, path: '/dashboard/student-list' },
     { name: 'Student Attendance', icon: Icons.attendance, path: '/dashboard/student-attendance' },
-    { name: 'Fees', icon: Icons.fees, path: '/dashboard/fees' },
     { name: 'Calendar & Events', icon: Icons.calendar, path: '/dashboard/calendar' },
-    { name: 'Salary', icon: Icons.salary, path: '/dashboard/salary' },
     { name: 'Syllabus', icon: Icons.syllabus, path: '/dashboard/syllabus' },
     { name: 'Homework', icon: Icons.homework, path: '/dashboard/homework' },
     { name: 'Student Behaviour', icon: Icons.behaviour, path: '/dashboard/behaviour' },
     { name: 'Progress & Reports', icon: Icons.reports, path: '/dashboard/reports' },
-    { name: 'Attendance', icon: Icons.staffAttendance, path: '/dashboard/staff-attendance' },
+    { name: 'My Attendance', icon: Icons.staffAttendance, path: '/dashboard/staff-attendance' },
     { name: 'Gallery', icon: Icons.gallery, path: '/dashboard/gallery' },
-    { name: 'Admit Student', icon: Icons.admitStudent, path: '/dashboard/admit-student' },
   ]
 
   const studentMenuItems = [

@@ -1,8 +1,17 @@
 'use client';
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { staffApi } from '@/lib/api'
+
+interface StaffCredentials {
+  mobile: string;
+  password: string;
+}
+
+interface AddStaffResponse {
+  credentials?: StaffCredentials;
+}
 
 export default function AddStaffPage() {
   const router = useRouter()
@@ -22,7 +31,23 @@ export default function AddStaffPage() {
   })
 
   const [loading, setLoading] = useState(false)
-  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string, credentials?: any } | null>(null)
+  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string, credentials?: StaffCredentials } | null>(null)
+
+  // Check role-based access
+  useEffect(() => {
+    const role = localStorage.getItem('userRole')
+    if (!role) {
+      router.push('/login')
+      return
+    }
+    const roleNum = Number(role)
+    
+    // Only admin (role 6) can access this page
+    if (roleNum !== 6) {
+      router.push('/dashboard')
+      return
+    }
+  }, [router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -54,7 +79,7 @@ export default function AddStaffPage() {
       
       console.log('📤 Sending staff data:', staffData)
       
-      const result = await staffApi.add(staffData)
+      const result = await staffApi.add(staffData) as { success: boolean; data?: AddStaffResponse; error?: string }
 
       console.log('📝 Add staff response:', result)
 
