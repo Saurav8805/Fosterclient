@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardHeader, CardContent } from '@/components/ui/Card'
 import { usersApi } from '@/lib/api'
+import { User, Mail, Phone, Calendar, MapPin, Droplet, Users, BookOpen, Hash, Briefcase, Building2, DollarSign, UserCircle } from 'lucide-react'
 
 export default function ProfilePage() {
   const router = useRouter()
@@ -12,24 +13,18 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
   const [profileImage, setProfileImage] = useState<string | null>(null)
-  const [isEditing, setIsEditing] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const [formData, setFormData] = useState({
-    fullName: '',
-    email: '',
-    dateOfBirth: '',
-    address: '',
-    city: '',
-    state: '',
-    pincode: '',
-    emergencyContact: '',
-    bloodGroup: '',
-    class: '',
-    section: '',
-    rollNo: '',
-    mobile: '',
-    teacherName: ''
+  const [studentData, setStudentData] = useState({
+    fullName: '', mobile: '', email: '', studentName: '', class: '', section: '',
+    rollNo: '', dob: '', age: '', gender: '', admissionDate: '', aadharNumber: '',
+    bloodGroup: '', parentName: '', motherName: '', address: '', city: '', state: '',
+    pincode: '', emergencyContact: '', teacherName: '', createdAt: ''
+  })
+
+  const [staffData, setStaffData] = useState({
+    fullName: '', mobile: '', email: '', designation: '', department: '',
+    joiningDate: '', salary: '', createdAt: ''
   })
 
   useEffect(() => {
@@ -41,53 +36,42 @@ export default function ProfilePage() {
     }
     setUserRole(Number(role))
     setUserId(id)
-    fetchProfileData(id)
-    
-    // Load saved profile image
-    const savedImage = localStorage.getItem('profileImage')
+    fetchProfileData(id, Number(role))
+    const savedImage = localStorage.getItem(`profileImage_${id}`)
     if (savedImage) setProfileImage(savedImage)
   }, [router])
 
-  const fetchProfileData = async (id: string) => {
+  const fetchProfileData = async (id: string, role: number) => {
     try {
       setLoading(true)
-      console.log('🔄 Fetching profile from backend API...')
-      
       const result = await usersApi.getProfile(id)
-
-      console.log('📊 Profile API response:', result)
-
       if (result.success) {
-        // Backend returns data directly, not nested under 'user'
-        const profileData = result.data
-        
-        // Check if profileData exists
-        if (!profileData) {
-          setMessage({ type: 'error', text: 'No profile data found' })
-          return
+        const userData = result.data.user
+        const additional = result.data.additionalData
+        if (role === 19) {
+          setStudentData({
+            fullName: userData.full_name || '', mobile: userData.mobile || '', email: userData.email || '',
+            studentName: additional?.student_name || userData.full_name || '', class: additional?.class || '',
+            section: additional?.section || '', rollNo: additional?.roll_no || '', dob: additional?.dob || '',
+            age: additional?.age || '', gender: additional?.gender || '', admissionDate: additional?.admission_date || '',
+            aadharNumber: additional?.aadhar_number || '', bloodGroup: additional?.blood_group || '',
+            parentName: additional?.parent_name || '', motherName: additional?.mother_name || '',
+            address: additional?.address || '', city: additional?.city || '', state: additional?.state || '',
+            pincode: additional?.pincode || '', emergencyContact: additional?.emergency_contact || '',
+            teacherName: additional?.teacher?.full_name || '', createdAt: userData.created_at || ''
+          })
+        } else {
+          setStaffData({
+            fullName: userData.full_name || '', mobile: userData.mobile || '', email: userData.email || '',
+            designation: additional?.designation || '', department: additional?.department || '',
+            joiningDate: additional?.joining_date || '', salary: additional?.salary || '',
+            createdAt: userData.created_at || ''
+          })
         }
-
-        setFormData({
-          fullName: profileData.full_name || '',
-          email: profileData.email || '',
-          mobile: profileData.mobile || '',
-          dateOfBirth: profileData.dob || '',
-          address: profileData.address || '',
-          city: profileData.city || '',
-          state: profileData.state || '',
-          pincode: profileData.pincode || '',
-          emergencyContact: profileData.emergency_contact || '',
-          bloodGroup: profileData.blood_group || '',
-          class: profileData.class || '',
-          section: profileData.section || '',
-          rollNo: profileData.roll_no || '',
-          teacherName: profileData.teacher?.full_name || ''
-        })
       } else {
         setMessage({ type: 'error', text: result.error || 'Failed to load profile data' })
       }
     } catch (error) {
-      console.error('Failed to fetch profile:', error)
       setMessage({ type: 'error', text: 'Failed to load profile data' })
     } finally {
       setLoading(false)
@@ -97,254 +81,159 @@ export default function ProfilePage() {
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
+      if (file.size > 5 * 1024 * 1024) { setMessage({ type: 'error', text: 'Image size must be less than 5MB' }); return }
+      if (!file.type.startsWith('image/')) { setMessage({ type: 'error', text: 'Please upload an image file' }); return }
       const reader = new FileReader()
       reader.onloadend = () => {
         const result = reader.result as string
         setProfileImage(result)
-        localStorage.setItem('profileImage', result)
+        localStorage.setItem(`profileImage_${userId}`, result)
+        setMessage({ type: 'success', text: 'Profile photo updated!' })
+        setTimeout(() => setMessage(null), 3000)
       }
       reader.readAsDataURL(file)
     }
   }
 
-  const handleSaveProfile = async () => {
-    try {
-      const result = await usersApi.updateProfile(userId!, {
-        fullName: formData.fullName,
-        email: formData.email
-      })
-
-      if (result.success) {
-        setMessage({ type: 'success', text: 'Profile updated successfully!' })
-        setIsEditing(false)
-        localStorage.setItem('userName', formData.fullName)
-        setTimeout(() => setMessage(null), 3000)
-      }
-    } catch (error: any) {
-      setMessage({ type: 'error', text: error.message || 'Failed to update profile' })
-    }
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <p className="text-neutral-600">Loading profile...</p>
+        </div>
+      </div>
+    )
   }
 
-  if (loading) return <div className="flex items-center justify-center min-h-screen">Loading...</div>
-
   const isStudent = userRole === 19
-  const isAdmin = userRole === 6
-  const roleName = userRole === 6 ? 'Administrator' : userRole === 7 ? 'Faculty' : 'Student'
+  const isStaff = userRole === 6 || userRole === 7 || userRole === 8
+  const getRoleName = (role: number) => {
+    switch(role) {
+      case 6: return 'Principal/Vice-Principal'
+      case 7: return 'Teacher'
+      case 8: return 'Support Staff'
+      case 19: return 'Student'
+      default: return 'User'
+    }
+  }
+  const currentData = isStudent ? studentData : staffData
+  const displayName = isStudent ? studentData.fullName || studentData.studentName : staffData.fullName
+  const initials = displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'U'
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      {/* Message */}
+    <div className="p-6 max-w-7xl mx-auto bg-neutral-50 min-h-screen">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-neutral-900">My Profile</h1>
+        <p className="text-sm text-neutral-600 mt-1">View your personal information</p>
+      </div>
       {message && (
-        <div className={`mb-6 p-4 rounded-lg ${
-          message.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 
-          'bg-red-50 text-red-800 border border-red-200'
-        }`}>
-          {message.text}
+        <div className={`mb-6 p-4 rounded-lg flex items-center gap-3 ${message.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
+          <span>{message.text}</span>
         </div>
       )}
-
-      {/* Profile Header */}
-      <Card className="mb-6">
-        <CardContent className="p-6">
-          <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
-            {/* Photo */}
-            <div className="flex flex-col items-center">
-              <div className="relative">
+      <Card className="mb-6 shadow-sm border border-neutral-200">
+        <CardContent className="p-8">
+          <div className="flex flex-col md:flex-row items-center md:items-start gap-8">
+            <div className="flex flex-col items-center gap-3">
+              <div className="relative group">
                 {profileImage ? (
-                  <img src={profileImage} alt="Profile" className="w-32 h-32 rounded-full object-cover border-4 border-gray-200" />
+                  <img src={profileImage} alt="Profile" className="w-32 h-32 rounded-full object-cover border-4 border-neutral-200 shadow-lg"/>
                 ) : (
-                  <div className="w-32 h-32 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white text-5xl font-bold border-4 border-gray-200">
-                    {formData.fullName.charAt(0) || 'U'}
-                  </div>
+                  <div className="w-32 h-32 bg-gradient-to-br from-blue-500 to-blue-700 rounded-full flex items-center justify-center text-white text-4xl font-bold border-4 border-neutral-200 shadow-lg">{initials}</div>
                 )}
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="absolute bottom-0 right-0 bg-blue-50 text-blue-700 border-2 border-blue-400 p-2 rounded-full hover:bg-blue-100 transition shadow-lg"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
+                <button type="button" onClick={() => fileInputRef.current?.click()} className="absolute bottom-0 right-0 bg-white text-blue-600 border-2 border-blue-500 p-2.5 rounded-full hover:bg-blue-50 transition shadow-lg">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                 </button>
                 <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
               </div>
-              <p className="text-xs text-gray-400 mt-2">Click to change photo</p>
+              <p className="text-xs text-neutral-500">Click to change</p>
             </div>
-
             <div className="flex-1 text-center md:text-left">
-              {isEditing && isAdmin ? (
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                    <input
-                      type="text"
-                      value={formData.fullName}
-                      onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                    <input
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div className="flex gap-3">
-                    <button
-                      onClick={handleSaveProfile}
-                      className="px-4 py-2 bg-blue-50 text-blue-700 border-2 border-blue-400 rounded-lg hover:bg-blue-100 font-medium"
-                    >
-                      Save Changes
-                    </button>
-                    <button
-                      onClick={() => setIsEditing(false)}
-                      className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
-                    >
-                      Cancel
-                    </button>
-                  </div>
+              <h2 className="text-3xl font-bold text-neutral-900">{displayName || 'User'}</h2>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-700 text-sm font-medium rounded-full border border-blue-200 mt-2">
+                <UserCircle className="w-4 h-4" />{getRoleName(userRole!)}
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center"><Phone className="w-5 h-5 text-blue-600" /></div>
+                  <div><p className="text-xs text-neutral-500">Mobile</p><p className="font-semibold">{currentData.mobile || 'N/A'}</p></div>
                 </div>
-              ) : (
-                <>
+                {currentData.email && (
                   <div className="flex items-center gap-3">
-                    <h2 className="text-3xl font-bold text-gray-900">{formData.fullName || 'Complete Your Profile'}</h2>
-                    {isAdmin && (
-                      <button
-                        onClick={() => setIsEditing(true)}
-                        className="text-blue-600 hover:text-blue-700"
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                      </button>
-                    )}
+                    <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center"><Mail className="w-5 h-5 text-green-600" /></div>
+                    <div><p className="text-xs text-neutral-500">Email</p><p className="font-semibold text-sm">{currentData.email}</p></div>
                   </div>
-                  <p className="text-lg text-gray-500 mt-1">{roleName}</p>
-                  <div className="flex flex-wrap gap-4 mt-4">
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 8.25h3m-3 3.75h3m-6-3.75H6m.75 3.75H6" />
-                      </svg>
-                      <span>{formData.mobile}</span>
-                    </div>
-                    {formData.email && (
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
-                        </svg>
-                        <span>{formData.email}</span>
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
+                )}
+              </div>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Complete Student Information — read-only for students */}
       {isStudent && (
-        <Card className="mb-6">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <h3 className="text-xl font-semibold text-gray-900">Student Information</h3>
-              <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full">Read only</span>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="text-sm font-medium text-gray-500 block mb-1">Full Name</label>
-                <div className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700">
-                  {formData.fullName || 'Not provided'}
-                </div>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500 block mb-1">Mobile Number</label>
-                <div className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700">
-                  {formData.mobile}
-                </div>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500 block mb-1">Email Address</label>
-                <div className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700">
-                  {formData.email || 'Not provided'}
-                </div>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500 block mb-1">Date of Birth</label>
-                <div className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700">
-                  {formData.dateOfBirth ? new Date(formData.dateOfBirth).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Not provided'}
-                </div>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500 block mb-1">Blood Group</label>
-                <div className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700">
-                  {formData.bloodGroup || 'Not provided'}
-                </div>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500 block mb-1">Emergency Contact</label>
-                <div className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700">
-                  {formData.emergencyContact || 'Not provided'}
-                </div>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500 block mb-1">Class Enrolled</label>
-                <div className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700">
-                  {formData.class || 'Not assigned'}
-                </div>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500 block mb-1">Section</label>
-                <div className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700">
-                  {formData.section || 'Not assigned'}
-                </div>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500 block mb-1">Roll Number</label>
-                <div className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700">
-                  {formData.rollNo || 'Not assigned'}
-                </div>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500 block mb-1">Assigned Teacher</label>
-                <div className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700">
-                  {formData.teacherName || 'Not assigned'}
-                </div>
-              </div>
-              <div className="md:col-span-2">
-                <label className="text-sm font-medium text-gray-500 block mb-1">Address</label>
-                <div className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700">
-                  {formData.address || 'Not provided'}
-                </div>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500 block mb-1">City</label>
-                <div className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700">
-                  {formData.city || 'Not provided'}
-                </div>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500 block mb-1">State</label>
-                <div className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700">
-                  {formData.state || 'Not provided'}
-                </div>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500 block mb-1">Pincode</label>
-                <div className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700">
-                  {formData.pincode || 'Not provided'}
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card className="shadow-sm border border-neutral-200">
+            <CardHeader className="bg-neutral-50"><h3 className="font-semibold flex items-center gap-2"><User className="w-5 h-5 text-blue-600"/>Personal</h3></CardHeader>
+            <CardContent className="p-4 space-y-3">
+              <div><p className="text-xs text-neutral-500">Name</p><p className="font-medium">{studentData.studentName || 'N/A'}</p></div>
+              <div><p className="text-xs text-neutral-500">DOB</p><p className="font-medium">{studentData.dob ? new Date(studentData.dob).toLocaleDateString('en-IN') : 'N/A'}</p></div>
+              <div><p className="text-xs text-neutral-500">Age</p><p className="font-medium">{studentData.age || 'N/A'}</p></div>
+              <div><p className="text-xs text-neutral-500">Gender</p><p className="font-medium">{studentData.gender || 'N/A'}</p></div>
+              <div><p className="text-xs text-neutral-500">Blood Group</p><p className="font-medium">{studentData.bloodGroup || 'N/A'}</p></div>
+              <div><p className="text-xs text-neutral-500">Aadhar</p><p className="font-medium">{studentData.aadharNumber || 'N/A'}</p></div>
+            </CardContent>
+          </Card>
+          <Card className="shadow-sm border border-neutral-200">
+            <CardHeader className="bg-neutral-50"><h3 className="font-semibold flex items-center gap-2"><BookOpen className="w-5 h-5 text-blue-600"/>Academic</h3></CardHeader>
+            <CardContent className="p-4 space-y-3">
+              <div><p className="text-xs text-neutral-500">Class</p><p className="font-medium">{studentData.class || 'N/A'}</p></div>
+              <div><p className="text-xs text-neutral-500">Section</p><p className="font-medium">{studentData.section || 'N/A'}</p></div>
+              <div><p className="text-xs text-neutral-500">Roll No</p><p className="font-medium">{studentData.rollNo || 'N/A'}</p></div>
+              <div><p className="text-xs text-neutral-500">Teacher</p><p className="font-medium">{studentData.teacherName || 'N/A'}</p></div>
+              <div><p className="text-xs text-neutral-500">Admission Date</p><p className="font-medium">{studentData.admissionDate ? new Date(studentData.admissionDate).toLocaleDateString('en-IN') : 'N/A'}</p></div>
+            </CardContent>
+          </Card>
+          <Card className="shadow-sm border border-neutral-200">
+            <CardHeader className="bg-neutral-50"><h3 className="font-semibold flex items-center gap-2"><Users className="w-5 h-5 text-blue-600"/>Parents</h3></CardHeader>
+            <CardContent className="p-4 space-y-3">
+              <div><p className="text-xs text-neutral-500">Father</p><p className="font-medium">{studentData.parentName || 'N/A'}</p></div>
+              <div><p className="text-xs text-neutral-500">Mother</p><p className="font-medium">{studentData.motherName || 'N/A'}</p></div>
+              <div><p className="text-xs text-neutral-500">Emergency</p><p className="font-medium">{studentData.emergencyContact || 'N/A'}</p></div>
+            </CardContent>
+          </Card>
+          <Card className="shadow-sm border border-neutral-200">
+            <CardHeader className="bg-neutral-50"><h3 className="font-semibold flex items-center gap-2"><MapPin className="w-5 h-5 text-blue-600"/>Address</h3></CardHeader>
+            <CardContent className="p-4 space-y-3">
+              <div><p className="text-xs text-neutral-500">Address</p><p className="font-medium">{studentData.address || 'N/A'}</p></div>
+              <div><p className="text-xs text-neutral-500">City</p><p className="font-medium">{studentData.city || 'N/A'}</p></div>
+              <div><p className="text-xs text-neutral-500">State</p><p className="font-medium">{studentData.state || 'N/A'}</p></div>
+              <div><p className="text-xs text-neutral-500">Pincode</p><p className="font-medium">{studentData.pincode || 'N/A'}</p></div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+      {isStaff && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card className="shadow-sm border border-neutral-200">
+            <CardHeader className="bg-neutral-50"><h3 className="font-semibold flex items-center gap-2"><Briefcase className="w-5 h-5 text-blue-600"/>Professional</h3></CardHeader>
+            <CardContent className="p-4 space-y-3">
+              <div><p className="text-xs text-neutral-500">Designation</p><p className="font-medium">{staffData.designation || 'N/A'}</p></div>
+              <div><p className="text-xs text-neutral-500">Department</p><p className="font-medium">{staffData.department || 'N/A'}</p></div>
+              <div><p className="text-xs text-neutral-500">Joining Date</p><p className="font-medium">{staffData.joiningDate ? new Date(staffData.joiningDate).toLocaleDateString('en-IN') : 'N/A'}</p></div>
+              {userRole === 6 && staffData.salary && (
+                <div><p className="text-xs text-neutral-500">Salary</p><p className="font-medium">₹{Number(staffData.salary).toLocaleString('en-IN')}</p></div>
+              )}
+            </CardContent>
+          </Card>
+          <Card className="shadow-sm border border-neutral-200">
+            <CardHeader className="bg-neutral-50"><h3 className="font-semibold flex items-center gap-2"><Phone className="w-5 h-5 text-blue-600"/>Contact</h3></CardHeader>
+            <CardContent className="p-4 space-y-3">
+              <div><p className="text-xs text-neutral-500">Mobile</p><p className="font-medium">{staffData.mobile || 'N/A'}</p></div>
+              <div><p className="text-xs text-neutral-500">Email</p><p className="font-medium">{staffData.email || 'N/A'}</p></div>
+            </CardContent>
+          </Card>
+        </div>
       )}
     </div>
   )
