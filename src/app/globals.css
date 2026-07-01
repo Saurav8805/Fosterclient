@@ -74,3 +74,64 @@
     @apply w-20 h-1 bg-gradient-to-r from-[#667eea] to-[#764ba2] mx-auto rounded-sm;
   }
 }
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-12px) rotate(1deg);
+  }
+}
+
+@keyframes float-slow {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(-1deg);
+  }
+}
+
+@keyframes pulse-subtle {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(0.98);
+  }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-float-slow {
+  animation: float-slow 8s ease-in-out infinite;
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 4s ease-in-out infinite;
+}
+
+.text-gradient-primary {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-[#5e3a9e] to-[#e91e63];
+}
+
+.text-gradient-accent {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-[#ff6b35] to-[#e91e63];
+}
+
+.bg-radial-gradient {
+  background: radial-gradient(circle at 50% 50%, rgba(94, 58, 158, 0.05) 0%, transparent 80%);
+}
+
+.btn-glowing {
+  @apply shadow-[0_4px_14px_0_rgba(233,30,99,0.3)] hover:shadow-[0_6px_20px_rgba(233,30,99,0.5)] transition-all duration-300;
+}
+
+.btn-purple-glowing {
+  @apply shadow-[0_4px_14px_0_rgba(94,58,158,0.3)] hover:shadow-[0_6px_20px_rgba(94,58,158,0.5)] transition-all duration-300;
+}

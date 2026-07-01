@@ -1,23 +1,28 @@
-interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
-  label?: string
-  error?: string
+interface CardProps {
+  children: React.ReactNode
+  className?: string
 }
 
-export function Input({ label, error, className = '', ...props }: InputProps) {
+export function Card({ children, className = '' }: CardProps) {
   return (
-    <div className="flex flex-col gap-2">
-      {label && (
-        <label className="text-sm font-medium text-gray-700">
-          {label}
-        </label>
-      )}
-      <input
-        className={`px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition ${
-          error ? 'border-red-500' : ''
-        } ${className}`}
-        {...props}
-      />
-      {error && <span className="text-sm text-red-500">{error}</span>}
+    <div className={`bg-white rounded-lg shadow-sm border border-gray-200 ${className}`}>
+      {children}
+    </div>
+  )
+}
+
+export function CardHeader({ children, className = '' }: CardProps) {
+  return (
+    <div className={`px-6 py-4 border-b border-gray-200 ${className}`}>
+      {children}
+    </div>
+  )
+}
+
+export function CardContent({ children, className = '' }: CardProps) {
+  return (
+    <div className={`px-6 py-4 ${className}`}>
+      {children}
     </div>
   )
 }
