@@ -1,53 +1,90 @@
+'use client';
+
+import ScrollReveal from './ui/ScrollReveal'
+import { Trophy, MonitorPlay, Target, BookCheck, Building2, HeartHandshake } from 'lucide-react'
+
 const Advantages = () => {
   const advantages = [
     {
-      icon: '🏆',
+      icon: <Trophy className="w-7 h-7" />,
       title: '13 Years of Proven Success',
-      description: 'Thirteen years of unwavering commitment, dedication, and passion have marked a remarkable journey for our play school chain.'
+      description: 'Thirteen years of unwavering commitment, dedication, and educational excellence have defined our journey.',
+      theme: 'from-amber-500/10 to-yellow-500/10 text-amber-600'
     },
     {
-      icon: '💻',
-      title: 'Multimedia & Internet Based Teaching',
-      description: 'Multimedia and internet-based teaching in play schools enhances the learning journey of young children, fostering engagement and creativity.'
+      icon: <MonitorPlay className="w-7 h-7" />,
+      title: 'Multimedia & Interactive Teaching',
+      description: 'Innovative multimedia and technology-guided learning that makes learning interactive and highly engaging.',
+      theme: 'from-blue-500/10 to-indigo-500/10 text-blue-600'
     },
     {
-      icon: '🎯',
-      title: 'Use of Innovative Techniques',
-      description: 'One of the key pillars of our approach is the incorporation of innovative teaching techniques into our curriculum.'
+      icon: <Target className="w-7 h-7" />,
+      title: 'Innovative Pedagogical Techniques',
+      description: 'Incorporation of global creative learning techniques custom-tailored for early childhood psychology.',
+      theme: 'from-pink-500/10 to-rose-500/10 text-pink-600'
     },
     {
-      icon: '📚',
-      title: 'Unique Fosterkids Thematic Curriculum',
-      description: 'A unique thematic curriculum tailored to the developmental needs and interests of young learners can ignite their curiosity and foster creativity.'
+      icon: <BookCheck className="w-7 h-7" />,
+      title: 'Unique Thematic Curriculum',
+      description: 'A scientifically structured curriculum designed to support active physical, cognitive, and social development.',
+      theme: 'from-emerald-500/10 to-teal-500/10 text-emerald-600'
     },
     {
-      icon: '🏢',
-      title: 'State of The Art Infrastructure',
-      description: 'In this colorful, chirpy, and air-conditioned classroom, every moment is filled with excitement, learning, and endless possibilities.'
+      icon: <Building2 className="w-7 h-7" />,
+      title: 'State-of-the-Art Infrastructure',
+      description: 'Vibrant, safe, and air-conditioned classes featuring play zones designed for unlimited creativity.',
+      theme: 'from-purple-500/10 to-violet-500/10 text-purple-600'
     },
     {
-      icon: '❤️',
-      title: 'Goodwill among the Parents',
-      description: 'By fostering goodwill among parents in a preschool setting, you create a supportive network that benefits both the children and the entire community.'
+      icon: <HeartHandshake className="w-7 h-7" />,
+      title: 'Deep Parent Trust & Goodwill',
+      description: 'Building close partnerships with families to cultivate a nurturing, safe, and supportive school environment.',
+      theme: 'from-rose-500/10 to-pink-500/10 text-rose-600'
     }
   ]
 
   return (
-    <section className="py-[100px] md:py-[60px] bg-white" id="advantages">
+    <section className="py-24 md:py-16 bg-white overflow-hidden" id="advantages">
       <div className="container">
-        <div className="section-header">
-          <span className="section-tag">ADVANTAGE</span>
-          <h2>The Fosterkid's Advantage</h2>
-          <div className="divider"></div>
-        </div>
         
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(350px,1fr))] md:grid-cols-1 gap-[30px] md:gap-5 mt-[50px]">
+        {/* Section Header */}
+        <ScrollReveal animation="fade-up">
+          <div className="section-header text-center mb-16">
+            <span className="section-tag inline-block text-xs font-bold tracking-widest text-[#ff6b35] uppercase mb-2">
+              Why Choose Us
+            </span>
+            <h2 className="text-4xl md:text-3xl font-extrabold text-gray-900 mb-4 leading-tight">
+              The Foster Kids Advantage
+            </h2>
+            <div className="divider w-24 h-1.5 bg-gradient-to-r from-[#5e3a9e] to-[#e91e63] mx-auto rounded-full"></div>
+          </div>
+        </ScrollReveal>
+        
+        {/* Advantages Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
           {advantages.map((advantage, index) => (
-            <div key={index} className="bg-[#f8f9fa] p-[40px_30px] md:p-[30px_20px] rounded-[15px] transition-all border-2 border-transparent hover:-translate-y-[10px] hover:shadow-[0_15px_40px_rgba(0,0,0,0.1)] hover:border-[#ff6b35]">
-              <div className="text-[56px] mb-5">{advantage.icon}</div>
-              <h3 className="text-[22px] text-[#333] mb-[15px] font-semibold">{advantage.title}</h3>
-              <p className="text-[15px] text-[#666] leading-[1.7]">{advantage.description}</p>
-            </div>
+            <ScrollReveal 
+              key={index} 
+              animation="fade-up" 
+              delay={index * 80}
+              className="h-full"
+            >
+              <div className="h-full bg-gray-50/50 hover:bg-white p-8 md:p-6 rounded-3xl border border-gray-100/80 hover:border-purple-200 shadow-[0_4px_20px_rgba(0,0,0,0.01)] hover:shadow-[0_20px_40px_rgba(94,58,158,0.05)] hover:-translate-y-2 transition-all duration-300 flex flex-col items-start text-left group">
+                
+                {/* Icon Circle */}
+                <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${advantage.theme} flex items-center justify-center text-3xl mb-6 transition-transform duration-300 group-hover:scale-110`}>
+                  {advantage.icon}
+                </div>
+                
+                <h3 className="text-xl font-bold text-gray-900 mb-3 tracking-tight">
+                  {advantage.title}
+                </h3>
+                
+                <p className="text-sm text-gray-500 leading-relaxed font-normal flex-grow">
+                  {advantage.description}
+                </p>
+              </div>
+            </ScrollReveal>
           ))}
         </div>
       </div>
