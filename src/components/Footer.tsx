@@ -48,19 +48,20 @@ const Footer = () => {
       </div>
 
       {/* Wavy transition from white to dark */}
-      <div className="bg-white h-20 relative">
-        <svg
-          className="absolute bottom-0 left-0 w-full"
-          viewBox="0 0 1440 80"
-          preserveAspectRatio="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            d="M0,40 C180,80 360,0 540,40 C720,80 900,0 1080,40 C1260,80 1440,20 1440,20 L1440,80 L0,80 Z"
-            fill="#181C2E"
-          />
-        </svg>
-      </div>
+      <div className="bg-[#181C2E]">
+        <div className="bg-white relative overflow-hidden leading-none">
+          <svg
+            className="w-full h-16 sm:h-20 block translate-y-[1px]"
+            viewBox="0 0 1440 80"
+            preserveAspectRatio="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M0,40 C180,80 360,0 540,40 C720,80 900,0 1080,40 C1260,80 1440,20 1440,20 L1440,80 L0,80 Z"
+              fill="#181C2E"
+            />
+          </svg>
+        </div>
 
       {/* Main Footer */}
       <footer className="bg-[#181C2E] text-gray-300 pt-10 pb-8" id="contact">
@@ -150,13 +151,12 @@ const Footer = () => {
 
             {/* Company */}
             <div className="space-y-4">
-              <h4 className="text-white font-bold text-sm uppercase tracking-widest">Franchise</h4>
+              <h4 className="text-white font-bold text-sm uppercase tracking-widest">Explore</h4>
               <ul className="space-y-2.5">
                 {[
                   { label: 'Why Foster Kids', href: '#advantages' },
                   { label: 'Our Advantages', href: '#advantages' },
                   { label: 'Services We Offer', href: '#services' },
-                  { label: 'Start a Franchise', href: '#contact' },
                   { label: 'Opening Hours', href: '#contact' },
                 ].map(link => (
                   <li key={link.label}>
@@ -184,6 +184,7 @@ const Footer = () => {
 
         </div>
       </footer>
+      </div>
     </>
   )
 }

@@ -85,16 +85,6 @@ const About = () => {
                 </div>
               ))}
             </div>
-
-            <div className="pt-2">
-              <a
-                href="#contact"
-                className="inline-flex items-center gap-2 bg-gradient-to-r from-[#ff6b35] to-[#e91e63] text-white border-none py-3.5 px-8 text-base font-bold rounded-full transition-all duration-300 hover:scale-105 hover:shadow-[0_8px_25px_rgba(233,30,99,0.3)] group"
-              >
-                Inquire for Franchise
-                <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1.5" />
-              </a>
-            </div>
           </ScrollReveal>
 
           {/* Right: Attractive Feature Cards */}

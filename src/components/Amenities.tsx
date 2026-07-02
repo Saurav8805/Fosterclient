@@ -8,7 +8,7 @@ const Amenities = () => {
     {
       title: 'Smart Classrooms',
       description: 'Air-conditioned learning rooms equipped with modern interactive touchscreens, educational media, and child-safe ergonomic furniture designed to spark curiosity.',
-      image: '/amenity_classroom.png',
+      image: '/pic5.jpg',
       tag: 'Digital Learning',
       icon: <Monitor className="w-3.5 h-3.5" />,
       tagColor: 'bg-blue-500 text-white',
@@ -19,7 +19,7 @@ const Amenities = () => {
     {
       title: 'Indoor Adventure Zone',
       description: 'A clean, soft-padded safe playground with mini-slides, ball pits, and physical toys for motor skills and coordination development in a vibrant environment.',
-      image: '/amenity_playarea.png',
+      image: '/pic6.jpg',
       tag: 'Active Play',
       icon: <PlaySquare className="w-3.5 h-3.5" />,
       tagColor: 'bg-emerald-500 text-white',
@@ -30,7 +30,7 @@ const Amenities = () => {
     {
       title: 'Art & Craft Studio',
       description: 'A dedicated workspace filled with colors, clay modeling stations, and easels that foster artistic expression, fine motor skills, and creative thinking.',
-      image: '/amenity_artstudio.png',
+      image: '/pic7.jpg',
       tag: 'Creativity',
       icon: <Palette className="w-3.5 h-3.5" />,
       tagColor: 'bg-pink-500 text-white',
@@ -41,7 +41,7 @@ const Amenities = () => {
     {
       title: 'Discovery Corner',
       description: 'An interactive science and nature lab where young learners explore plants, mini globes, magnifying glasses, and hands-on experiments with guided exploration.',
-      image: '/amenity_sciencelab.png',
+      image: '/pic8.jpg',
       tag: 'Exploration',
       icon: <Compass className="w-3.5 h-3.5" />,
       tagColor: 'bg-amber-500 text-white',

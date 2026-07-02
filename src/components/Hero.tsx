@@ -32,16 +32,19 @@ const Hero = () => {
           <div
             key={slide.id}
             className={`absolute inset-0 transition-all duration-1000 ease-in-out ${
-              index === currentSlide ? 'opacity-15 scale-100' : 'opacity-0 scale-105'
+              index === currentSlide ? 'opacity-60 scale-100' : 'opacity-0 scale-105'
             }`}
           >
             <img 
               src={slide.image} 
               alt={slide.alt} 
-              className="w-full h-full object-cover object-center filter blur-[1px]"
+              className="w-full h-full object-cover object-center"
             />
           </div>
         ))}
+
+        {/* Soft background gradient overlay for optimal readability & rich visibility */}
+        <div className="absolute inset-0 bg-gradient-to-r from-white/90 via-white/70 to-white/30 pointer-events-none"></div>
 
         {/* Subtle Decorative Gradients */}
         <div className="absolute top-1/4 left-10 w-72 h-72 bg-purple-300/30 rounded-full filter blur-3xl animate-pulse-subtle"></div>
@@ -83,53 +86,49 @@ const Hero = () => {
                 ))}
               </ul>
               
-              {/* Dual Action Call to Action */}
+              {/* Action Call to Action */}
               <div className="flex flex-col sm:flex-row gap-4">
                 <a 
-                  href="#contact"
-                  className="inline-flex items-center justify-center bg-gradient-to-r from-[#e91e63] to-[#5e3a9e] text-white px-8 py-3.5 text-base font-bold rounded-full hover:scale-105 btn-glowing transition-all duration-300 text-center"
-                >
-                  Start a Franchise
-                </a>
-                <a 
                   href="#programs" 
-                  className="inline-flex items-center justify-center bg-white border-2 border-gray-200 text-gray-700 hover:text-[#5e3a9e] hover:border-[#5e3a9e] px-8 py-3.5 text-base font-bold rounded-full hover:scale-105 transition-all duration-300 text-center"
+                  className="inline-flex items-center justify-center bg-gradient-to-r from-[#e91e63] to-[#5e3a9e] text-white px-8 py-3.5 text-base font-bold rounded-full hover:scale-105 btn-glowing transition-all duration-300 text-center shadow-lg"
                 >
                   Explore Programs
+                </a>
+                <a 
+                  href="#contact" 
+                  className="inline-flex items-center justify-center bg-white border-2 border-gray-200 text-gray-700 hover:text-[#5e3a9e] hover:border-[#5e3a9e] px-8 py-3.5 text-base font-bold rounded-full hover:scale-105 transition-all duration-300 text-center"
+                >
+                  Contact Us
                 </a>
               </div>
             </div>
 
-            {/* Right Column: Interactive collage of Images (Hidden on smallest mobile screen) */}
-            <div className="relative w-full h-[450px] sm:h-[350px] flex items-center justify-center lg:mt-6">
-              <div className="relative w-full max-w-[420px] h-full animate-float">
-                
-                {/* Main Award Image */}
-                <div className="absolute top-0 right-4 w-[72%] h-[72%] rounded-3xl overflow-hidden border-8 border-white shadow-2xl transition-transform duration-500 hover:scale-105 z-10">
-                  <img src={slides[currentSlide].image} alt="Award Ceremony" className="w-full h-full object-cover" />
-                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/50 to-transparent p-3 text-white text-xs font-semibold">
-                    {slides[currentSlide].alt}
+            {/* Right Column: Single Premium Showcase Slider (Changes 1 by 1) */}
+            <div className="relative w-full flex items-center justify-center lg:mt-4">
+              
+              <div className="relative w-full max-w-[320px] aspect-[2/3] rounded-3xl overflow-hidden border-[3px] border-[#bc2fa9] shadow-[0_25px_60px_rgba(94,58,158,0.25)] animate-float bg-gray-900">
+                {slides.map((slide, index) => (
+                  <div
+                    key={slide.id}
+                    className={`absolute inset-0 transition-all duration-700 ease-in-out ${
+                      index === currentSlide
+                        ? 'opacity-100 scale-100 z-10'
+                        : 'opacity-0 scale-105 z-0 pointer-events-none'
+                    }`}
+                  >
+                    <img
+                      src={slide.image}
+                      alt={slide.alt}
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
                   </div>
-                </div>
-                
-                {/* Overlay Collage Image 1 */}
-                <div className="absolute bottom-4 left-0 w-[48%] h-[38%] rounded-2xl overflow-hidden border-4 border-white shadow-xl transition-all duration-500 hover:scale-105 hover:z-20">
-                  <img src="/pic2.jpg" alt="Award 1" className="w-full h-full object-cover" />
-                </div>
-                
-                {/* Overlay Collage Image 2 */}
-                <div className="absolute top-[26%] left-4 w-[42%] h-[34%] rounded-2xl overflow-hidden border-4 border-white shadow-xl transition-all duration-500 hover:scale-105 hover:z-20">
-                  <img src="/pic3.jpg" alt="Award 2" className="w-full h-full object-cover" />
-                </div>
-                
-                {/* Overlay Collage Image 3 */}
-                <div className="absolute bottom-[10%] right-0 w-[42%] h-[34%] rounded-2xl overflow-hidden border-4 border-white shadow-xl transition-all duration-500 hover:scale-105 hover:z-20">
-                  <img src="/pic4.jpg" alt="Award 3" className="w-full h-full object-cover" />
-                </div>
+                ))}
               </div>
             </div>
 
           </div>
+
         </div>
 
         {/* Navigation Arrows (Desktop / Tablet) */}
@@ -184,11 +183,7 @@ const Hero = () => {
       </div>
 
       {/* Wavy Border Bottom */}
-      <div className="h-12 relative overflow-hidden bg-white">
-        <svg className="absolute top-0 w-full h-12" viewBox="0 0 1200 50" preserveAspectRatio="none">
-          <path d="M0,25 Q300,50 600,25 T1200,25 L1200,0 L0,0 Z" fill="white"/>
-        </svg>
-      </div>
+      
     </section>
   )
 }
