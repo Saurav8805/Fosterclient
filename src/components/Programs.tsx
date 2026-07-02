@@ -135,22 +135,13 @@ const Programs = () => {
                   </p>
 
                   {/* Feature Tags */}
-                  <div className="flex flex-wrap gap-2 mb-6">
+                  <div className="flex flex-wrap gap-2 mt-auto pt-2">
                     {program.features.map((f, i) => (
                       <span key={i} className={`text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-full ${program.badgeBg}`}>
                         {f}
                       </span>
                     ))}
                   </div>
-
-                  {/* CTA */}
-                  <a
-                    href="#contact"
-                    className={`flex items-center justify-center gap-2 w-full py-3 px-6 text-sm font-bold text-white rounded-full bg-gradient-to-r ${program.btnGradient} hover:scale-105 active:scale-95 shadow-md hover:shadow-lg transition-all duration-300`}
-                  >
-                    <span>Start Franchise</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </a>
                 </div>
               </div>
             </ScrollReveal>

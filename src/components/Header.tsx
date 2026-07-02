@@ -24,12 +24,12 @@ const Header = () => {
 
   return (
     <>
-      {/* Top Contact Bar */}
-      <div className={`bg-[#5e3a9e] text-white py-2 text-[11px] border-b border-[#4a2d7e] transition-all duration-300 ${
-        isScrolled ? 'h-0 py-0 overflow-hidden opacity-0' : 'opacity-100'
+      {/* Merged Top Contact Bar & Wavy Transition */}
+      <div className={`bg-[#5e3a9e] text-white relative transition-all duration-300 ${
+        isScrolled ? 'h-0 overflow-hidden opacity-0 py-0' : 'pt-2 pb-10 opacity-100'
       }`}>
-        <div className="max-w-[1200px] mx-auto px-5">
-          <div className="flex justify-between items-center">
+        <div className="max-w-[1200px] mx-auto px-5 relative z-10">
+          <div className="flex justify-between items-center text-[11px]">
             {/* Left: Contact Info */}
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
               <span className="inline-flex items-center gap-1.5">
@@ -84,22 +84,26 @@ const Header = () => {
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Wavy Border Top */}
-      <div className={`h-8 bg-[#5e3a9e] relative overflow-hidden transition-all duration-300 ${
-        isScrolled ? 'h-0 overflow-hidden opacity-0' : 'opacity-100'
-      }`}>
-        <svg className="absolute bottom-0 w-full h-8" viewBox="0 0 1200 40" preserveAspectRatio="none">
-          <path d="M0,20 Q300,0 600,20 T1200,20 L1200,40 L0,40 Z" fill="white"/>
+        {/* Integrated Wavy Curve */}
+        <svg
+          className="absolute bottom-0 left-0 w-full h-8 pointer-events-none"
+          viewBox="0 0 1440 80"
+          preserveAspectRatio="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M0,40 C180,80 360,0 540,40 C720,80 900,0 1080,40 C1260,80 1440,20 1440,20 L1440,80 L0,80 Z"
+            fill="white"
+          />
         </svg>
       </div>
       
-      {/* Main Navigation */}
-      <header className={`bg-white sticky top-0 z-50 transition-all duration-300 border-b border-gray-100 ${
-        isScrolled ? 'py-2 shadow-lg backdrop-blur-md bg-white/95' : 'py-4 shadow-md bg-white'
+      {/* Merged Main Navigation & Bottom Wavy Border */}
+      <header className={`sticky top-0 z-50 transition-all duration-300 relative ${
+        isScrolled ? 'py-2 shadow-lg backdrop-blur-md bg-white/95 border-b border-gray-100' : 'pt-4 pb-6 bg-white'
       }`}>
-        <div className="max-w-[1200px] mx-auto px-5">
+        <div className="max-w-[1200px] mx-auto px-5 relative z-10">
           <div className="flex justify-between items-center">
             {/* Logo */}
             <div className="flex-shrink-0 transition-transform duration-300 hover:scale-105 cursor-pointer">
@@ -195,14 +199,10 @@ const Header = () => {
             </div>
           )}
         </div>
-      </header>
 
-      {/* Wavy Border Bottom */}
-      <div className="h-8 bg-white relative overflow-hidden">
-        <svg className="absolute top-0 w-full h-8" viewBox="0 0 1200 40" preserveAspectRatio="none">
-          <path d="M0,20 Q300,40 600,20 T1200,20 L1200,0 L0,0 Z" fill="white"/>
-        </svg>
-      </div>
+        {/* Integrated Wavy Curve at Bottom of Header */}
+        
+      </header>
     </>
   )
 }
