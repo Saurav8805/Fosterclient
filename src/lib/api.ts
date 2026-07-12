@@ -203,3 +203,8 @@ export const configApi = {
   getDesignations: () => apiClient.get('/config/designations'),
   getConstants: () => apiClient.get('/config/constants'),
 };
+
+export const salaryApi = {
+  getHistory: (staffId: string) => apiClient.get(`/salary/history/${staffId}`),
+  paySalary: (data: any) => apiClient.post('/salary/pay', data),
+};
