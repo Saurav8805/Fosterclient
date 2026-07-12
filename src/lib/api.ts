@@ -195,6 +195,20 @@ export const usersApi = {
     apiClient.put('/users/profile', { userId, ...data }),
 };
 
+export const syllabusApi = {
+  list: (studentClass?: string, subject?: string) => {
+    let url = '/syllabus/list';
+    const params = [];
+    if (studentClass) params.push(`studentClass=${studentClass}`);
+    if (subject) params.push(`subject=${subject}`);
+    if (params.length) url += `?${params.join('&')}`;
+    return apiClient.get(url);
+  },
+  create: (data: any) => apiClient.post('/syllabus', data),
+  update: (id: string, data: any) => apiClient.put(`/syllabus/${id}`, data),
+  delete: (id: string) => apiClient.delete(`/syllabus/${id}`),
+};
+
 export const configApi = {
   getClasses: () => apiClient.get('/config/classes'),
   getClassStats: () => apiClient.get('/config/class-stats'),
