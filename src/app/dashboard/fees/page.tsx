@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardHeader, CardContent } from '@/components/ui/Card'
-import { feesApi } from '@/lib/api'
+import { feesApi, studentsApi } from '@/lib/api'
 
 interface FeeRecord {
   id: string
@@ -82,14 +82,19 @@ export default function FeesPage() {
   const fetchAllStudentsFees = async () => {
     try {
       setLoading(true)
-      const response = await fetch('/api/fees/update')
-      const result = await response.json()
+      const result = await studentsApi.list()
 
-      if (result.success) {
-        setStudents(result.data)
+      console.log('📊 Students API response:', result)
+
+      if (result.success && result.data?.students && Array.isArray(result.data.students)) {
+        setStudents(result.data.students)
+      } else {
+        setStudents([])
+        setMessage({ type: 'error', text: result.error || 'Failed to load students fees' })
       }
     } catch (err) {
       console.error('Error fetching students fees:', err)
+      setStudents([])
       setMessage({ type: 'error', text: 'Failed to load students fees' })
     } finally {
       setLoading(false)
@@ -243,9 +248,9 @@ export default function FeesPage() {
   }
 
   // Faculty (role 6) and Admin (role 8): manage all student fees
-  const totalCollected = students.reduce((sum, s) => sum + (s.fees?.[0]?.paid_amount || 0), 0)
-  const totalPending = students.reduce((sum, s) => sum + (s.fees?.[0]?.pending_amount || 0), 0)
-  const totalRevenue = students.reduce((sum, s) => sum + (s.fees?.[0]?.total_fees || 0), 0)
+  const totalCollected = Array.isArray(students) ? students.reduce((sum, s) => sum + (s.fees?.[0]?.paid_amount || 0), 0) : 0
+  const totalPending = Array.isArray(students) ? students.reduce((sum, s) => sum + (s.fees?.[0]?.pending_amount || 0), 0) : 0
+  const totalRevenue = Array.isArray(students) ? students.reduce((sum, s) => sum + (s.fees?.[0]?.total_fees || 0), 0) : 0
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
