@@ -11,35 +11,62 @@ interface ApiResponse<T = any> {
 
 class ApiClient {
   private baseUrl: string;
+  private pendingRequests: Map<string, Promise<any>>;
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
+    this.pendingRequests = new Map();
+  }
+
+  private getCacheKey(endpoint: string, options: RequestInit): string {
+    return `${options.method || 'GET'}_${endpoint}_${JSON.stringify(options.body || '')}`;
   }
 
   private async request<T>(
     endpoint: string,
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
-    try {
-      const response = await fetch(`${this.baseUrl}${endpoint}`, {
-        ...options,
-        headers: {
-          'Content-Type': 'application/json',
-          ...options.headers,
-        },
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || `API Error: ${response.statusText}`);
-      }
-
-      return data;
-    } catch (error) {
-      console.error('API Request Error:', error);
-      throw error;
+    const cacheKey = this.getCacheKey(endpoint, options);
+    
+    // If same request is already in progress, return the existing promise
+    if (this.pendingRequests.has(cacheKey)) {
+      return this.pendingRequests.get(cacheKey);
     }
+
+    const requestPromise = (async () => {
+      try {
+        const response = await fetch(`${this.baseUrl}${endpoint}`, {
+          ...options,
+          headers: {
+            'Content-Type': 'application/json',
+            ...options.headers,
+          },
+          // Add cache settings for GET requests
+          ...(options.method === 'GET' && {
+            next: { revalidate: 60 }, // Cache for 60 seconds
+          }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || `API Error: ${response.statusText}`);
+        }
+
+        return data;
+      } catch (error) {
+        console.error('API Request Error:', error);
+        throw error;
+      } finally {
+        // Remove from pending requests after completion
+        this.pendingRequests.delete(cacheKey);
+      }
+    })();
+
+    // Store the promise to prevent duplicate requests
+    this.pendingRequests.set(cacheKey, requestPromise);
+    
+    return requestPromise;
   }
 
   async get<T = any>(endpoint: string): Promise<ApiResponse<T>> {

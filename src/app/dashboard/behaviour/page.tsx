@@ -49,7 +49,7 @@ export default function BehaviourPage() {
     }
     setUserRole(Number(role))
     setUserId(id)
-  }, [router])
+  }, [])
 
   useEffect(() => {
     if (userRole === 19 && userId) {

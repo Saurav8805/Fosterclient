@@ -44,11 +44,23 @@ export default function SyllabusPage() {
 
   useEffect(() => {
     const role = localStorage.getItem('userRole')
-    if (!role) { router.push('/login'); return }
+    if (!role) { 
+      router.push('/login')
+      return 
+    }
     setUserRole(Number(role))
-    fetchSyllabus()
-    fetchClasses()
-  }, [router])
+    
+    // Fetch data only once on mount
+    let mounted = true
+    const loadData = async () => {
+      if (mounted) {
+        await Promise.all([fetchSyllabus(), fetchClasses()])
+      }
+    }
+    loadData()
+    
+    return () => { mounted = false }
+  }, []) // Empty dependency array - runs only once
 
   const fetchSyllabus = async () => {
     try {

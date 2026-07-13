@@ -47,7 +47,7 @@ export default function AddStaffPage() {
       router.push('/dashboard')
       return
     }
-  }, [router])
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

@@ -12,7 +12,7 @@ export default function GalleryPage() {
     const role = localStorage.getItem('userRole')
     if (!role) { router.push('/login'); return }
     setUserRole(Number(role))
-  }, [router])
+  }, [])
 
   if (userRole === null) return <div className="flex items-center justify-center min-h-screen">Loading...</div>
 

@@ -38,7 +38,7 @@ export default function CalendarPage() {
       return 
     }
     setUserRole(Number(role))
-  }, [router])
+  }, [])
 
   useEffect(() => {
     if (userRole !== null) {

@@ -48,7 +48,7 @@ export default function StudentListPage() {
     fetchTeachers()
     fetchClasses()
     fetchSections()
-  }, [router])
+  }, []) // Empty dependency array - runs only once
 
   // Enhanced event listeners for real-time updates
   useEffect(() => {

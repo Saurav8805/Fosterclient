@@ -32,7 +32,7 @@ export default function HomeworkPage() {
     if (!role) { router.push('/login'); return }
     setUserRole(Number(role))
     fetchClasses()
-  }, [router])
+  }, [])
 
   useEffect(() => {
     if (userRole !== null) {

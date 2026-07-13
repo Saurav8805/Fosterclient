@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, memo } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -96,7 +96,7 @@ const Icons = {
   ),
 }
 
-function DashboardSidebar() {
+const DashboardSidebar = memo(function DashboardSidebar() {
   const router = useRouter()
   const pathname = usePathname()
   const { isOpen, toggle } = useSidebar()
@@ -163,7 +163,16 @@ function DashboardSidebar() {
     <aside className={`${isOpen ? 'w-56' : 'w-0 overflow-hidden'} bg-white border-r border-gray-100 transition-all duration-300 flex flex-col flex-shrink-0 h-full shadow-sm`}>
       {/* Logo */}
       <div className="h-20 flex items-center justify-center pl-7 pr-4 border-b border-gray-100 flex-shrink-0">
-        <Image src="/LOGO-2.png" alt="Foster Kids" width={180} height={60} className="h-14 w-auto object-contain max-w-full" style={{ width: 'auto', height: '3.5rem' }} priority />
+        <Image 
+          src="/LOGO-2.png" 
+          alt="Foster Kids" 
+          width={180} 
+          height={60} 
+          className="h-14 w-auto object-contain max-w-full" 
+          style={{ width: 'auto', height: '3.5rem' }} 
+          priority 
+          loading="eager"
+        />
       </div>
 
       {/* Menu Items */}
@@ -174,6 +183,7 @@ function DashboardSidebar() {
             <Link
               key={index}
               href={item.path}
+              prefetch={false}
               className={`flex items-center gap-3 mx-2 px-3 py-2.5 rounded-lg transition-all duration-150 ${
                 active
                   ? 'bg-[#5e3a9e] text-white'
@@ -201,7 +211,7 @@ function DashboardSidebar() {
       </div>
     </aside>
   )
-}
+})
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -224,7 +234,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   )
 }
 
-function HamburgerButton() {
+const HamburgerButton = memo(function HamburgerButton() {
   const { toggle } = useSidebar()
   return (
     <button
@@ -237,4 +247,4 @@ function HamburgerButton() {
       </svg>
     </button>
   )
-}
+})
