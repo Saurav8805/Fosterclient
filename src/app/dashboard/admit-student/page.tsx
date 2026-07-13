@@ -51,7 +51,7 @@ export default function AdmitStudentPage() {
       router.push('/dashboard')
       return
     }
-  }, [router])
+  }, [])
 
   // Calculate age from date of birth
   const calculateAge = (dob: string): string => {

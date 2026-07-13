@@ -66,7 +66,7 @@ export default function StudentAttendancePage() {
     fetchSubmittedDates()
     fetchClasses()
     fetchSections()
-  }, [router])
+  }, [])
 
   // Filter students when class or section changes
   useEffect(() => {

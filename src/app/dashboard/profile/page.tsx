@@ -39,7 +39,7 @@ export default function ProfilePage() {
     fetchProfileData(id, Number(role))
     const savedImage = localStorage.getItem(`profileImage_${id}`)
     if (savedImage) setProfileImage(savedImage)
-  }, [router])
+  }, [])
 
   const fetchProfileData = async (id: string, role: number) => {
     try {

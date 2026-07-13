@@ -33,8 +33,14 @@ export default function StaffListPage() {
       return
     }
     setUserRole(Number(role))
-    fetchStaff()
-  }, [router])
+    
+    // Fetch data only once on mount
+    let mounted = true
+    if (mounted) {
+      fetchStaff()
+    }
+    return () => { mounted = false }
+  }, []) // Empty dependency array - runs only once
 
   const fetchStaff = async () => {
     try {

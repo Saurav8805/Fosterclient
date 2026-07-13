@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import Image from 'next/image'
 import { Phone, Mail, Clock, Menu, X } from 'lucide-react'
 
@@ -110,10 +111,10 @@ const Header = () => {
               <Image 
                 src="/LOGO-2.png" 
                 alt="Foster Kids" 
-                width={120} 
-                height={64} 
-                className={`object-contain transition-all duration-300 ${isScrolled ? 'h-[3.2rem]' : 'h-16'}`}
-                style={{ width: 'auto', height: 'auto' }}
+                width={180} 
+                height={60} 
+                className={`object-contain transition-all duration-300 ${isScrolled ? 'h-12' : 'h-14'}`}
+                style={{ width: 'auto', height: isScrolled ? '48px' : '56px' }}
                 priority 
               />
             </div>
@@ -141,13 +142,14 @@ const Header = () => {
             
             {/* Login Button */}
             <div className="hidden lg:block">
-              <button 
-                onClick={() => router.push('/login')} 
-                className="bg-gradient-to-r from-[#e91e63] to-[#5e3a9e] text-white px-7 py-2.5 text-sm font-semibold rounded-full hover:scale-105 active:scale-95 btn-glowing transition-all duration-300"
-                suppressHydrationWarning
-              >
-                Login Portal
-              </button>
+              <Link href="/login" prefetch={true}>
+                <button 
+                  className="bg-gradient-to-r from-[#e91e63] to-[#5e3a9e] text-white px-6 py-2 text-sm font-semibold rounded-full hover:scale-105 active:scale-95 transition-all duration-300 shadow-md hover:shadow-lg"
+                  suppressHydrationWarning
+                >
+                  Login Portal
+                </button>
+              </Link>
             </div>
             
             {/* Mobile Menu Button */}

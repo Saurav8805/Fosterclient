@@ -52,7 +52,7 @@ export default function ReportsPage() {
     }
     setUserRole(Number(role))
     setUserId(id)
-  }, [router])
+  }, [])
 
   useEffect(() => {
     if (userRole === 19 && userId) {

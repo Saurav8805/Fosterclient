@@ -38,7 +38,7 @@ export default function DashboardPage() {
     } else {
       setLoading(false)
     }
-  }, [router])
+  }, [])
 
   const fetchStats = async () => {
     try {

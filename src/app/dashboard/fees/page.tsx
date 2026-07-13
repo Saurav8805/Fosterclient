@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardHeader, CardContent } from '@/components/ui/Card'
 import { feesApi, studentsApi } from '@/lib/api'
@@ -45,7 +45,7 @@ export default function FeesPage() {
     }
     setUserRole(Number(role))
     setUserId(id)
-  }, [router])
+  }, []) // Empty dependency array
 
   useEffect(() => {
     if (userRole === 19 && userId) {
@@ -248,9 +248,18 @@ export default function FeesPage() {
   }
 
   // Faculty (role 6) and Admin (role 8): manage all student fees
-  const totalCollected = Array.isArray(students) ? students.reduce((sum, s) => sum + (s.fees?.[0]?.paid_amount || 0), 0) : 0
-  const totalPending = Array.isArray(students) ? students.reduce((sum, s) => sum + (s.fees?.[0]?.pending_amount || 0), 0) : 0
-  const totalRevenue = Array.isArray(students) ? students.reduce((sum, s) => sum + (s.fees?.[0]?.total_fees || 0), 0) : 0
+  const { totalCollected, totalPending, totalRevenue } = useMemo(() => {
+    if (!Array.isArray(students)) return { totalCollected: 0, totalPending: 0, totalRevenue: 0 }
+    
+    return students.reduce(
+      (acc, s) => ({
+        totalCollected: acc.totalCollected + (s.fees?.[0]?.paid_amount || 0),
+        totalPending: acc.totalPending + (s.fees?.[0]?.pending_amount || 0),
+        totalRevenue: acc.totalRevenue + (s.fees?.[0]?.total_fees || 0),
+      }),
+      { totalCollected: 0, totalPending: 0, totalRevenue: 0 }
+    )
+  }, [students])
 
   return (
     <div className="p-6 max-w-7xl mx-auto">

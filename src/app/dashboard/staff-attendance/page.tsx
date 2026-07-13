@@ -58,7 +58,7 @@ export default function StaffAttendancePage() {
     setUserRole(roleNum)
     fetchStaffList()
     fetchSubmittedDates()
-  }, [router])
+  }, [])
 
   useEffect(() => {
     // Fetch existing attendance when selectedDate changes and is not empty
