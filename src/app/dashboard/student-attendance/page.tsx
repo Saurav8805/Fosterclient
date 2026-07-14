@@ -356,7 +356,7 @@ export default function StudentAttendancePage() {
     }
   }
 
-  const downloadOverallAttendanceExcel = () => {
+  const downloadOverallAttendanceExcel = async () => {
     try {
       // Prepare data for Excel
       const excelData = overallData

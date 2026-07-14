@@ -387,7 +387,7 @@ export default function StaffAttendancePage() {
     setMessage(null)
   }
 
-  const downloadOverallAttendanceExcel = () => {
+  const downloadOverallAttendanceExcel = async () => {
     try {
       // Prepare data for Excel
       const excelData = overallData

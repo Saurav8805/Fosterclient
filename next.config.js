@@ -35,16 +35,6 @@ const nextConfig = {
       };
     }
     
-    // Optimize module resolution
-    config.resolve = {
-      ...config.resolve,
-      alias: {
-        ...config.resolve.alias,
-        // Reduce lucide-react bundle size by using direct imports
-        'lucide-react': 'lucide-react/dist/esm/icons',
-      },
-    };
-    
     return config;
   },
   async headers() {
