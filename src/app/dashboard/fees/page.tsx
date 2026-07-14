@@ -155,6 +155,20 @@ export default function FeesPage() {
     }
   }
 
+  // Faculty (role 6) and Admin (role 8): Calculate totals (must be before any conditional returns)
+  const { totalCollected, totalPending, totalRevenue } = useMemo(() => {
+    if (!Array.isArray(students)) return { totalCollected: 0, totalPending: 0, totalRevenue: 0 }
+    
+    return students.reduce(
+      (acc, s) => ({
+        totalCollected: acc.totalCollected + (s.fees?.[0]?.paid_amount || 0),
+        totalPending: acc.totalPending + (s.fees?.[0]?.pending_amount || 0),
+        totalRevenue: acc.totalRevenue + (s.fees?.[0]?.total_fees || 0),
+      }),
+      { totalCollected: 0, totalPending: 0, totalRevenue: 0 }
+    )
+  }, [students])
+
   if (loading) return <div className="flex items-center justify-center min-h-screen">Loading...</div>
 
   // Student (role 19): view own fees status
@@ -248,19 +262,6 @@ export default function FeesPage() {
   }
 
   // Faculty (role 6) and Admin (role 8): manage all student fees
-  const { totalCollected, totalPending, totalRevenue } = useMemo(() => {
-    if (!Array.isArray(students)) return { totalCollected: 0, totalPending: 0, totalRevenue: 0 }
-    
-    return students.reduce(
-      (acc, s) => ({
-        totalCollected: acc.totalCollected + (s.fees?.[0]?.paid_amount || 0),
-        totalPending: acc.totalPending + (s.fees?.[0]?.pending_amount || 0),
-        totalRevenue: acc.totalRevenue + (s.fees?.[0]?.total_fees || 0),
-      }),
-      { totalCollected: 0, totalPending: 0, totalRevenue: 0 }
-    )
-  }, [students])
-
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <h1 className="text-3xl font-bold text-gray-900 mb-6">Fees Management</h1>

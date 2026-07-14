@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { syllabusApi, configApi } from '@/lib/api'
+import { syllabusApi, configApi, usersApi } from '@/lib/api'
 
 interface SyllabusItem {
   id: string
@@ -25,6 +25,8 @@ const emptyForm = {
 export default function SyllabusPage() {
   const router = useRouter()
   const [userRole, setUserRole] = useState<number | null>(null)
+  const [userId, setUserId] = useState<string | null>(null)
+  const [userClass, setUserClass] = useState<string | null>(null)
   const [syllabus, setSyllabus] = useState<SyllabusItem[]>([])
   const [classes, setClasses] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
@@ -44,16 +46,34 @@ export default function SyllabusPage() {
 
   useEffect(() => {
     const role = localStorage.getItem('userRole')
-    if (!role) { 
+    const uid = localStorage.getItem('userId')
+    if (!role || !uid) { 
       router.push('/login')
       return 
     }
     setUserRole(Number(role))
+    setUserId(uid)
     
     // Fetch data only once on mount
     let mounted = true
     const loadData = async () => {
       if (mounted) {
+        // For students (role 10), fetch their class first
+        if (Number(role) === 10) {
+          try {
+            const profileResult = await usersApi.getProfile(uid)
+            if (profileResult.success && profileResult.data) {
+              const studentClass = profileResult.data.class || profileResult.data.student_class
+              if (studentClass) {
+                setUserClass(studentClass)
+                setFilterClass(studentClass) // Auto-filter to student's class
+              }
+            }
+          } catch (error) {
+            console.error('Failed to fetch student profile:', error)
+          }
+        }
+        
         await Promise.all([fetchSyllabus(), fetchClasses()])
       }
     }
@@ -64,11 +84,26 @@ export default function SyllabusPage() {
 
   const fetchSyllabus = async () => {
     try {
-      setLoading(true)
+      // Only show loading on initial load, not on refresh
+      if (syllabus.length === 0) {
+        setLoading(true)
+      }
       const result = await syllabusApi.list()
-      if (result.success) setSyllabus((result.data as any) || [])
+      console.log('📚 Syllabus API response:', result)
+      console.log('📚 Syllabus data type:', typeof result.data)
+      console.log('📚 Syllabus data:', result.data)
+      
+      if (result.success && result.data) {
+        // Check if data is an array or object
+        const syllabusData = Array.isArray(result.data) ? result.data : (result.data.syllabus || [])
+        console.log('📚 Setting syllabus with:', syllabusData)
+        setSyllabus(syllabusData)
+      } else {
+        console.log('❌ No syllabus data or unsuccessful response')
+        setSyllabus([])
+      }
     } catch (err) {
-      console.error('Failed to fetch syllabus:', err)
+      console.error('❌ Failed to fetch syllabus:', err)
     } finally {
       setLoading(false)
     }
@@ -121,7 +156,8 @@ export default function SyllabusPage() {
         if (result.success) {
           setMessage({ type: 'success', text: 'Syllabus updated successfully!' })
           setShowModal(false)
-          fetchSyllabus()
+          // Refresh the list
+          await fetchSyllabus()
         } else {
           setMessage({ type: 'error', text: (result as any).error || 'Failed to update' })
         }
@@ -130,16 +166,18 @@ export default function SyllabusPage() {
         if (result.success) {
           setMessage({ type: 'success', text: 'Syllabus added successfully!' })
           setShowModal(false)
-          fetchSyllabus()
+          // Refresh the list
+          await fetchSyllabus()
         } else {
           setMessage({ type: 'error', text: (result as any).error || 'Failed to create' })
         }
       }
-    } catch {
+    } catch (error) {
+      console.error('Syllabus operation error:', error)
       setMessage({ type: 'error', text: 'Something went wrong. Please try again.' })
     } finally {
       setSaving(false)
-      setTimeout(() => setMessage(null), 4000)
+      setTimeout(() => setMessage(null), 5000)
     }
   }
 
@@ -167,7 +205,10 @@ export default function SyllabusPage() {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>
   }
 
-  const isAdmin = userRole === 6
+  const isAdmin = userRole === 6 || userRole === 8 // Admin (6) and Principal (8)
+  const isTeacher = userRole === 7 // Teacher
+  const isStudent = userRole === 10
+  const canManageSyllabus = isAdmin || isTeacher // Both admin and teacher can manage
   const filtered = filterClass === 'All' ? syllabus : syllabus.filter(s => s.class === filterClass)
 
   return (
@@ -197,15 +238,22 @@ export default function SyllabusPage() {
               <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">{filtered.length}</span>
             </div>
             <div className="flex items-center gap-3">
-              {/* Class filter */}
-              <select
-                value={filterClass}
-                onChange={(e) => setFilterClass(e.target.value)}
-                className="px-3 py-2 border rounded-lg text-sm"
-              >
-                {classes.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-              {isAdmin && (
+              {/* Class filter - hidden for students or auto-filtered to their class */}
+              {!isStudent && (
+                <select
+                  value={filterClass}
+                  onChange={(e) => setFilterClass(e.target.value)}
+                  className="px-3 py-2 border rounded-lg text-sm"
+                >
+                  {classes.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              )}
+              {isStudent && userClass && (
+                <span className="px-3 py-2 bg-purple-50 text-purple-700 rounded-lg text-sm font-medium border border-purple-200">
+                  📚 {userClass}
+                </span>
+              )}
+              {canManageSyllabus && (
                 <button
                   onClick={openAdd}
                   className="bg-[#5e3a9e] text-white px-4 py-2 rounded-lg hover:bg-[#4a2d7e] transition text-sm font-medium"
@@ -222,7 +270,7 @@ export default function SyllabusPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
               </svg>
               <p className="text-lg font-medium">No syllabus entries found</p>
-              {isAdmin && <p className="text-sm mt-1">Click "+ Add Syllabus" to get started</p>}
+              {canManageSyllabus && <p className="text-sm mt-1">Click "+ Add Syllabus" to get started</p>}
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -232,6 +280,7 @@ export default function SyllabusPage() {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Class</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Subject</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Topics</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                   </tr>
@@ -242,6 +291,13 @@ export default function SyllabusPage() {
                       <td className="px-6 py-4 text-sm text-gray-900 font-medium">{item.class}</td>
                       <td className="px-6 py-4 text-sm text-gray-900">{item.subject}</td>
                       <td className="px-6 py-4 text-sm text-gray-600 max-w-xs truncate">{item.topics}</td>
+                      <td className="px-6 py-4 text-sm text-gray-600 max-w-md">
+                        {item.description ? (
+                          <span className="line-clamp-2">{item.description}</span>
+                        ) : (
+                          <span className="text-gray-400 italic">No description</span>
+                        )}
+                      </td>
                       <td className="px-6 py-4">
                         <span className={`px-2 py-1 text-xs rounded-full font-medium ${
                           item.status === 'Active'
@@ -256,7 +312,7 @@ export default function SyllabusPage() {
                         >
                           View
                         </button>
-                        {isAdmin && (
+                        {canManageSyllabus && (
                           <>
                             <button
                               onClick={() => openEdit(item)}
