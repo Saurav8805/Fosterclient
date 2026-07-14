@@ -160,8 +160,6 @@ export default function StaffListPage() {
     }
   }
 
-  if (userRole === null || loading) return <div className="flex items-center justify-center min-h-screen">Loading...</div>
-
   // Filter staff by designation
   const filteredStaff = filterDesignation === 'All' 
     ? staffMembers 

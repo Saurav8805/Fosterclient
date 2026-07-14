@@ -146,8 +146,6 @@ export default function BehaviourPage() {
     }
   }
 
-  if (loading) return <div className="flex items-center justify-center min-h-screen">Loading...</div>
-
   // Student (role 19): view own behaviour
   if (userRole === 19) {
     if (error || !behaviourData || behaviourData.records.length === 0) {

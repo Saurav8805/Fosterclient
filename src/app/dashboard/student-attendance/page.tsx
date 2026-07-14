@@ -4,7 +4,15 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardHeader, CardContent } from '@/components/ui/Card'
 import { studentsApi, attendanceApi } from '@/lib/api'
-import * as XLSX from 'xlsx'
+
+// Lazy load XLSX only when export is triggered
+let XLSX: any = null;
+const loadXLSX = async () => {
+  if (!XLSX) {
+    XLSX = await import('xlsx');
+  }
+  return XLSX;
+};
 
 export default function StudentAttendancePage() {
   const router = useRouter()
@@ -366,8 +374,11 @@ export default function StudentAttendancePage() {
           'Attendance %': `${student.percentage}%`
         }))
 
+      // Lazy load XLSX library
+      const xlsx = await loadXLSX()
+
       // Create worksheet
-      const worksheet = XLSX.utils.json_to_sheet(excelData)
+      const worksheet = xlsx.utils.json_to_sheet(excelData)
 
       // Set column widths
       worksheet['!cols'] = [
@@ -383,8 +394,8 @@ export default function StudentAttendancePage() {
       ]
 
       // Create workbook
-      const workbook = XLSX.utils.book_new()
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Overall Attendance')
+      const workbook = xlsx.utils.book_new()
+      xlsx.utils.book_append_sheet(workbook, worksheet, 'Overall Attendance')
 
       // Generate filename with date range
       const fromDate = overallStartDate ? new Date(overallStartDate).toLocaleDateString('en-IN').replace(/\//g, '-') : 'All'
@@ -392,7 +403,7 @@ export default function StudentAttendancePage() {
       const filename = `Student_Attendance_${fromDate}_to_${toDate}.xlsx`
 
       // Download file
-      XLSX.writeFile(workbook, filename)
+      xlsx.writeFile(workbook, filename)
 
       setMessage({ type: 'success', text: 'Excel file downloaded successfully!' })
       setTimeout(() => setMessage(null), 3000)
@@ -745,7 +756,7 @@ export default function StudentAttendancePage() {
   }
 
   if (userRole === null || loading) {
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>
+    return null
   }
 
   return (

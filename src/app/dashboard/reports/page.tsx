@@ -189,8 +189,6 @@ export default function ReportsPage() {
     }
   }
 
-  if (loading) return <div className="flex items-center justify-center min-h-screen">Loading...</div>
-
   // Student (role 19): view own progress & report card
   if (userRole === 19) {
     if (error || !progressData || progressData.records.length === 0) {
@@ -328,7 +326,6 @@ export default function ReportsPage() {
   }
 
   // Faculty (role 6) and Admin (role 8): manage student progress
-  if (loading) return <div className="flex items-center justify-center min-h-screen">Loading...</div>
 
   return (
     <div className="p-6 max-w-7xl mx-auto">

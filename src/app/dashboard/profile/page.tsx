@@ -4,7 +4,13 @@ import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardHeader, CardContent } from '@/components/ui/Card'
 import { usersApi } from '@/lib/api'
-import { User, Mail, Phone, Calendar, MapPin, Droplet, Users, BookOpen, Hash, Briefcase, Building2, DollarSign, UserCircle } from 'lucide-react'
+
+// Import only needed icons to reduce bundle size
+import {
+  User, Mail, Phone, Calendar, MapPin, Droplet, 
+  Users, BookOpen, Hash, Briefcase, Building2, 
+  DollarSign, UserCircle
+} from 'lucide-react'
 
 export default function ProfilePage() {
   const router = useRouter()
@@ -96,14 +102,7 @@ export default function ProfilePage() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="flex flex-col items-center gap-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          <p className="text-neutral-600">Loading profile...</p>
-        </div>
-      </div>
-    )
+    return null
   }
 
   const isStudent = userRole === 19

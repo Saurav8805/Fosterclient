@@ -202,7 +202,7 @@ export default function SyllabusPage() {
   }
 
   if (userRole === null || loading) {
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>
+    return null
   }
 
   const isAdmin = userRole === 6 || userRole === 8 // Admin (6) and Principal (8)

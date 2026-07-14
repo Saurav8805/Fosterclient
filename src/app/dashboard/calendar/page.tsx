@@ -146,8 +146,6 @@ export default function CalendarPage() {
     })
   }
 
-  if (loading) return <div className="flex items-center justify-center min-h-screen">Loading...</div>
-
   const isStudent = userRole === 19
 
   return (

@@ -75,8 +75,6 @@ export default function HomeworkPage() {
     }
   }
 
-  if (userRole === null) return <div className="flex items-center justify-center min-h-screen">Loading...</div>
-
   const isStudent = userRole === 19
 
   return (

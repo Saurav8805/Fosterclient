@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -23,7 +24,25 @@ export default function RootLayout({
         <link rel="preconnect" href={process.env.NEXT_PUBLIC_API_URL} />
         <link rel="preconnect" href={process.env.NEXT_PUBLIC_SUPABASE_URL} />
       </head>
-      <body>{children}</body>
+      <body>
+        {children}
+        {/* Suppress preload warnings in development */}
+        {process.env.NODE_ENV === 'development' && (
+          <Script id="suppress-preload-warnings" strategy="afterInteractive">
+            {`
+              // Suppress resource preload warnings
+              const originalWarn = console.warn;
+              console.warn = function(...args) {
+                if (args[0]?.includes?.('preloaded using link preload') || 
+                    args[0]?.includes?.('not used within a few seconds')) {
+                  return;
+                }
+                originalWarn.apply(console, args);
+              };
+            `}
+          </Script>
+        )}
+      </body>
     </html>
   );
 }
