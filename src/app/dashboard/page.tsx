@@ -199,11 +199,7 @@ export default function DashboardPage() {
   }
 
   if (userRole === null || loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#5e3a9e]"></div>
-      </div>
-    )
+    return null
   }
 
   const roleName = userRole === 6 ? 'Principal' : userRole === 7 ? 'Teacher' : userRole === 8 ? 'Admin' : 'Student'

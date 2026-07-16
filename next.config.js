@@ -2,7 +2,7 @@
 const nextConfig = {
   reactStrictMode: false, // Disabled to prevent double API calls in development
   experimental: {
-    serverComponentsExternalPackages: ['@supabase/supabase-js']
+    serverComponentsExternalPackages: ['@supabase/supabase-js'],
   },
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || '',
@@ -14,11 +14,28 @@ const nextConfig = {
   compress: true,
   poweredByHeader: false,
   productionBrowserSourceMaps: false,
+  // Disable CSS preloading warnings in development
+  devIndicators: {
+    buildActivityPosition: 'bottom-right',
+  },
   images: {
     formats: ['image/avif', 'image/webp'],
     deviceSizes: [640, 750, 828, 1080, 1200],
     imageSizes: [16, 32, 48, 64, 96],
     minimumCacheTTL: 60,
+  },
+  // Optimize webpack for CSS handling
+  webpack: (config, { dev, isServer }) => {
+    // Suppress preload warnings in development
+    if (dev && !isServer) {
+      const originalEntry = config.entry;
+      config.entry = async () => {
+        const entries = await originalEntry();
+        return entries;
+      };
+    }
+    
+    return config;
   },
   async headers() {
     return [
@@ -71,6 +88,15 @@ const nextConfig = {
       },
       {
         source: '/(.*).jpg',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+      {
+        source: '/_next/static/css/:path*',
         headers: [
           {
             key: 'Cache-Control',

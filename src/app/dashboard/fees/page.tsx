@@ -169,8 +169,6 @@ export default function FeesPage() {
     )
   }, [students])
 
-  if (loading) return <div className="flex items-center justify-center min-h-screen">Loading...</div>
-
   // Student (role 19): view own fees status
   if (userRole === 19) {
     if (error || !feesData) {

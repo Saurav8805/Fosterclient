@@ -310,8 +310,6 @@ export default function StudentListPage() {
     }
   }
 
-  if (loading) return <div className="flex items-center justify-center min-h-screen">Loading...</div>
-
   // Filter by both class and section
   const filtered = students.filter(s => {
     const classMatch = selectedClass === 'All' || s.class === selectedClass
