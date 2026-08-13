@@ -11,6 +11,20 @@
 
   html {
     scroll-behavior: smooth;
+    font-size: 16px; /* Base font size */
+  }
+  
+  /* Responsive base font sizes */
+  @media (max-width: 640px) {
+    html {
+      font-size: 14px; /* Smaller on mobile */
+    }
+  }
+  
+  @media (min-width: 1536px) {
+    html {
+      font-size: 18px; /* Larger on big screens */
+    }
   }
 
   body {
@@ -51,27 +65,91 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+  
+  /* Ensure touch-friendly tap targets on mobile */
+  @media (max-width: 1024px) {
+    button,
+    a,
+    input[type="button"],
+    input[type="submit"],
+    [role="button"] {
+      min-height: 44px;
+      min-width: 44px;
+    }
+  }
 }
 
 @layer components {
   .container {
-    @apply max-w-[1200px] mx-auto px-5 w-full;
+    @apply max-w-[1200px] mx-auto px-4 sm:px-5 w-full;
   }
 
   .section-header {
-    @apply text-center mb-12;
+    @apply text-center mb-8 sm:mb-10 md:mb-12;
   }
 
   .section-tag {
-    @apply inline-block text-[#ff6b35] font-semibold text-xs tracking-[2px] mb-3 uppercase;
+    @apply inline-block text-[#ff6b35] font-semibold text-[10px] sm:text-xs tracking-[2px] mb-2 sm:mb-3 uppercase;
   }
 
   .section-header h2 {
-    @apply text-3xl md:text-2xl text-[#333] mb-4 font-bold;
+    @apply text-2xl sm:text-3xl md:text-4xl text-[#333] mb-3 sm:mb-4 font-bold;
   }
 
   .divider {
-    @apply w-20 h-1 bg-gradient-to-r from-[#667eea] to-[#764ba2] mx-auto rounded-sm;
+    @apply w-16 sm:w-20 h-1 bg-gradient-to-r from-[#667eea] to-[#764ba2] mx-auto rounded-sm;
+  }
+  
+  /* Responsive text utilities */
+  .text-responsive-xs {
+    @apply text-[10px] sm:text-xs;
+  }
+  
+  .text-responsive-sm {
+    @apply text-xs sm:text-sm;
+  }
+  
+  .text-responsive-base {
+    @apply text-sm sm:text-base;
+  }
+  
+  .text-responsive-lg {
+    @apply text-base sm:text-lg;
+  }
+  
+  .text-responsive-xl {
+    @apply text-lg sm:text-xl;
+  }
+  
+  .text-responsive-2xl {
+    @apply text-xl sm:text-2xl;
+  }
+  
+  .text-responsive-3xl {
+    @apply text-2xl sm:text-3xl;
+  }
+  
+  /* Responsive padding utilities */
+  .p-responsive {
+    @apply p-3 sm:p-4 md:p-6;
+  }
+  
+  .px-responsive {
+    @apply px-3 sm:px-4 md:px-6;
+  }
+  
+  .py-responsive {
+    @apply py-3 sm:py-4 md:py-6;
+  }
+  
+  /* Responsive gap utilities */
+  .gap-responsive {
+    @apply gap-3 sm:gap-4 md:gap-6;
+  }
+  
+  /* Touch-friendly class */
+  .touch-target {
+    @apply min-h-[44px] min-w-[44px] touch-manipulation;
   }
 }
 

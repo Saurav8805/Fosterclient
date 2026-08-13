@@ -493,11 +493,11 @@ export default function StudentListPage() {
   })
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <h1 className="text-3xl font-bold text-gray-900 mb-6">Student List</h1>
+    <div className="p-3 sm:p-4 md:p-6 max-w-7xl mx-auto">
+      <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-4 sm:mb-6">Student List</h1>
 
       {message && (
-        <div className={`mb-4 p-4 rounded-lg border ${
+        <div className={`mb-3 sm:mb-4 p-3 sm:p-4 rounded-lg border text-xs sm:text-sm ${
           message.includes('Error:') || message.includes('Failed') 
             ? 'bg-red-50 text-red-800 border-red-200' 
             : message.includes('⚠️')
@@ -506,7 +506,7 @@ export default function StudentListPage() {
         }`}>
           {message}
           {message.includes('Service role key') && (
-            <div className="mt-2 text-sm">
+            <div className="mt-2 text-xs sm:text-sm">
               <p>The app will work with limited functionality until the service role key is configured.</p>
             </div>
           )}
@@ -515,16 +515,17 @@ export default function StudentListPage() {
 
       <Card>
         <CardHeader>
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <h3 className="text-xl font-semibold">All Students</h3>
-              <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">{filtered.length}</span>
-            </div>
-            <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex flex-col gap-3 sm:gap-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <h3 className="text-base sm:text-lg md:text-xl font-semibold">All Students</h3>
+                <span className="text-xs sm:text-sm text-gray-500 bg-gray-100 px-2 sm:px-3 py-0.5 sm:py-1 rounded-full">{filtered.length}</span>
+              </div>
+              
               {/* Show teacher's assigned class info */}
               {userRole === 7 && (
-                <div className="bg-blue-50 border border-blue-300 px-4 py-2 rounded-lg">
-                  <p className="text-sm font-semibold text-blue-900">
+                <div className="bg-blue-50 border border-blue-300 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg w-full sm:w-auto">
+                  <p className="text-xs sm:text-sm font-semibold text-blue-900">
                     {teacherAssignedClass ? (
                       <>Your Class: {teacherAssignedClass} {teacherAssignedSection ? `- ${teacherAssignedSection}` : ''}</>
                     ) : (
@@ -533,15 +534,17 @@ export default function StudentListPage() {
                   </p>
                 </div>
               )}
-              
+            </div>
+            
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 flex-wrap">
               {/* Class filter - only for admin/principal */}
               {userRole !== 7 && (
                 <div className="flex items-center gap-2">
-                  <label className="text-sm font-medium text-gray-700">Class:</label>
+                  <label className="text-xs sm:text-sm font-medium text-gray-700 whitespace-nowrap">Class:</label>
                   <select
                     value={selectedClass}
                     onChange={(e) => setSelectedClass(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    className="flex-1 sm:flex-none px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg text-xs sm:text-sm touch-manipulation"
                   >
                     {classes.map((c) => (
                       <option key={c} value={c}>{c}</option>
@@ -553,11 +556,11 @@ export default function StudentListPage() {
               {/* Section filter - only for admin/principal */}
               {userRole !== 7 && (
                 <div className="flex items-center gap-2">
-                  <label className="text-sm font-medium text-gray-700">Section:</label>
+                  <label className="text-xs sm:text-sm font-medium text-gray-700 whitespace-nowrap">Section:</label>
                   <select
                     value={selectedSection}
                     onChange={(e) => setSelectedSection(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    className="flex-1 sm:flex-none px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg text-xs sm:text-sm touch-manipulation"
                   >
                     {sections.map((s) => (
                       <option key={s} value={s}>{s}</option>
@@ -573,7 +576,7 @@ export default function StudentListPage() {
                     setAdmitMessage(null)
                     setShowAdmitModal(true)
                   }}
-                  className="bg-blue-50 text-blue-700 border-2 border-blue-400 font-medium px-4 py-2 rounded-lg text-sm hover:bg-blue-100 transition flex items-center gap-1.5"
+                  className="bg-blue-50 text-blue-700 border-2 border-blue-400 font-medium px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm hover:bg-blue-100 transition flex items-center justify-center gap-1.5 touch-manipulation whitespace-nowrap"
                 >
                   <span>+ Admit New Student</span>
                 </button>
@@ -582,29 +585,31 @@ export default function StudentListPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Roll No</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mobile</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Class</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Section</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Teacher</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
+          <div className="overflow-x-auto -mx-4 sm:mx-0">
+            <div className="inline-block min-w-full align-middle">
+              <div className="overflow-hidden">
+                <table className="min-w-full w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-3 sm:px-4 md:px-6 py-2 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Roll No</th>
+                      <th className="px-3 sm:px-4 md:px-6 py-2 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Name</th>
+                      <th className="px-3 sm:px-4 md:px-6 py-2 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Mobile</th>
+                      <th className="px-3 sm:px-4 md:px-6 py-2 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Class</th>
+                      <th className="px-3 sm:px-4 md:px-6 py-2 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Section</th>
+                      <th className="px-3 sm:px-4 md:px-6 py-2 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Teacher</th>
+                      <th className="px-3 sm:px-4 md:px-6 py-2 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 bg-white">
                 {filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-10 text-center text-sm text-gray-500">
+                    <td colSpan={7} className="px-3 sm:px-4 md:px-6 py-8 sm:py-10 text-center text-xs sm:text-sm text-gray-500">
                       {userRole === 7 && !teacherAssignedClass ? (
                         <div className="text-center">
-                          <div className="text-5xl mb-4">⚠️</div>
-                          <p className="text-lg font-semibold text-gray-700">No Class Assigned</p>
-                          <p className="text-gray-600 mt-2">You have not been assigned to any class yet.</p>
-                          <p className="text-gray-500 text-sm mt-1">Please contact the principal to assign you to a class.</p>
+                          <div className="text-3xl sm:text-4xl md:text-5xl mb-3 sm:mb-4">⚠️</div>
+                          <p className="text-base sm:text-lg font-semibold text-gray-700">No Class Assigned</p>
+                          <p className="text-gray-600 mt-2 text-xs sm:text-sm">You have not been assigned to any class yet.</p>
+                          <p className="text-gray-500 text-xs mt-1">Please contact the principal to assign you to a class.</p>
                         </div>
                       ) : (
                         <>
@@ -617,18 +622,18 @@ export default function StudentListPage() {
                   </tr>
                 ) : (
                   filtered.map((student) => (
-                    <tr key={student.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 text-sm text-gray-900">{student.roll_no || 'N/A'}</td>
-                      <td className="px-6 py-4 text-sm text-gray-900 font-medium">{student.user?.full_name || 'N/A'}</td>
-                      <td className="px-6 py-4 text-sm text-gray-900">{student.user?.mobile || 'N/A'}</td>
-                      <td className="px-6 py-4 text-sm text-gray-900">{student.class || 'N/A'}</td>
-                      <td className="px-6 py-4 text-sm text-gray-900">{student.section || 'N/A'}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
+                    <tr key={student.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 md:py-4 text-xs sm:text-sm text-gray-900 whitespace-nowrap">{student.roll_no || 'N/A'}</td>
+                      <td className="px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 md:py-4 text-xs sm:text-sm text-gray-900 font-medium whitespace-nowrap">{student.user?.full_name || 'N/A'}</td>
+                      <td className="px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 md:py-4 text-xs sm:text-sm text-gray-900 whitespace-nowrap">{student.user?.mobile || 'N/A'}</td>
+                      <td className="px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 md:py-4 text-xs sm:text-sm text-gray-900 whitespace-nowrap">{student.class || 'N/A'}</td>
+                      <td className="px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 md:py-4 text-xs sm:text-sm text-gray-900 whitespace-nowrap">{student.section || 'N/A'}</td>
+                      <td className="px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 md:py-4 text-xs sm:text-sm text-gray-600 whitespace-nowrap">
                         {student.teacher?.full_name ? (
                           <div>
                             <div className="font-medium text-gray-900">{student.teacher.full_name}</div>
                             {student.teacher.assigned_class || student.teacher.assignedClass ? (
-                              <div className="text-xs text-blue-600 font-semibold mt-0.5">
+                              <div className="text-[10px] sm:text-xs text-blue-600 font-semibold mt-0.5">
                                 {student.teacher.assigned_class || student.teacher.assignedClass} - {student.teacher.assigned_section || student.teacher.assignedSection || 'A'}
                               </div>
                             ) : null}
@@ -637,27 +642,31 @@ export default function StudentListPage() {
                           <span className="text-gray-400">Not assigned</span>
                         )}
                       </td>
-                      <td className="px-6 py-4 text-sm">
-                        <button 
-                          onClick={() => handleEdit(student)}
-                          className="text-blue-600 hover:text-blue-800 font-medium mr-3"
-                        >
-                          Edit
-                        </button>
-                        {userRole === 6 && ( // Only admin (role 6) can delete
+                      <td className="px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 md:py-4 text-xs sm:text-sm whitespace-nowrap">
+                        <div className="flex flex-col sm:flex-row gap-1 sm:gap-3">
                           <button 
-                            onClick={() => handleDelete(student)}
-                            className="text-red-600 hover:text-red-800 font-medium"
+                            onClick={() => handleEdit(student)}
+                            className="text-blue-600 hover:text-blue-800 font-medium px-2 py-1 rounded hover:bg-blue-50 transition-colors touch-manipulation"
                           >
-                            Delete
+                            Edit
                           </button>
-                        )}
+                          {userRole === 6 && ( // Only admin (role 6) can delete
+                            <button 
+                              onClick={() => handleDelete(student)}
+                              className="text-red-600 hover:text-red-800 font-medium px-2 py-1 rounded hover:bg-red-50 transition-colors touch-manipulation"
+                            >
+                              Delete
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))
                 )}
-              </tbody>
-            </table>
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>

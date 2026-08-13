@@ -256,33 +256,33 @@ export default function FeesPage() {
 
   // ─── ADMIN / TEACHER VIEW ─────────────────────────────────────────────────────
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Fees Management</h1>
-        <div className="text-sm text-gray-500">Real-time fee tracking</div>
+    <div className="p-3 sm:p-4 md:p-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 gap-3">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Fees Management</h1>
+        <div className="text-xs sm:text-sm text-gray-500">Real-time fee tracking</div>
       </div>
 
-      {success && <div className="mb-4 p-3 bg-green-50 text-green-700 rounded-lg border border-green-200 text-sm">{success}</div>}
-      {error && <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg border border-red-200 text-sm">{error}</div>}
+      {success && <div className="mb-3 sm:mb-4 p-2.5 sm:p-3 bg-green-50 text-green-700 rounded-lg border border-green-200 text-xs sm:text-sm">{success}</div>}
+      {error && <div className="mb-3 sm:mb-4 p-2.5 sm:p-3 bg-red-50 text-red-700 rounded-lg border border-red-200 text-xs sm:text-sm">{error}</div>}
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
         {[
           { label: 'Total Students', value: stats.total, color: 'bg-purple-50 text-purple-700', icon: '👨‍🎓' },
           { label: 'Total Fees', value: `₹${stats.totalAmt.toLocaleString()}`, color: 'bg-blue-50 text-blue-700', icon: '💰' },
           { label: 'Collected', value: `₹${stats.paidAmt.toLocaleString()}`, color: 'bg-green-50 text-green-700', icon: '✅' },
           { label: 'Pending', value: `₹${stats.pendingAmt.toLocaleString()}`, color: 'bg-red-50 text-red-700', icon: '⏳' },
         ].map((c, i) => (
-          <div key={i} className={`${c.color} rounded-xl p-4 border border-opacity-20`}>
-            <div className="text-2xl mb-1">{c.icon}</div>
-            <div className="text-xl font-bold">{c.value}</div>
-            <div className="text-xs font-medium mt-1 opacity-70">{c.label}</div>
+          <div key={i} className={`${c.color} rounded-xl p-3 sm:p-4 border border-opacity-20`}>
+            <div className="text-xl sm:text-2xl mb-1">{c.icon}</div>
+            <div className="text-base sm:text-lg md:text-xl font-bold">{c.value}</div>
+            <div className="text-[10px] sm:text-xs font-medium mt-1 opacity-70">{c.label}</div>
           </div>
         ))}
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-4 flex flex-wrap gap-3 items-end">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3 sm:p-4 mb-3 sm:mb-4 flex flex-wrap gap-2 sm:gap-3 items-end">
         <div>
           <label className="block text-xs font-medium text-gray-500 mb-1">Academic Year</label>
           <select value={filterYear} onChange={e => setFilterYear(e.target.value)} className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:border-[#5e3a9e] focus:ring-1 focus:ring-[#5e3a9e] font-semibold">
@@ -355,17 +355,17 @@ export default function FeesPage() {
                     </td>
                     <td className="px-4 py-3 text-gray-500 text-xs">{fee.dueDate ? new Date(fee.dueDate).toLocaleDateString('en-IN') : '—'}</td>
                     <td className="px-4 py-3">
-                      <div className="flex gap-2">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         {fee.status === 'Paid' ? (
-                          <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded text-xs font-bold border border-emerald-200 cursor-default">
-                            ✓ Fully Paid
+                          <span className="px-2 py-1 bg-emerald-50 text-emerald-700 rounded-lg text-[10px] font-bold border border-emerald-200 cursor-default whitespace-nowrap min-w-[55px] text-center">
+                            ✓ Paid
                           </span>
                         ) : (
-                          <button onClick={() => openCollect(fee)} className="px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700 transition font-bold shadow-sm">
-                            {fee.status === 'Partial' ? 'Collect Remaining' : 'Collect Fee'}
+                          <button onClick={() => openCollect(fee)} className="px-2 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-[10px] font-bold shadow-sm whitespace-nowrap touch-manipulation min-w-[55px]">
+                            Collect
                           </button>
                         )}
-                        <button onClick={() => openEdit(fee)} className="px-2 py-1 bg-[#5e3a9e]/10 text-[#5e3a9e] rounded text-xs hover:bg-[#5e3a9e]/20 transition font-medium">Edit</button>
+                        <button onClick={() => openEdit(fee)} className="px-2 py-1 bg-[#5e3a9e]/10 text-[#5e3a9e] rounded-lg hover:bg-[#5e3a9e]/20 transition text-[10px] font-bold whitespace-nowrap touch-manipulation min-w-[55px]">Edit</button>
                       </div>
                     </td>
                   </tr>

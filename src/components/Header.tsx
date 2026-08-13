@@ -29,13 +29,13 @@ const Header = () => {
       <div className={`bg-[#5e3a9e] text-white relative transition-all duration-300 ${
         isScrolled ? 'h-0 overflow-hidden opacity-0 py-0' : 'pt-2 pb-10 opacity-100'
       }`}>
-        <div className="max-w-[1200px] mx-auto px-5 relative z-10">
-          <div className="flex justify-between items-center text-[11px]">
+        <div className="max-w-[1200px] mx-auto px-3 sm:px-5 relative z-10">
+          <div className="flex justify-between items-center text-[10px] sm:text-[11px]">
             {/* Left: Contact Info */}
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-              <span className="inline-flex items-center gap-1.5">
-                <Phone className="w-3.5 h-3.5 text-pink-300 flex-shrink-0" />
-                <strong>Call Us :</strong> <a href="tel:9354456577" className="hover:underline hover:text-pink-200 transition-colors">9354456577</a>
+            <div className="flex flex-wrap items-center gap-x-2 sm:gap-x-4 gap-y-1">
+              <span className="inline-flex items-center gap-1 sm:gap-1.5">
+                <Phone className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-pink-300 flex-shrink-0" />
+                <strong className="hidden sm:inline">Call Us :</strong> <a href="tel:9354456577" className="hover:underline hover:text-pink-200 transition-colors">9354456577</a>
               </span>
               <span className="hidden sm:inline-flex items-center gap-1.5">
                 <Mail className="w-3.5 h-3.5 text-pink-300 flex-shrink-0" />
@@ -48,9 +48,9 @@ const Header = () => {
             </div>
             
             {/* Right: Social Media */}
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] opacity-80">Follow us on :</span>
-              <div className="flex gap-1.5">
+            <div className="flex items-center gap-1 sm:gap-2">
+              <span className="text-[10px] sm:text-[11px] opacity-80 hidden sm:inline">Follow us on :</span>
+              <div className="flex gap-1 sm:gap-1.5">
                 <a href="https://www.facebook.com/fosterkids.playschool" target="_blank" rel="noopener noreferrer" className="w-5 h-5 rounded-full flex items-center justify-center text-white hover:text-[#1877F2] transition-all duration-300 hover:scale-110">
                   <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" width="32" height="32" viewBox="0 0 32 32">
               <path d="M16,2c-7.732,0-14,6.268-14,14,0,6.566,4.52,12.075,10.618,13.588v-9.31h-2.887v-4.278h2.887v-1.843c0-4.765,2.156-6.974,6.835-6.974,.887,0,2.417,.174,3.043,.348v3.878c-.33-.035-.904-.052-1.617-.052-2.296,0-3.183,.87-3.183,3.13v1.513h4.573l-.786,4.278h-3.787v9.619c6.932-.837,12.304-6.74,12.304-13.897,0-7.732-6.268-14-14-14Z"></path>
@@ -102,9 +102,9 @@ const Header = () => {
       
       {/* Merged Main Navigation & Bottom Wavy Border */}
       <header className={`sticky top-0 z-50 transition-all duration-300 relative ${
-        isScrolled ? 'py-2 shadow-lg backdrop-blur-md bg-white/95 border-b border-gray-100' : 'pt-4 pb-6 bg-white'
+        isScrolled ? 'py-2 shadow-lg backdrop-blur-md bg-white/95 border-b border-gray-100' : 'pt-3 sm:pt-4 pb-4 sm:pb-6 bg-white'
       }`}>
-        <div className="max-w-[1200px] mx-auto px-5 relative z-10">
+        <div className="max-w-[1200px] mx-auto px-3 sm:px-5 relative z-10">
           <div className="flex justify-between items-center">
             {/* Logo */}
             <div className="flex-shrink-0 transition-transform duration-300 hover:scale-105 cursor-pointer">
@@ -113,14 +113,14 @@ const Header = () => {
                 alt="Foster Kids" 
                 width={180} 
                 height={60} 
-                className={`object-contain transition-all duration-300 ${isScrolled ? 'h-12' : 'h-14'}`}
-                style={{ width: 'auto', height: isScrolled ? '48px' : '56px' }}
+                className={`object-contain transition-all duration-300 ${isScrolled ? 'h-10 sm:h-12' : 'h-12 sm:h-14'}`}
+                style={{ width: 'auto', height: isScrolled ? 'clamp(40px, 10vw, 48px)' : 'clamp(48px, 12vw, 56px)' }}
                 priority 
               />
             </div>
             
             {/* Desktop Navigation */}
-            <nav className="hidden lg:flex items-center gap-6">
+            <nav className="hidden lg:flex items-center gap-4 xl:gap-6">
               {[
                 { label: 'About', id: 'about' },
                 { label: 'Programs', id: 'programs' },
@@ -132,7 +132,7 @@ const Header = () => {
                 <a 
                   key={item.label} 
                   href={`#${item.id}`} 
-                  className="relative text-gray-700 hover:text-[#5e3a9e] text-sm font-semibold py-1.5 transition-colors group"
+                  className="relative text-gray-700 hover:text-[#5e3a9e] text-xs xl:text-sm font-semibold py-1.5 transition-colors group"
                 >
                   {item.label}
                   <span className="absolute bottom-0 left-0 w-full h-0.5 bg-[#e91e63] transform scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-300" />
@@ -144,7 +144,7 @@ const Header = () => {
             <div className="hidden lg:block">
               <Link href="/login" prefetch={true}>
                 <button 
-                  className="bg-gradient-to-r from-[#e91e63] to-[#5e3a9e] text-white px-6 py-2 text-sm font-semibold rounded-full hover:scale-105 active:scale-95 transition-all duration-300 shadow-md hover:shadow-lg"
+                  className="bg-gradient-to-r from-[#e91e63] to-[#5e3a9e] text-white px-4 xl:px-6 py-2 text-xs xl:text-sm font-semibold rounded-full hover:scale-105 active:scale-95 transition-all duration-300 shadow-md hover:shadow-lg touch-manipulation"
                   suppressHydrationWarning
                 >
                   Login Portal
@@ -155,18 +155,18 @@ const Header = () => {
             {/* Mobile Menu Button */}
             <button 
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)} 
-              className="lg:hidden text-[#333] w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors" 
+              className="lg:hidden text-[#333] w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors touch-manipulation" 
               suppressHydrationWarning
               aria-label="Toggle navigation menu"
             >
-              {mobileMenuOpen ? <X className="w-6 h-6 text-[#e91e63]" /> : <Menu className="w-6 h-6 text-[#5e3a9e]" />}
+              {mobileMenuOpen ? <X className="w-5 h-5 sm:w-6 sm:h-6 text-[#e91e63]" /> : <Menu className="w-5 h-5 sm:w-6 sm:h-6 text-[#5e3a9e]" />}
             </button>
           </div>
           
           {/* Mobile Menu */}
           {mobileMenuOpen && (
-            <div className="lg:hidden mt-4 pb-4 border-t pt-4 animate-fade-in">
-              <nav className="flex flex-col gap-2">
+            <div className="lg:hidden mt-3 sm:mt-4 pb-3 sm:pb-4 border-t pt-3 sm:pt-4 animate-fade-in">
+              <nav className="flex flex-col gap-1.5 sm:gap-2">
                 {[
                   { label: 'About', id: 'about' },
                   { label: 'Programs', id: 'programs' },
@@ -179,7 +179,7 @@ const Header = () => {
                     key={item.label}
                     href={`#${item.id}`} 
                     onClick={() => setMobileMenuOpen(false)}
-                    className="text-[#333] hover:text-[#5e3a9e] hover:bg-gray-50 text-sm font-medium py-2.5 px-3 rounded-lg transition-colors border-b border-gray-50 last:border-b-0"
+                    className="text-[#333] hover:text-[#5e3a9e] hover:bg-gray-50 text-sm font-medium py-2 sm:py-2.5 px-3 rounded-lg transition-colors border-b border-gray-50 last:border-b-0 touch-manipulation"
                   >
                     {item.label}
                   </a>
@@ -190,7 +190,7 @@ const Header = () => {
                   setMobileMenuOpen(false);
                   router.push('/login');
                 }} 
-                className="w-full mt-4 bg-gradient-to-r from-[#e91e63] to-[#5e3a9e] text-white py-3 text-sm font-semibold rounded-full btn-glowing" 
+                className="w-full mt-3 sm:mt-4 bg-gradient-to-r from-[#e91e63] to-[#5e3a9e] text-white py-2.5 sm:py-3 text-sm font-semibold rounded-full btn-glowing touch-manipulation" 
                 suppressHydrationWarning
               >
                 Login Portal

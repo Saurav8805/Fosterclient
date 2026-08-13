@@ -353,4 +353,7 @@ export const reportsApi = {
 export const notificationsApi = {
   list: (userId: string) => apiClient.get(`/notifications?userId=${userId}`),
   readAll: (userId: string) => apiClient.put('/notifications/read-all', { userId }),
+  create: (data: { title: string; message: string; targetAudience: string[] }) => 
+    apiClient.post('/notifications/create', data),
+  delete: (id: string) => apiClient.delete(`/notifications/${id}`),
 };

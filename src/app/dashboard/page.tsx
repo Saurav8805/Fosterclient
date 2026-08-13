@@ -238,13 +238,13 @@ export default function DashboardPage() {
   // Admin/Principal Dashboard
   if (userRole === 6 || userRole === 8) {
     return (
-      <div className="p-6">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+      <div className="p-4 sm:p-6">
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Dashboard</h1>
         </div>
 
         {/* Stats Overview */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 mb-6 sm:mb-8">
           {[
             { label: 'Total Students', value: stats.totalStudents, color: 'text-blue-600', bg: 'bg-blue-50', icon: '👨‍🎓' },
             { label: 'Total Staff', value: stats.totalStaff, color: 'text-green-600', bg: 'bg-green-50', icon: '👥' },
@@ -253,11 +253,11 @@ export default function DashboardPage() {
             { label: 'Fees Pending', value: `₹${Number(stats.pendingFees || 0).toLocaleString()}`, color: 'text-red-600', bg: 'bg-red-50', icon: '⏳' },
             { label: 'Homework', value: stats.totalHomework, color: 'text-teal-600', bg: 'bg-teal-50', icon: '📝' },
           ].map((card, i) => (
-            <div key={i} className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-              <div className={`w-10 h-10 ${card.bg} rounded-lg flex items-center justify-center mb-3`}>
-                <span className="text-xl">{card.icon}</span>
+            <div key={i} className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-200">
+              <div className={`w-8 h-8 sm:w-10 sm:h-10 ${card.bg} rounded-lg flex items-center justify-center mb-2 sm:mb-3`}>
+                <span className="text-lg sm:text-xl">{card.icon}</span>
               </div>
-              <p className={`text-xl font-bold ${card.color}`}>{card.value}</p>
+              <p className={`text-lg sm:text-xl font-bold ${card.color}`}>{card.value}</p>
               <p className="text-xs text-gray-500 mt-1 font-medium">{card.label}</p>
             </div>
           ))}
@@ -265,7 +265,7 @@ export default function DashboardPage() {
 
 
         {/* Recent Activity & Upcoming Events */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
             {recentEvents.length > 0 ? (
@@ -324,13 +324,13 @@ export default function DashboardPage() {
   // Teacher Dashboard
   if (userRole === 7) {
     return (
-      <div className="p-6">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+      <div className="p-4 sm:p-6">
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Dashboard</h1>
         </div>
 
         {/* Teacher Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
             <div className="flex items-center justify-between">
               <div>
@@ -404,13 +404,13 @@ export default function DashboardPage() {
 
   // Student Dashboard
   return (
-    <div className="p-6">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+    <div className="p-4 sm:p-6">
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Dashboard</h1>
       </div>
 
       {/* Student Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
