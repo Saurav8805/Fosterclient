@@ -33,6 +33,29 @@ export default function ProfilePage() {
     joiningDate: '', salary: '', createdAt: ''
   })
 
+  // Password change state
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  })
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
+  const [showNewPassword, setShowNewPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [passwordLoading, setPasswordLoading] = useState(false)
+  const [passwordMessage, setPasswordMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
+
+  // Edit Profile modal state (for Staff / Teachers / Principal)
+  const [showEditProfileModal, setShowEditProfileModal] = useState(false)
+  const [editProfileData, setEditProfileData] = useState({
+    fullName: '',
+    email: '',
+    mobile: '',
+    department: '',
+    designation: ''
+  })
+  const [editProfileLoading, setEditProfileLoading] = useState(false)
+
   useEffect(() => {
     const role = localStorage.getItem('userRole')
     const id = localStorage.getItem('userId')
@@ -120,11 +143,98 @@ export default function ProfilePage() {
   const displayName = isStudent ? studentData.fullName || studentData.studentName : staffData.fullName
   const initials = displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'U'
 
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!userId) return
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setPasswordMessage({ type: 'error', text: '❌ New password and confirm password do not match.' })
+      return
+    }
+
+    if (passwordData.newPassword.length < 6) {
+      setPasswordMessage({ type: 'error', text: '❌ New password must be at least 6 characters long.' })
+      return
+    }
+
+    setPasswordLoading(true)
+    setPasswordMessage(null)
+
+    try {
+      const result = await usersApi.changePassword({
+        userId,
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword
+      })
+
+      if (result.success) {
+        setPasswordMessage({ type: 'success', text: '✅ Password changed successfully!' })
+        setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' })
+      } else {
+        setPasswordMessage({ type: 'error', text: `❌ ${result.error || 'Failed to change password'}` })
+      }
+    } catch (err) {
+      console.error('Password change error:', err)
+      setPasswordMessage({ type: 'error', text: '❌ Failed to change password. Please check your current password.' })
+    } finally {
+      setPasswordLoading(false)
+    }
+  }
+
+  const handleOpenEditProfile = () => {
+    setEditProfileData({
+      fullName: staffData.fullName || '',
+      email: staffData.email || '',
+      mobile: staffData.mobile || '',
+      department: staffData.department || '',
+      designation: staffData.designation || ''
+    })
+    setShowEditProfileModal(true)
+  }
+
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!userId) return
+
+    setEditProfileLoading(true)
+    try {
+      const res = await usersApi.updateProfile(userId, editProfileData)
+      if (res.success) {
+        setMessage({ type: 'success', text: '✅ Profile updated successfully!' })
+        if (editProfileData.fullName) localStorage.setItem('userName', editProfileData.fullName)
+        if (editProfileData.mobile) localStorage.setItem('userMobile', editProfileData.mobile)
+        setShowEditProfileModal(false)
+        fetchProfileData(userId, userRole!)
+        setTimeout(() => setMessage(null), 3000)
+      } else {
+        setMessage({ type: 'error', text: `❌ ${res.error || 'Failed to update profile'}` })
+      }
+    } catch (err) {
+      console.error('Update profile error:', err)
+      setMessage({ type: 'error', text: '❌ Failed to update profile.' })
+    } finally {
+      setEditProfileLoading(false)
+    }
+  }
+
   return (
     <div className="p-6 max-w-7xl mx-auto bg-neutral-50 min-h-screen">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-neutral-900">My Profile</h1>
-        <p className="text-sm text-neutral-600 mt-1">View your personal information</p>
+      <div className="mb-6 flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-neutral-900">My Profile</h1>
+          <p className="text-sm text-neutral-600 mt-1">View your personal information and update settings</p>
+        </div>
+        {isStaff && (
+          <button
+            onClick={handleOpenEditProfile}
+            className="px-4 py-2 bg-blue-50 text-blue-700 border-2 border-blue-400 rounded-lg hover:bg-blue-100 font-medium text-sm transition flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            Edit Profile
+          </button>
+        )}
       </div>
       {message && (
         <div className={`mb-6 p-4 rounded-lg flex items-center gap-3 ${message.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
@@ -171,7 +281,7 @@ export default function ProfilePage() {
       </Card>
 
       {isStudent && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           <Card className="shadow-sm border border-neutral-200">
             <CardHeader className="bg-neutral-50"><h3 className="font-semibold flex items-center gap-2"><User className="w-5 h-5 text-blue-600"/>Personal</h3></CardHeader>
             <CardContent className="p-4 space-y-3">
@@ -213,7 +323,7 @@ export default function ProfilePage() {
         </div>
       )}
       {isStaff && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           <Card className="shadow-sm border border-neutral-200">
             <CardHeader className="bg-neutral-50"><h3 className="font-semibold flex items-center gap-2"><Briefcase className="w-5 h-5 text-blue-600"/>Professional</h3></CardHeader>
             <CardContent className="p-4 space-y-3">
@@ -232,6 +342,203 @@ export default function ProfilePage() {
               <div><p className="text-xs text-neutral-500">Email</p><p className="font-medium">{staffData.email || 'N/A'}</p></div>
             </CardContent>
           </Card>
+        </div>
+      )}
+
+      {/* Password Reset Section */}
+      <Card className="shadow-sm border border-neutral-200">
+        <CardHeader className="bg-neutral-50">
+          <h3 className="font-semibold flex items-center gap-2 text-neutral-900">
+            <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+            Security & Change Password
+          </h3>
+        </CardHeader>
+        <CardContent className="p-6">
+          {passwordMessage && (
+            <div className={`mb-4 p-3 rounded-lg text-sm font-medium ${
+              passwordMessage.type === 'success' 
+                ? 'bg-green-50 text-green-800 border border-green-200' 
+                : 'bg-red-50 text-red-800 border border-red-200'
+            }`}>
+              {passwordMessage.text}
+            </div>
+          )}
+
+          <form onSubmit={handleChangePassword} className="max-w-xl space-y-4">
+            {/* Current Password */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Current Password *</label>
+              <div className="relative">
+                <input
+                  type={showCurrentPassword ? 'text' : 'password'}
+                  required
+                  value={passwordData.currentPassword}
+                  onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                  placeholder="Enter current password"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                  className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 text-xs font-semibold"
+                >
+                  {showCurrentPassword ? 'Hide' : 'Show'}
+                </button>
+              </div>
+            </div>
+
+            {/* New Password */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">New Password *</label>
+              <div className="relative">
+                <input
+                  type={showNewPassword ? 'text' : 'password'}
+                  required
+                  minLength={6}
+                  value={passwordData.newPassword}
+                  onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                  placeholder="Enter new password (min. 6 characters)"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                  className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 text-xs font-semibold"
+                >
+                  {showNewPassword ? 'Hide' : 'Show'}
+                </button>
+              </div>
+            </div>
+
+            {/* Confirm New Password */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Confirm New Password *</label>
+              <div className="relative">
+                <input
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  required
+                  minLength={6}
+                  value={passwordData.confirmPassword}
+                  onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                  placeholder="Re-enter new password"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 text-xs font-semibold"
+                >
+                  {showConfirmPassword ? 'Hide' : 'Show'}
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={passwordLoading}
+              className="mt-4 px-5 py-2.5 bg-blue-50 text-blue-700 border-2 border-blue-400 rounded-lg hover:bg-blue-100 font-medium text-sm transition disabled:opacity-50"
+            >
+              {passwordLoading ? 'Updating Password...' : 'Update Password'}
+            </button>
+          </form>
+        </CardContent>
+      </Card>
+
+      {/* Edit Profile Modal (for Staff / Teachers / Principal) */}
+      {showEditProfileModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl max-w-lg w-full p-6 shadow-2xl animate-in fade-in zoom-in duration-200">
+            <div className="flex justify-between items-center pb-4 border-b border-gray-100 mb-5">
+              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <UserCircle className="w-5 h-5 text-blue-600" />
+                Edit Profile Information
+              </h3>
+              <button 
+                onClick={() => setShowEditProfileModal(false)}
+                className="text-gray-400 hover:text-gray-600 text-xl font-bold p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateProfile} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
+                <input 
+                  type="text" 
+                  required
+                  value={editProfileData.fullName}
+                  onChange={(e) => setEditProfileData({ ...editProfileData, fullName: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Mobile Number (Username) *</label>
+                <input 
+                  type="text" 
+                  required
+                  value={editProfileData.mobile}
+                  onChange={(e) => setEditProfileData({ ...editProfileData, mobile: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                <input 
+                  type="email" 
+                  value={editProfileData.email}
+                  onChange={(e) => setEditProfileData({ ...editProfileData, email: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g. teacher@school.com"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
+                <input 
+                  type="text" 
+                  value={editProfileData.department}
+                  onChange={(e) => setEditProfileData({ ...editProfileData, department: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g. Teaching, Academics, Admin"
+                />
+              </div>
+
+              {userRole === 6 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Designation</label>
+                  <input 
+                    type="text" 
+                    value={editProfileData.designation}
+                    onChange={(e) => setEditProfileData({ ...editProfileData, designation: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g. Principal / Vice-Principal"
+                  />
+                </div>
+              )}
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => setShowEditProfileModal(false)}
+                  className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={editProfileLoading}
+                  className="px-5 py-2 bg-blue-600 text-white font-medium text-sm rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+                >
+                  {editProfileLoading ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

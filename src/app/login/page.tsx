@@ -39,8 +39,28 @@ export default function LoginPage() {
         // Store designation if available (for staff)
         if (user.additionalData && user.additionalData.designation) {
           localStorage.setItem('userDesignation', user.additionalData.designation)
+          // Store teacher's assigned class/section
+          if (user.additionalData.assigned_class) {
+            localStorage.setItem('userClass', user.additionalData.assigned_class)
+          }
+          if (user.additionalData.assigned_section) {
+            localStorage.setItem('userSection', user.additionalData.assigned_section)
+          }
+          if (user.additionalData.id) {
+            localStorage.setItem('staffId', user.additionalData.id)
+          }
         } else if (user.role === 19) {
           localStorage.setItem('userDesignation', 'Student')
+          // Store student class/section if available
+          if (user.additionalData?.class) {
+            localStorage.setItem('userClass', user.additionalData.class)
+          }
+          if (user.additionalData?.section) {
+            localStorage.setItem('userSection', user.additionalData.section)
+          }
+          if (user.additionalData?.id) {
+            localStorage.setItem('studentId', user.additionalData.id)
+          }
         }
 
         // Redirect to dashboard
@@ -101,7 +121,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  className="absolute right-0 top-0 bottom-0 px-3.5 flex items-center justify-center text-gray-400 hover:text-gray-600 focus:outline-none z-20 cursor-pointer select-none"
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? (

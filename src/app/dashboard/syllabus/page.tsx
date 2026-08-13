@@ -1,512 +1,437 @@
-﻿'use client';
+'use client';
 
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { syllabusApi, configApi, usersApi } from '@/lib/api'
+import React, { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
+import { syllabusApi, configApi } from '@/lib/api';
 
-interface SyllabusItem {
-  id: string
-  class: string
-  subject: string
-  topics: string
-  description: string | null
-  status: string
-  created_at: string
-}
-
-const emptyForm = {
-  studentClass: '',
-  subject: '',
-  topics: '',
-  description: '',
-  status: 'Active'
+interface SyllabusRecord {
+  id: string;
+  class: string;
+  subject?: string;
+  topics?: string;
+  description?: string;
+  status?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export default function SyllabusPage() {
-  const router = useRouter()
-  const [userRole, setUserRole] = useState<number | null>(null)
-  const [userId, setUserId] = useState<string | null>(null)
-  const [userClass, setUserClass] = useState<string | null>(null)
-  const [syllabus, setSyllabus] = useState<SyllabusItem[]>([])
-  const [classes, setClasses] = useState<string[]>([])
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [deleting, setDeleting] = useState<string | null>(null)
-  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
-  const [filterClass, setFilterClass] = useState('All')
+  const router = useRouter();
+  const [role, setRole] = useState<number | null>(null);
 
-  // Modal state
-  const [showModal, setShowModal] = useState(false)
-  const [showViewModal, setShowViewModal] = useState(false)
-  const [showDeleteModal, setShowDeleteModal] = useState(false)
-  const [editItem, setEditItem] = useState<SyllabusItem | null>(null)
-  const [viewItem, setViewItem] = useState<SyllabusItem | null>(null)
-  const [deleteItem, setDeleteItem] = useState<SyllabusItem | null>(null)
-  const [formData, setFormData] = useState(emptyForm)
+  // Navigation / View State
+  const [viewMode, setViewMode] = useState<'classList' | 'syllabusDetail'>('classList');
+  const [selectedClass, setSelectedClass] = useState<string | null>(null);
+
+  // Data State
+  const [classList, setClassList] = useState<string[]>([]);  // only real classes from API
+  const [classSyllabusMap, setClassSyllabusMap] = useState<{ [className: string]: SyllabusRecord[] }>({});
+  const [loading, setLoading] = useState<boolean>(true);
+  
+  // Edit State
+  const [isEditing, setIsEditing] = useState<boolean>(false);
+  const [rawContent, setRawContent] = useState<string>('');
+  const [saving, setSaving] = useState<boolean>(false);
+
+  // Active syllabus text dynamically computed from classSyllabusMap
+  const activeSyllabusText = useMemo(() => {
+    if (!selectedClass) return '';
+    const normKey = String(selectedClass).trim().toLowerCase();
+    const records = classSyllabusMap[normKey] || classSyllabusMap[selectedClass] || [];
+    if (records.length > 0) {
+      return records.map(r => r.topics || r.description || '').filter(Boolean).join('\n\n');
+    }
+    return '';
+  }, [selectedClass, classSyllabusMap]);
 
   useEffect(() => {
-    const role = localStorage.getItem('userRole')
-    const uid = localStorage.getItem('userId')
-    if (!role || !uid) { 
-      router.push('/login')
-      return 
-    }
-    setUserRole(Number(role))
-    setUserId(uid)
-    
-    // Fetch data only once on mount
-    let mounted = true
-    const loadData = async () => {
-      if (mounted) {
-        // For students (role 10), fetch their class first
-        if (Number(role) === 10) {
-          try {
-            const profileResult = await usersApi.getProfile(uid)
-            if (profileResult.success && profileResult.data) {
-              const studentClass = profileResult.data.class || profileResult.data.student_class
-              if (studentClass) {
-                setUserClass(studentClass)
-                setFilterClass(studentClass) // Auto-filter to student's class
-              }
-            }
-          } catch (error) {
-            console.error('Failed to fetch student profile:', error)
-          }
-        }
-        
-        await Promise.all([fetchSyllabus(), fetchClasses()])
-      }
-    }
-    loadData()
-    
-    return () => { mounted = false }
-  }, []) // Empty dependency array - runs only once
+    const storedRole = localStorage.getItem('userRole');
+    if (storedRole) setRole(Number(storedRole));
 
-  const fetchSyllabus = async () => {
+    fetchClassesAndSyllabus();
+  }, []);
+
+  const fetchClassesAndSyllabus = async () => {
+    setLoading(true);
     try {
-      // Only show loading on initial load, not on refresh
-      if (syllabus.length === 0) {
-        setLoading(true)
-      }
-      const result = await syllabusApi.list()
-      console.log('📚 Syllabus API response:', result)
-      console.log('📚 Syllabus data type:', typeof result.data)
-      console.log('📚 Syllabus data:', result.data)
-      
-      if (result.success && result.data) {
-        // Check if data is an array or object
-        const syllabusData = Array.isArray(result.data) ? result.data : (result.data.syllabus || [])
-        console.log('📚 Setting syllabus with:', syllabusData)
-        setSyllabus(syllabusData)
-      } else {
-        console.log('❌ No syllabus data or unsuccessful response')
-        setSyllabus([])
-      }
+      const [statsRes, syllabusRes] = await Promise.all([
+        configApi.getClassStats(),
+        syllabusApi.list()
+      ]);
+
+      const syllabusData: SyllabusRecord[] = (syllabusRes.success && Array.isArray(syllabusRes.data))
+        ? syllabusRes.data : [];
+
+      // Build normalized syllabus map — keyed by lowercase class name
+      const map: { [key: string]: SyllabusRecord[] } = {};
+      syllabusData.forEach((s: SyllabusRecord) => {
+        if (s.class) {
+          const key = String(s.class).trim().toLowerCase();
+          if (!map[key]) map[key] = [];
+          map[key].push(s);
+        }
+      });
+      setClassSyllabusMap(map);
+
+      // Build classList: from class-stats + from syllabus (so classes with syllabus always show)
+      const statsNames: string[] = (statsRes.success && Array.isArray(statsRes.data) && statsRes.data.length > 0)
+        ? statsRes.data.map((c: any) => String(c.name).trim())
+        : [];
+
+      const syllabusClassNames: string[] = syllabusData
+        .map((s: SyllabusRecord) => String(s.class).trim())
+        .filter(Boolean);
+
+      // Merge unique class names preserving original casing
+      const merged = Array.from(new Set([...statsNames, ...syllabusClassNames]));
+
+      // Sort standard order
+      const ORDER = ['Nursery', 'LKG', 'UKG', 'Playgroup', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
+      merged.sort((a, b) => {
+        const ia = ORDER.indexOf(a), ib = ORDER.indexOf(b);
+        if (ia !== -1 && ib !== -1) return ia - ib;
+        if (ia !== -1) return -1;
+        if (ib !== -1) return 1;
+        return a.localeCompare(b);
+      });
+
+      setClassList(merged);
     } catch (err) {
-      console.error('❌ Failed to fetch syllabus:', err)
+      console.error('Failed to load syllabus data:', err);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
-  const fetchClasses = async () => {
-    try {
-      const result = await configApi.getClasses()
-      if (result.success) setClasses(['All', ...((result.data as any) || [])])
-    } catch {
-      setClasses(['All', 'Nursery', 'LKG', 'UKG'])
+  // Open Level 2 Syllabus Detail for Class
+  const handleOpenClassSyllabus = (className: string) => {
+    setSelectedClass(className);
+    setViewMode('syllabusDetail');
+    setIsEditing(false);
+
+    const normKey = String(className).trim().toLowerCase();
+    const records = classSyllabusMap[normKey] || classSyllabusMap[className] || [];
+    if (records.length > 0) {
+      const combined = records.map(r => r.topics || r.description || '').filter(Boolean).join('\n\n');
+      setRawContent(combined);
+    } else {
+      setRawContent('');
     }
-  }
+  };
 
-  const openAdd = () => {
-    setEditItem(null)
-    setFormData(emptyForm)
-    setShowModal(true)
-  }
+  // Save / Update Syllabus for selected class
+  const handleSaveSyllabus = async () => {
+    if (!selectedClass || !rawContent.trim()) return;
 
-  const openEdit = (item: SyllabusItem) => {
-    setEditItem(item)
-    setFormData({
-      studentClass: item.class,
-      subject: item.subject,
-      topics: item.topics,
-      description: item.description || '',
-      status: item.status
-    })
-    setShowModal(true)
-  }
-
-  const openView = (item: SyllabusItem) => {
-    setViewItem(item)
-    setShowViewModal(true)
-  }
-
-  const openDelete = (item: SyllabusItem) => {
-    setDeleteItem(item)
-    setShowDeleteModal(true)
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setSaving(true)
-    setMessage(null)
+    setSaving(true);
     try {
-      if (editItem) {
-        const result = await syllabusApi.update(editItem.id, formData)
-        if (result.success) {
-          setMessage({ type: 'success', text: 'Syllabus updated successfully!' })
-          setShowModal(false)
-          // Refresh the list
-          await fetchSyllabus()
-        } else {
-          setMessage({ type: 'error', text: (result as any).error || 'Failed to update' })
-        }
+      const normKey = String(selectedClass).trim().toLowerCase();
+      const records = classSyllabusMap[normKey] || [];
+
+      let savedRecord: SyllabusRecord | null = null;
+
+      if (records.length > 0) {
+        // UPDATE existing record
+        const res = await syllabusApi.update(records[0].id, {
+          class: selectedClass,
+          topic: rawContent,
+          topics: rawContent,
+          description: rawContent
+        });
+        if (res.success) savedRecord = res.data;
       } else {
-        const result = await syllabusApi.create(formData)
-        if (result.success) {
-          setMessage({ type: 'success', text: 'Syllabus added successfully!' })
-          setShowModal(false)
-          // Refresh the list
-          await fetchSyllabus()
-        } else {
-          setMessage({ type: 'error', text: (result as any).error || 'Failed to create' })
-        }
+        // CREATE new record
+        const res = await syllabusApi.create({
+          class: selectedClass,
+          studentClass: selectedClass,
+          topic: rawContent,
+          topics: rawContent,
+          description: rawContent
+        });
+        if (res.success) savedRecord = res.data;
       }
-    } catch (error) {
-      console.error('Syllabus operation error:', error)
-      setMessage({ type: 'error', text: 'Something went wrong. Please try again.' })
-    } finally {
-      setSaving(false)
-      setTimeout(() => setMessage(null), 5000)
-    }
-  }
 
-  const handleDelete = async () => {
-    if (!deleteItem) return
-    setDeleting(deleteItem.id)
-    try {
-      const result = await syllabusApi.delete(deleteItem.id)
-      if (result.success) {
-        setMessage({ type: 'success', text: 'Syllabus deleted successfully!' })
-        setShowDeleteModal(false)
-        fetchSyllabus()
-      } else {
-        setMessage({ type: 'error', text: (result as any).error || 'Failed to delete' })
+      // Immediately update local state so badge and content reflect instantly
+      if (savedRecord || rawContent.trim()) {
+        setClassSyllabusMap(prev => {
+          const normKey = String(selectedClass).trim().toLowerCase();
+          const existingRecords = prev[normKey] || [];
+          const updatedRecord: SyllabusRecord = savedRecord || {
+            id: existingRecords[0]?.id || 'temp-' + Date.now(),
+            class: selectedClass,
+            subject: 'General',
+            topics: rawContent,
+            description: rawContent,
+            status: 'Active'
+          };
+          return {
+            ...prev,
+            [normKey]: existingRecords.length > 0
+              ? existingRecords.map((r, i) => i === 0 ? { ...r, topics: rawContent, description: rawContent } : r)
+              : [updatedRecord]
+          };
+        });
       }
-    } catch {
-      setMessage({ type: 'error', text: 'Failed to delete. Please try again.' })
+
+      setIsEditing(false);
+
+      // Background refresh to sync with DB
+      fetchClassesAndSyllabus();
+    } catch (err) {
+      console.error('Failed to save syllabus:', err);
     } finally {
-      setDeleting(null)
-      setTimeout(() => setMessage(null), 4000)
+      setSaving(false);
     }
-  }
+  };
 
-  if (userRole === null || loading) {
-    return null
-  }
+  // Download PDF / Print
+  const handleDownloadPDF = () => {
+    window.print();
+  };
 
-  const isAdmin = userRole === 6 || userRole === 8 // Admin (6) and Principal (8)
-  const isTeacher = userRole === 7 // Teacher
-  const isStudent = userRole === 10
-  const canManageSyllabus = isAdmin || isTeacher // Both admin and teacher can manage
-  const filtered = filterClass === 'All' ? syllabus : syllabus.filter(s => s.class === filterClass)
+  // Helper parser for professional formatting of raw pasted syllabus content
+  const renderFormattedSyllabus = (content: string) => {
+    if (!content.trim()) {
+      return (
+        <div className="text-center py-16 px-4 text-gray-400">
+          <p className="text-lg font-medium text-gray-600 mb-1">No syllabus added yet for Class {selectedClass}</p>
+          <p className="text-xs">Click "Add / Update Syllabus" to paste class syllabus content.</p>
+        </div>
+      );
+    }
+
+    const lines = content.split('\n');
+    return (
+      <div className="space-y-6 text-gray-800 leading-relaxed font-sans">
+        {lines.map((line, idx) => {
+          const trimmed = line.trim();
+          if (!trimmed) return <div key={idx} className="h-2"></div>;
+
+          // Header line (e.g. Subject, Unit, Chapter)
+          if (trimmed.startsWith('#') || trimmed.toUpperCase().includes('SUBJECT:') || trimmed.toUpperCase().includes('UNIT ') || trimmed.toUpperCase().includes('CHAPTER ') || /^[A-Z\s]{4,}:?$/.test(trimmed)) {
+            const cleanText = trimmed.replace(/^#+\s*/, '');
+            return (
+              <div key={idx} className="pt-4 border-b pb-2 border-purple-200">
+                <h3 className="text-xl font-bold text-[#5e3a9e] tracking-tight">{cleanText}</h3>
+              </div>
+            );
+          }
+
+          // Bullet points or numbered lists
+          if (trimmed.startsWith('-') || trimmed.startsWith('*') || /^\d+[\.\)]/.test(trimmed)) {
+            const cleanText = trimmed.replace(/^[-*\d\.\)]\s*/, '');
+            return (
+              <div key={idx} className="flex items-start gap-3 pl-4">
+                <span className="w-2 h-2 rounded-full bg-[#5e3a9e] mt-2 flex-shrink-0"></span>
+                <p className="text-sm font-medium text-gray-700">{cleanText}</p>
+              </div>
+            );
+          }
+
+          return (
+            <p key={idx} className="text-sm text-gray-700 pl-2">
+              {line}
+            </p>
+          );
+        })}
+      </div>
+    );
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="px-6 pt-6 pb-2">
-        <div className="max-w-6xl mx-auto">
-          <h1 className="text-3xl font-bold text-gray-900">Syllabus</h1>
+    <div className="min-h-screen bg-gray-50 pb-12 print:bg-white print:p-0">
+      {/* Header Bar (Hidden during print) */}
+      <div className="bg-white border-b px-6 py-6 shadow-sm print:hidden">
+        <div className="max-w-6xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            {/* Breadcrumb Navigation */}
+            <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 mb-1">
+              <span
+                onClick={() => setViewMode('classList')}
+                className="hover:text-[#5e3a9e] cursor-pointer transition"
+              >
+                📚 Syllabus Management
+              </span>
+              {viewMode === 'syllabusDetail' && selectedClass && (
+                <>
+                  <span>/</span>
+                  <span className="text-[#5e3a9e]">Class {selectedClass}</span>
+                </>
+              )}
+            </div>
+            <h1 className="text-3xl font-bold text-gray-900">
+              {viewMode === 'classList' ? 'Class Syllabus Overview' : `Syllabus - Class ${selectedClass}`}
+            </h1>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex items-center gap-3">
+            {viewMode === 'syllabusDetail' && (
+              <>
+                <button
+                  onClick={() => setViewMode('classList')}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-100 rounded-xl text-xs font-semibold transition"
+                >
+                  ← Back to Classes
+                </button>
+
+                {role !== 19 && !isEditing && (
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    className="bg-[#5e3a9e] text-white px-5 py-2.5 rounded-xl hover:bg-[#4a2d7e] transition text-xs font-bold shadow-sm"
+                  >
+                    ✏️ Add / Update Syllabus
+                  </button>
+                )}
+
+                {!isEditing && (
+                  <button
+                    onClick={handleDownloadPDF}
+                    className="bg-emerald-600 text-white px-5 py-2.5 rounded-xl hover:bg-emerald-700 transition flex items-center gap-2 text-xs font-bold shadow-sm"
+                  >
+                    📥 Download PDF
+                  </button>
+                )}
+              </>
+            )}
+          </div>
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto p-6">
-        {/* Message */}
-        {message && (
-          <div className={`mb-4 p-4 rounded-lg border text-sm font-medium ${
-            message.type === 'success'
-              ? 'bg-green-50 text-green-800 border-green-200'
-              : 'bg-red-50 text-red-800 border-red-200'
-          }`}>
-            {message.text}
-          </div>
+      {/* Main Content */}
+      <div className="max-w-6xl mx-auto p-6 print:p-8 print:max-w-none">
+        {/* LEVEL 1: CLASS CARDS GRID */}
+        {viewMode === 'classList' && (
+          <>
+            {loading ? (
+              <div className="text-center py-16 bg-white rounded-2xl border border-gray-100 shadow-sm">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-[#5e3a9e] border-t-transparent mb-3"></div>
+                <p className="text-gray-500 text-sm">Loading syllabus classes...</p>
+              </div>
+            ) : classList.length === 0 ? (
+              <div className="text-center py-16 bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+                <div className="w-16 h-16 bg-purple-50 text-[#5e3a9e] rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+                  📚
+                </div>
+                <h3 className="text-lg font-bold text-gray-900 mb-1">No Active Classes Found</h3>
+                <p className="text-sm text-gray-500 max-w-md mx-auto mb-6">
+                  Only classes available in your Class List panel are displayed here. Add classes in the Class List panel to manage their syllabus.
+                </p>
+                <button
+                  onClick={() => router.push('/dashboard/class-list')}
+                  className="bg-[#5e3a9e] text-white px-5 py-2.5 rounded-xl hover:bg-[#4a2d7e] transition text-xs font-bold shadow-sm"
+                >
+                  Go to Class List Panel →
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {classList.map((className, index) => {
+                  const normKey = String(className).trim().toLowerCase();
+                  const records = classSyllabusMap[normKey] || [];
+                  const hasSyllabus = records.length > 0 && records.some(r => (r.topics || r.description || '').trim().length > 0);
+                  return (
+                    <div
+                      key={index}
+                      onClick={() => handleOpenClassSyllabus(className)}
+                      className="bg-white rounded-2xl border border-gray-200/80 p-6 shadow-sm hover:shadow-md hover:border-[#5e3a9e]/50 transition duration-200 cursor-pointer group flex flex-col justify-between"
+                    >
+                      <div>
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="w-12 h-12 rounded-xl bg-purple-50 text-[#5e3a9e] font-bold text-xl flex items-center justify-center group-hover:scale-105 transition">
+                            📖
+                          </div>
+                          <span
+                            className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
+                              hasSyllabus
+                                ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                : 'bg-amber-100 text-amber-800 border border-amber-200'
+                            }`}
+                          >
+                            {hasSyllabus ? 'Syllabus Added' : 'No Syllabus'}
+                          </span>
+                        </div>
+
+                        <h3 className="text-xl font-bold text-gray-900 group-hover:text-[#5e3a9e] transition mb-2">
+                          Class {className}
+                        </h3>
+                        <p className="text-xs text-gray-500 mb-6">
+                          Click to view or edit curriculum and syllabus topics for Class {className}.
+                        </p>
+                      </div>
+
+                      <div className="pt-4 border-t border-gray-100 flex items-center justify-between text-xs font-bold text-[#5e3a9e]">
+                        <span>View Class Syllabus</span>
+                        <span className="group-hover:translate-x-1 transition">→</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
         )}
 
-        <div className="bg-white rounded-lg shadow-sm border">
-          <div className="p-6 border-b flex flex-wrap gap-3 justify-between items-center">
-            <div className="flex items-center gap-3">
-              <h2 className="text-xl font-semibold">Syllabus Overview</h2>
-              <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">{filtered.length}</span>
+        {/* LEVEL 2: CLASS SYLLABUS DETAIL / EDITOR */}
+        {viewMode === 'syllabusDetail' && selectedClass && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 print:shadow-none print:border-none">
+            {/* Print Header */}
+            <div className="hidden print:block text-center border-b pb-6 mb-6">
+              <h1 className="text-3xl font-bold text-gray-900">Foster Kids School</h1>
+              <h2 className="text-xl font-semibold text-[#5e3a9e] mt-1">Official Class Syllabus — Class {selectedClass}</h2>
+              <p className="text-xs text-gray-500 mt-1">Academic Session 2025-2026</p>
             </div>
-            <div className="flex items-center gap-3">
-              {/* Class filter - hidden for students or auto-filtered to their class */}
-              {!isStudent && (
-                <select
-                  value={filterClass}
-                  onChange={(e) => setFilterClass(e.target.value)}
-                  className="px-3 py-2 border rounded-lg text-sm"
-                >
-                  {classes.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              )}
-              {isStudent && userClass && (
-                <span className="px-3 py-2 bg-purple-50 text-purple-700 rounded-lg text-sm font-medium border border-purple-200">
-                  📚 {userClass}
-                </span>
-              )}
-              {canManageSyllabus && (
-                <button
-                  onClick={openAdd}
-                  className="bg-[#5e3a9e] text-white px-4 py-2 rounded-lg hover:bg-[#4a2d7e] transition text-sm font-medium"
-                >
-                  + Add Syllabus
-                </button>
-              )}
-            </div>
-          </div>
 
-          {filtered.length === 0 ? (
-            <div className="p-12 text-center text-gray-500">
-              <svg className="w-14 h-14 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
-              </svg>
-              <p className="text-lg font-medium">No syllabus entries found</p>
-              {canManageSyllabus && <p className="text-sm mt-1">Click "+ Add Syllabus" to get started</p>}
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Class</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Subject</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Topics</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {filtered.map((item) => (
-                    <tr key={item.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 text-sm text-gray-900 font-medium">{item.class}</td>
-                      <td className="px-6 py-4 text-sm text-gray-900">{item.subject}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600 max-w-xs truncate">{item.topics}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600 max-w-md">
-                        {item.description ? (
-                          <span className="line-clamp-2">{item.description}</span>
-                        ) : (
-                          <span className="text-gray-400 italic">No description</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`px-2 py-1 text-xs rounded-full font-medium ${
-                          item.status === 'Active'
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-gray-100 text-gray-600'
-                        }`}>{item.status}</span>
-                      </td>
-                      <td className="px-6 py-4 text-sm flex items-center gap-3">
-                        <button
-                          onClick={() => openView(item)}
-                          className="text-[#5e3a9e] hover:underline font-medium"
-                        >
-                          View
-                        </button>
-                        {canManageSyllabus && (
-                          <>
-                            <button
-                              onClick={() => openEdit(item)}
-                              className="text-blue-600 hover:underline font-medium"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => openDelete(item)}
-                              className="text-red-600 hover:underline font-medium"
-                            >
-                              Delete
-                            </button>
-                          </>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      </div>
+            {isEditing ? (
+              /* Paste-to-Format Text Editor */
+              <div className="space-y-4 print:hidden">
+                <div className="p-4 bg-purple-50 rounded-xl border border-purple-100">
+                  <h3 className="text-sm font-bold text-[#5e3a9e] mb-1">📋 Paste & Auto-Format Syllabus</h3>
+                  <p className="text-xs text-gray-600">
+                    Paste your raw text syllabus below. Use headers like "MATHEMATICS", "ENGLISH", or bullet points (- point). The system automatically formats it into a professional layout!
+                  </p>
+                </div>
 
-      {/* Add / Edit Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full">
-            <div className="p-6 border-b">
-              <h3 className="text-xl font-semibold">{editItem ? 'Edit Syllabus' : 'Add Syllabus'}</h3>
-            </div>
-            <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Class *</label>
-                <select
-                  required
-                  value={formData.studentClass}
-                  onChange={(e) => setFormData({ ...formData, studentClass: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg text-sm"
-                >
-                  <option value="">Select Class</option>
-                  {classes.filter(c => c !== 'All').map(c => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Subject *</label>
-                <input
-                  required
-                  type="text"
-                  value={formData.subject}
-                  onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                  placeholder="e.g. Mathematics"
-                  className="w-full px-3 py-2 border rounded-lg text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Topics *</label>
-                <input
-                  required
-                  type="text"
-                  value={formData.topics}
-                  onChange={(e) => setFormData({ ...formData, topics: e.target.value })}
-                  placeholder="e.g. Numbers 1-20, Shapes, Patterns"
-                  className="w-full px-3 py-2 border rounded-lg text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
                 <textarea
-                  rows={3}
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="Optional additional details..."
-                  className="w-full px-3 py-2 border rounded-lg text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                <select
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg text-sm"
-                >
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
-                </select>
-              </div>
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="flex-1 px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-50 text-sm"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="flex-1 px-4 py-2 bg-[#5e3a9e] text-white rounded-lg hover:bg-[#4a2d7e] disabled:opacity-50 text-sm font-medium"
-                >
-                  {saving ? 'Saving...' : editItem ? 'Update' : 'Add Syllabus'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+                  rows={14}
+                  value={rawContent}
+                  onChange={(e) => setRawContent(e.target.value)}
+                  placeholder="Paste syllabus text here...
+Example:
+MATHEMATICS:
+- Chapter 1: Numbers & Counting
+- Chapter 2: Addition & Subtraction
 
-      {/* View Modal */}
-      {showViewModal && viewItem && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full">
-            <div className="p-6 border-b flex justify-between items-center">
-              <h3 className="text-xl font-semibold">Syllabus Details</h3>
-              <button onClick={() => setShowViewModal(false)} className="text-gray-400 hover:text-gray-600">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <div className="p-6 flex flex-col gap-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs text-gray-500 uppercase font-medium">Class</p>
-                  <p className="text-sm font-semibold text-gray-900 mt-1">{viewItem.class}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 uppercase font-medium">Subject</p>
-                  <p className="text-sm font-semibold text-gray-900 mt-1">{viewItem.subject}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 uppercase font-medium">Status</p>
-                  <span className={`inline-block mt-1 px-2 py-1 text-xs rounded-full font-medium ${
-                    viewItem.status === 'Active'
-                      ? 'bg-green-100 text-green-800'
-                      : 'bg-gray-100 text-gray-600'
-                  }`}>{viewItem.status}</span>
-                </div>
-              </div>
-              <div>
-                <p className="text-xs text-gray-500 uppercase font-medium">Topics</p>
-                <p className="text-sm text-gray-900 mt-1">{viewItem.topics}</p>
-              </div>
-              {viewItem.description && (
-                <div>
-                  <p className="text-xs text-gray-500 uppercase font-medium">Description</p>
-                  <p className="text-sm text-gray-700 mt-1">{viewItem.description}</p>
-                </div>
-              )}
-              <button
-                onClick={() => setShowViewModal(false)}
-                className="mt-2 w-full px-4 py-2 bg-[#5e3a9e] text-white rounded-lg hover:bg-[#4a2d7e] text-sm font-medium"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+ENGLISH:
+- Unit 1: Alphabets & Phonics"
+                  className="w-full p-4 border border-gray-300 rounded-xl text-sm font-mono focus:ring-2 focus:ring-[#5e3a9e] outline-none"
+                ></textarea>
 
-      {/* Delete Confirmation Modal */}
-      {showDeleteModal && deleteItem && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-            <div className="p-6 border-b">
-              <h3 className="text-xl font-semibold text-red-600">Confirm Delete</h3>
-            </div>
-            <div className="p-6">
-              <p className="text-gray-700 mb-2">
-                Are you sure you want to delete the <strong>{deleteItem.subject}</strong> syllabus for <strong>{deleteItem.class}</strong>?
-              </p>
-              <p className="text-sm text-red-600">This action cannot be undone.</p>
-              <div className="flex gap-3 mt-6">
-                <button
-                  onClick={() => setShowDeleteModal(false)}
-                  className="flex-1 px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-50 text-sm"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleDelete}
-                  disabled={deleting !== null}
-                  className="flex-1 px-4 py-2 bg-red-50 text-red-700 border-2 border-red-400 rounded-lg hover:bg-red-100 disabled:opacity-50 text-sm font-medium"
-                >
-                  {deleting ? 'Deleting...' : 'Delete'}
-                </button>
+                <div className="flex items-center justify-end gap-3 pt-4 border-t">
+                  <button
+                    onClick={() => setIsEditing(false)}
+                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-100 transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveSyllabus}
+                    disabled={saving}
+                    className="px-6 py-2 bg-[#5e3a9e] text-white hover:bg-[#4a2d7e] rounded-xl text-sm font-semibold shadow-sm transition disabled:opacity-50"
+                  >
+                    {saving ? 'Saving Syllabus...' : 'Save & Auto-Format'}
+                  </button>
+                </div>
               </div>
-            </div>
+            ) : (
+              /* Rendered Formatted Professional Syllabus */
+              <div>
+                {renderFormattedSyllabus(activeSyllabusText || rawContent)}
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
-  )
+  );
 }

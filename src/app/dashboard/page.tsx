@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { studentsApi, staffApi, eventsApi } from '@/lib/api'
+import { studentsApi, staffApi, eventsApi, feesApi, configApi, homeworkApi } from '@/lib/api'
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -12,8 +12,11 @@ export default function DashboardPage() {
   const [stats, setStats] = useState({
     totalStudents: 0,
     totalStaff: 0,
-    totalClasses: 3,
-    revenue: 0
+    totalClasses: 0,
+    revenue: 0,
+    totalFees: 0,
+    pendingFees: 0,
+    totalHomework: 0
   })
   const [recentEvents, setRecentEvents] = useState<any[]>([])
   const [upcomingEvents, setUpcomingEvents] = useState<any[]>([])
@@ -75,11 +78,33 @@ export default function DashboardPage() {
       
       console.log('✅ Calculated counts:', { studentCount, staffCount })
       
+      // Fetch real fees summary and class stats
+      let feesCollected = 0;
+      let feesPending = 0;
+      let classCount = 0;
+      let hwCount = 0;
+      try {
+        const [feesRes, classRes, hwRes] = await Promise.all([
+          feesApi.summary(),
+          configApi.getClassStats(),
+          homeworkApi.list()
+        ]);
+        if (feesRes.success) {
+          feesCollected = feesRes.data?.totalCollected || 0;
+          feesPending = feesRes.data?.totalPending || 0;
+        }
+        if (classRes.success && Array.isArray(classRes.data)) classCount = classRes.data.length;
+        if (hwRes.success && Array.isArray(hwRes.data)) hwCount = hwRes.data.length;
+      } catch(e) {}
+
       setStats({
         totalStudents: studentCount,
         totalStaff: staffCount,
-        totalClasses: 3,
-        revenue: 0
+        totalClasses: classCount || 0,
+        revenue: feesCollected,
+        totalFees: feesCollected,
+        pendingFees: feesPending,
+        totalHomework: hwCount
       })
 
       // Process events
@@ -124,7 +149,10 @@ export default function DashboardPage() {
         totalStudents: studentsResponse.success ? studentsResponse.data?.students?.length || 0 : 0,
         totalStaff: 0,
         totalClasses: 0,
-        revenue: 0
+        revenue: 0,
+        totalFees: 0,
+        pendingFees: 0,
+        totalHomework: 0
       })
 
       // Process events
@@ -161,7 +189,10 @@ export default function DashboardPage() {
         totalStudents: 0,
         totalStaff: 0,
         totalClasses: 0,
-        revenue: 0
+        revenue: 0,
+        totalFees: 0,
+        pendingFees: 0,
+        totalHomework: 0
       })
 
       // Process events
@@ -213,43 +244,25 @@ export default function DashboardPage() {
         </div>
 
         {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Students</p>
-                <p className="text-3xl font-bold text-blue-600 mt-2">{stats.totalStudents}</p>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+          {[
+            { label: 'Total Students', value: stats.totalStudents, color: 'text-blue-600', bg: 'bg-blue-50', icon: '👨‍🎓' },
+            { label: 'Total Staff', value: stats.totalStaff, color: 'text-green-600', bg: 'bg-green-50', icon: '👥' },
+            { label: 'Total Classes', value: stats.totalClasses, color: 'text-orange-600', bg: 'bg-orange-50', icon: '🏫' },
+            { label: 'Fees Collected', value: `₹${Number(stats.revenue || 0).toLocaleString()}`, color: 'text-purple-600', bg: 'bg-purple-50', icon: '💰' },
+            { label: 'Fees Pending', value: `₹${Number(stats.pendingFees || 0).toLocaleString()}`, color: 'text-red-600', bg: 'bg-red-50', icon: '⏳' },
+            { label: 'Homework', value: stats.totalHomework, color: 'text-teal-600', bg: 'bg-teal-50', icon: '📝' },
+          ].map((card, i) => (
+            <div key={i} className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+              <div className={`w-10 h-10 ${card.bg} rounded-lg flex items-center justify-center mb-3`}>
+                <span className="text-xl">{card.icon}</span>
               </div>
-              <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center">
-                <span className="text-2xl">👨‍🎓</span>
-              </div>
+              <p className={`text-xl font-bold ${card.color}`}>{card.value}</p>
+              <p className="text-xs text-gray-500 mt-1 font-medium">{card.label}</p>
             </div>
-          </div>
-
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Staff</p>
-                <p className="text-3xl font-bold text-green-600 mt-2">{stats.totalStaff}</p>
-              </div>
-              <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center">
-                <span className="text-2xl">👥</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Classes</p>
-                <p className="text-3xl font-bold text-orange-600 mt-2">{stats.totalClasses}</p>
-              </div>
-              <div className="w-14 h-14 bg-orange-100 rounded-full flex items-center justify-center">
-                <span className="text-2xl">🏫</span>
-              </div>
-            </div>
-          </div>
+          ))}
         </div>
+
 
         {/* Recent Activity & Upcoming Events */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
