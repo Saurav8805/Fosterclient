@@ -174,7 +174,7 @@ const DashboardSidebar = memo(function DashboardSidebar() {
   const menuItems = userRole === 6 ? principalMenuItems : userRole === 8 ? adminMenuItems : userRole === 7 ? facultyMenuItems : studentMenuItems
 
   return (
-    <aside className={`${isOpen ? 'w-64 sm:w-56' : 'w-0 overflow-hidden'} bg-white border-r border-gray-100 transition-all duration-300 flex flex-col flex-shrink-0 h-full shadow-sm lg:relative fixed left-0 top-0 z-40 lg:z-auto`}>
+    <aside className={`${isOpen ? 'w-64 sm:w-56' : 'w-0 overflow-hidden'} bg-white border-r border-gray-100 transition-all duration-300 flex flex-col flex-shrink-0 h-full shadow-sm lg:relative fixed left-0 top-0 z-[60] lg:z-auto`}>
       {/* Logo */}
       <div className="h-16 sm:h-20 flex items-center justify-center pl-4 sm:pl-7 pr-3 sm:pr-4 border-b border-gray-100 flex-shrink-0">
         <Image 
@@ -259,7 +259,7 @@ const MobileOverlay = memo(function MobileOverlay() {
   
   return (
     <div 
-      className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+      className="fixed inset-0 bg-black/50 z-50 lg:hidden"
       onClick={toggle}
       aria-label="Close sidebar"
     />
