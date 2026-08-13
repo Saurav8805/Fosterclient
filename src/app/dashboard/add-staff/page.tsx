@@ -15,12 +15,15 @@ interface AddStaffResponse {
 
 export default function AddStaffPage() {
   const router = useRouter()
+  const [assignedClasses, setAssignedClasses] = useState<{ assignedClass: string; assignedSection: string; teacherName: string }[]>([])
   const [formData, setFormData] = useState({
     fullName: '',
     mobile: '',
     email: '',
     designation: '',
     department: '',
+    assignedClass: '',
+    assignedSection: '',
     joiningDate: '',
     salary: '',
     address: '',
@@ -33,7 +36,10 @@ export default function AddStaffPage() {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string, credentials?: StaffCredentials } | null>(null)
 
-  // Check role-based access
+  const classList = ['Playgroup', 'Nursery', 'LKG', 'UKG', 'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5']
+  const sectionList = ['A', 'B', 'C', 'D']
+
+  // Check role-based access & fetch taken class assignments
   useEffect(() => {
     const role = localStorage.getItem('userRole')
     if (!role) {
@@ -47,7 +53,29 @@ export default function AddStaffPage() {
       router.push('/dashboard')
       return
     }
+
+    fetchAssignedClasses()
   }, [])
+
+  const fetchAssignedClasses = async () => {
+    try {
+      const res = await staffApi.getAssignedClasses() as { success: boolean; data?: any[] }
+      if (res.success && res.data) {
+        setAssignedClasses(res.data)
+      }
+    } catch (e) {
+      console.error('Failed to fetch assigned classes:', e)
+    }
+  }
+
+  const isPairTaken = (cls: string, sec: string) => {
+    return assignedClasses.some(a => a.assignedClass === cls && a.assignedSection === sec)
+  }
+
+  const getAssignedTeacherName = (cls: string, sec: string) => {
+    const found = assignedClasses.find(a => a.assignedClass === cls && a.assignedSection === sec)
+    return found ? found.teacherName : null
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -57,12 +85,9 @@ export default function AddStaffPage() {
     try {
       console.log('🔄 Adding staff member:', formData.fullName)
       
-      // Map designation to role
-      // Principal, Vice-Principal, Admin = role 6 (full access)
-      // Teacher, Support Staff = role 7 (teaching staff)
-      let role = 7; // Default to teaching staff
+      let role = 7;
       if (['Principal', 'Vice-Principal', 'Admin'].includes(formData.designation)) {
-        role = 6; // Full admin access
+        role = 6;
       }
       
       const staffData = {
@@ -71,6 +96,8 @@ export default function AddStaffPage() {
         email: formData.email,
         designation: formData.designation,
         department: formData.department,
+        assignedClass: formData.assignedClass,
+        assignedSection: formData.assignedSection,
         joiningDate: formData.joiningDate,
         salary: formData.salary,
         address: formData.address,
@@ -90,21 +117,9 @@ export default function AddStaffPage() {
           credentials: result.data?.credentials
         })
         
-        // Reset form
-        setFormData({
-          fullName: '',
-          mobile: '',
-          email: '',
-          designation: '',
-          department: '',
-          joiningDate: '',
-          salary: '',
-          address: '',
-          city: '',
-          state: '',
-          pincode: '',
-          emergencyContact: ''
-        })
+        // Reset form & refresh assigned list
+        handleReset()
+        fetchAssignedClasses()
       } else {
         setMessage({ type: 'error', text: result.error || 'Failed to add staff member' })
       }
@@ -123,6 +138,8 @@ export default function AddStaffPage() {
       email: '',
       designation: '',
       department: '',
+      assignedClass: '',
+      assignedSection: '',
       joiningDate: '',
       salary: '',
       address: '',
@@ -234,12 +251,51 @@ export default function AddStaffPage() {
                   onChange={(e) => setFormData({...formData, department: e.target.value})}
                 >
                   <option value="">Select Department</option>
-                  <option value="LKG">LKG</option>
-                  <option value="UKG">UKG</option>
-                  <option value="Nursery">Nursery</option>
+                  <option value="Teaching">Teaching</option>
                   <option value="Administration">Administration</option>
                   <option value="Support">Support</option>
                 </select>
+              </div>
+
+              {/* Assigned Class */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Assign Class (Optional for Teachers)</label>
+                <select 
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={formData.assignedClass}
+                  onChange={(e) => setFormData({...formData, assignedClass: e.target.value})}
+                >
+                  <option value="">Select Class to Assign</option>
+                  {classList.map(cls => (
+                    <option key={cls} value={cls}>{cls}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Assigned Section */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Assign Section</label>
+                <select 
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={formData.assignedSection}
+                  onChange={(e) => setFormData({...formData, assignedSection: e.target.value})}
+                >
+                  <option value="">Select Section</option>
+                  {sectionList.map(sec => {
+                    const taken = formData.assignedClass ? isPairTaken(formData.assignedClass, sec) : false;
+                    const teacher = formData.assignedClass ? getAssignedTeacherName(formData.assignedClass, sec) : null;
+                    return (
+                      <option key={sec} value={sec} disabled={taken}>
+                        Section {sec} {taken ? `❌ (Assigned to ${teacher})` : '✓ (Available)'}
+                      </option>
+                    )
+                  })}
+                </select>
+                {formData.assignedClass && formData.assignedSection && isPairTaken(formData.assignedClass, formData.assignedSection) && (
+                  <p className="text-xs text-red-600 mt-1">
+                    ⚠️ Class {formData.assignedClass} - Section {formData.assignedSection} is already assigned to {getAssignedTeacherName(formData.assignedClass, formData.assignedSection)}. Please pick another section or class.
+                  </p>
+                )}
               </div>
 
               {/* Joining Date */}

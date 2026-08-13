@@ -1,8 +1,8 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { studentsApi, configApi } from '@/lib/api'
+import { studentsApi, configApi, staffApi } from '@/lib/api'
 
 export default function AdmitStudentPage() {
   const router = useRouter()
@@ -29,6 +29,9 @@ export default function AdmitStudentPage() {
     teacherId: ''
   })
 
+  const [userRole, setUserRole] = useState<number | null>(null)
+  const [currentTeacherClass, setCurrentTeacherClass] = useState<string>('')
+  const [currentTeacherSection, setCurrentTeacherSection] = useState<string>('')
   const [loading, setLoading] = useState(false)
   const [teachers, setTeachers] = useState<any[]>([])
   const [classes, setClasses] = useState<string[]>([])
@@ -45,13 +48,43 @@ export default function AdmitStudentPage() {
       return
     }
     const roleNum = Number(role)
+    setUserRole(roleNum)
     
-    // Only admin (role 6) can access this page
-    if (roleNum !== 6) {
+    // Admin (role 6), Teacher (role 7), and Staff (role 8) can access this page
+    if (![6, 7, 8].includes(roleNum)) {
       router.push('/dashboard')
       return
     }
+
+    if (roleNum !== 6) {
+      fetchTeacherProfile()
+    }
   }, [])
+
+  const fetchTeacherProfile = async () => {
+    try {
+      const mobile = localStorage.getItem('userMobile')
+      const res = await staffApi.list() as { success: boolean; data?: any[] }
+      if (res.success && res.data) {
+        const myStaff = res.data.find((s: any) => s.user?.mobile === mobile)
+        if (myStaff) {
+          if (myStaff.assigned_class) {
+            setCurrentTeacherClass(myStaff.assigned_class)
+            setFormData(prev => ({ ...prev, studentClass: myStaff.assigned_class }))
+          }
+          if (myStaff.assigned_section) {
+            setCurrentTeacherSection(myStaff.assigned_section)
+            setFormData(prev => ({ ...prev, section: myStaff.assigned_section }))
+          }
+          if (myStaff.user_id) {
+            setFormData(prev => ({ ...prev, teacherId: myStaff.user_id }))
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching teacher profile:', err)
+    }
+  }
 
   // Calculate age from date of birth
   const calculateAge = (dob: string): string => {
@@ -396,32 +429,54 @@ export default function AdmitStudentPage() {
 
               {/* Class */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Class *</label>
-                <select 
-                  required
-                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={formData.studentClass}
-                  onChange={(e) => setFormData({...formData, studentClass: e.target.value})}
-                >
-                  {classes.map((className) => (
-                    <option key={className} value={className}>{className}</option>
-                  ))}
-                </select>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Class * {userRole !== 6 && <span className="text-xs text-blue-600 font-normal">(🔒 Pre-filled for your class)</span>}
+                </label>
+                {userRole === 6 ? (
+                  <select 
+                    required
+                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={formData.studentClass}
+                    onChange={(e) => setFormData({...formData, studentClass: e.target.value})}
+                  >
+                    {classes.map((className) => (
+                      <option key={className} value={className}>{className}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    readOnly
+                    value={formData.studentClass || 'Nursery'}
+                    className="w-full px-4 py-2 border rounded-lg bg-gray-100 font-semibold text-gray-800 cursor-not-allowed"
+                  />
+                )}
               </div>
 
               {/* Section */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Section *</label>
-                <select 
-                  required
-                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={formData.section}
-                  onChange={(e) => setFormData({...formData, section: e.target.value})}
-                >
-                  {sections.map((section) => (
-                    <option key={section} value={section}>{section}</option>
-                  ))}
-                </select>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Section * {userRole !== 6 && <span className="text-xs text-blue-600 font-normal">(🔒 Pre-filled for your section)</span>}
+                </label>
+                {userRole === 6 ? (
+                  <select 
+                    required
+                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={formData.section}
+                    onChange={(e) => setFormData({...formData, section: e.target.value})}
+                  >
+                    {sections.map((section) => (
+                      <option key={section} value={section}>{section}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    readOnly
+                    value={formData.section || 'A'}
+                    className="w-full px-4 py-2 border rounded-lg bg-gray-100 font-semibold text-gray-800 cursor-not-allowed"
+                  />
+                )}
               </div>
 
               {/* Roll Number */}
@@ -438,25 +493,26 @@ export default function AdmitStudentPage() {
                 />
               </div>
 
-              {/* Assigned Teacher */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Assigned Teacher *</label>
-                <select 
-                  required
-                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={formData.teacherId}
-                  onChange={(e) => setFormData({...formData, teacherId: e.target.value})}
-                  disabled={loadingTeachers}
-                >
-                  <option value="">Select Teacher (Required)</option>
-                  {teachers.map((teacher) => (
-                    <option key={teacher.id} value={teacher.id}>
-                      {teacher.full_name} {teacher.designation ? `(${teacher.designation})` : ''}
-                    </option>
-                  ))}
-                </select>
-                {loadingTeachers && <p className="text-xs text-gray-500 mt-1">Loading teachers...</p>}
-              </div>
+              {/* Assigned Teacher (Visible only for Principal) */}
+              {userRole === 6 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Assigned Teacher *</label>
+                  <select 
+                    required
+                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={formData.teacherId}
+                    onChange={(e) => setFormData({...formData, teacherId: e.target.value})}
+                    disabled={loadingTeachers}
+                  >
+                    <option value="">Select Teacher</option>
+                    {teachers.map((teacher) => (
+                      <option key={teacher.id} value={teacher.id}>
+                        {teacher.display_label || teacher.full_name} ({teacher.mobile})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {/* Parent/Guardian Name */}
               <div>

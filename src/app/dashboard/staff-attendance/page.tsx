@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -64,9 +64,131 @@ export default function StaffAttendancePage() {
     }
     const roleNum = Number(role)
     setUserRole(roleNum)
-    fetchStaffList()
+    
+    // For teachers (role 7), set active tab to 'view' and auto-select their own attendance
+    if (roleNum === 7) {
+      setActiveTab('view')
+      const userId = localStorage.getItem('userId')
+      if (userId) {
+        // Find the staff member ID for this teacher
+        fetchStaffListAndAutoSelect(userId)
+      }
+    } else {
+      fetchStaffList()
+    }
+    
     fetchSubmittedDates()
   }, [])
+  
+  const fetchStaffListAndAutoSelect = async (userId: string) => {
+    try {
+      setLoading(true)
+      const result = await staffApi.list()
+      if (result.success) {
+        setStaffMembers(result.data || [])
+        
+        // Find the current teacher's staff record
+        const myStaffRecord = result.data?.find((s: any) => s.user_id === userId)
+        if (myStaffRecord) {
+          setSelectedStaff(myStaffRecord.id)
+          console.log('👨‍🏫 Auto-selected teacher staff ID:', myStaffRecord.id)
+          
+          // Automatically load attendance for the teacher
+          await loadTeacherOwnAttendance(myStaffRecord)
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch staff list:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+  
+  const loadTeacherOwnAttendance = async (staffRecord: any) => {
+    try {
+      // Set dates for last 30 days
+      const endDate = new Date()
+      const startDate = new Date()
+      startDate.setDate(startDate.getDate() - 30)
+      
+      setOverallStartDate(startDate.toISOString().split('T')[0])
+      setOverallEndDate(endDate.toISOString().split('T')[0])
+      
+      // Fetch attendance
+      setOverallLoading(true)
+      const params: any = {
+        startDate: startDate.toISOString().split('T')[0],
+        endDate: endDate.toISOString().split('T')[0]
+      }
+      
+      console.log('👨‍🏫 Loading teacher attendance for staff ID:', staffRecord.id, params)
+      
+      const result = await staffApi.getAttendance(params)
+      
+      console.log('📊 Teacher attendance API result:', result)
+      
+      if (result.success) {
+        const allAttendance = result.data?.attendance || []
+        
+        console.log('📋 All attendance records:', allAttendance.length)
+        
+        // Filter attendance for this teacher only
+        const myAttendance = allAttendance.filter((a: any) => a.staff_id === staffRecord.id)
+        
+        console.log('📋 My attendance records:', myAttendance.length, myAttendance)
+        
+        if (myAttendance.length > 0) {
+          // Build stats object similar to fetchOverallAttendance
+          const totalDays = myAttendance.length
+          const present = myAttendance.filter((a: any) => a.status === 'Present').length
+          const absent = myAttendance.filter((a: any) => a.status === 'Absent').length
+          const leave = myAttendance.filter((a: any) => a.status === 'Leave').length
+          const percentage = totalDays > 0 ? Math.round((present / totalDays) * 100) : 0
+          
+          const dateMap: { [date: string]: string } = {}
+          myAttendance.forEach((a: any) => {
+            if (a.date) {
+              dateMap[a.date] = a.status
+            }
+          })
+          
+          const myStats = {
+            id: staffRecord.id,
+            name: staffRecord.user?.full_name || 'N/A',
+            designation: staffRecord.designation || 'N/A',
+            department: staffRecord.department || 'N/A',
+            class: staffRecord.assigned_class || '-',
+            section: staffRecord.assigned_section || '-',
+            totalDays,
+            present,
+            absent,
+            leave,
+            percentage,
+            dateMap,
+            staffAttendance: myAttendance
+          }
+          
+          console.log('✅ Teacher stats built:', myStats)
+          
+          setOverallData([myStats])
+          // Auto-expand the detail view
+          handleStaffClick(myStats)
+        } else {
+          console.warn('⚠️ No attendance records found for teacher')
+          setOverallData([])
+          setMessage({ type: 'error', text: 'No attendance records found for you in the last 30 days' })
+        }
+      } else {
+        console.error('❌ API error:', result.error)
+        setMessage({ type: 'error', text: result.error || 'Failed to fetch your attendance' })
+      }
+    } catch (error) {
+      console.error('❌ Failed to load teacher attendance:', error)
+      setMessage({ type: 'error', text: 'Failed to load your attendance. Please try again.' })
+    } finally {
+      setOverallLoading(false)
+    }
+  }
 
   useEffect(() => {
     // Fetch existing attendance when selectedDate changes and is not empty
@@ -305,7 +427,12 @@ export default function StaffAttendancePage() {
       if (result.success) {
         const allAttendance = result.data?.attendance || []
 
-        // Group by staff and calculate stats
+        const isSupportOrAdmin = (dep: string, des: string) => {
+          const d = (dep || '').toLowerCase()
+          const ds = (des || '').toLowerCase()
+          return d.includes('admin') || d.includes('support') || ds.includes('support') || ds.includes('admin')
+        }
+
         const staffStats: { [key: string]: any } = {}
 
         staffMembers.forEach(staff => {
@@ -316,16 +443,33 @@ export default function StaffAttendancePage() {
           const leave = staffAttendance.filter((a: any) => a.status === 'Leave').length
           const percentage = totalDays > 0 ? Math.round((present / totalDays) * 100) : 0
 
+          const dep = staff.department || 'N/A'
+          const des = staff.designation || 'N/A'
+          const isNotTeacher = isSupportOrAdmin(dep, des)
+          const assignedClass = (!isNotTeacher && (staff.assigned_class || staff.assignedClass)) ? (staff.assigned_class || staff.assignedClass) : '-'
+          const assignedSection = (!isNotTeacher && (staff.assigned_section || staff.assignedSection)) ? (staff.assigned_section || staff.assignedSection) : '-'
+
+          const dateMap: { [date: string]: string } = {}
+          staffAttendance.forEach((a: any) => {
+            if (a.date) {
+              dateMap[a.date] = a.status
+            }
+          })
+
           staffStats[staff.id] = {
             id: staff.id,
             name: staff.user?.full_name || 'N/A',
-            designation: staff.designation || 'N/A',
-            department: staff.department || 'N/A',
+            designation: des,
+            department: dep,
+            class: assignedClass,
+            section: assignedSection,
             totalDays,
             present,
             absent,
             leave,
-            percentage
+            percentage,
+            dateMap,
+            staffAttendance
           }
         })
 
@@ -389,21 +533,44 @@ export default function StaffAttendancePage() {
 
   const downloadOverallAttendanceExcel = async () => {
     try {
+      // Find all unique dates across all staff attendance records
+      const allDatesSet = new Set<string>()
+      overallData.forEach(staff => {
+        if (staff.dateMap) {
+          Object.keys(staff.dateMap).forEach(d => allDatesSet.add(d))
+        }
+      })
+      const sortedDates = Array.from(allDatesSet).sort()
+
       // Prepare data for Excel
       const excelData = overallData
         .filter(staff => staff.totalDays > 0)
         .sort((a, b) => b.percentage - a.percentage)
-        .map((staff, index) => ({
-          'S.No': index + 1,
-          'Staff Name': staff.name,
-          'Designation': staff.designation,
-          'Department': staff.department,
-          'Total Days': staff.totalDays,
-          'Present': staff.present,
-          'Absent': staff.absent,
-          'Leave': staff.leave,
-          'Attendance %': `${staff.percentage}%`
-        }))
+        .map((staff, index) => {
+          const rowObj: any = {
+            'S.No': index + 1,
+            'Staff Name': staff.name,
+            'Designation': staff.designation,
+            'Department': staff.department,
+            'Class': staff.class || '-',
+            'Section': staff.section || '-',
+          }
+
+          // Add Date-wise Presenty/Absenty columns right after Section
+          sortedDates.forEach(dateStr => {
+            const status = staff.dateMap?.[dateStr] || '-'
+            rowObj[dateStr] = status
+          })
+
+          // Add summary columns after Date-wise columns
+          rowObj['Total Days'] = staff.totalDays
+          rowObj['Present'] = staff.present
+          rowObj['Absent'] = staff.absent
+          rowObj['Leave'] = staff.leave
+          rowObj['Attendance %'] = `${staff.percentage}%`
+
+          return rowObj
+        })
 
       // Lazy load XLSX library
       const xlsx = await loadXLSX()
@@ -412,17 +579,25 @@ export default function StaffAttendancePage() {
       const worksheet = xlsx.utils.json_to_sheet(excelData)
 
       // Set column widths
-      worksheet['!cols'] = [
+      const colWidths = [
         { wch: 6 },  // S.No
         { wch: 25 }, // Staff Name
         { wch: 20 }, // Designation
         { wch: 20 }, // Department
+        { wch: 12 }, // Class
+        { wch: 12 }, // Section
+      ]
+      sortedDates.forEach(() => {
+        colWidths.push({ wch: 14 })
+      })
+      colWidths.push(
         { wch: 12 }, // Total Days
         { wch: 10 }, // Present
         { wch: 10 }, // Absent
         { wch: 10 }, // Leave
         { wch: 15 }  // Attendance %
-      ]
+      )
+      worksheet['!cols'] = colWidths
 
       // Create workbook
       const workbook = xlsx.utils.book_new()
@@ -648,34 +823,37 @@ export default function StaffAttendancePage() {
       </div>
       
       <div className="max-w-6xl mx-auto p-6">
-        {/* Tab Navigation */}
+        {/* Tab Navigation - Only show Mark Attendance for Admin/Principal */}
         <div className="bg-white rounded-lg shadow-sm border mb-6">
           <div className="flex border-b">
-            <button
-              onClick={() => setActiveTab('mark')}
-              className={`flex-1 px-6 py-4 text-sm font-medium transition ${
-                activeTab === 'mark'
-                  ? 'border-b-2 border-blue-600 text-blue-600'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              Mark Attendance
-            </button>
+            {/* Only show Mark Attendance tab for Admin/Principal (role 6 or 8) */}
+            {userRole !== 7 && (
+              <button
+                onClick={() => setActiveTab('mark')}
+                className={`flex-1 px-6 py-4 text-sm font-medium transition ${
+                  activeTab === 'mark'
+                    ? 'border-b-2 border-blue-600 text-blue-600'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Mark Attendance
+              </button>
+            )}
             <button
               onClick={() => setActiveTab('view')}
-              className={`flex-1 px-6 py-4 text-sm font-medium transition ${
+              className={`${userRole === 7 ? 'w-full' : 'flex-1'} px-6 py-4 text-sm font-medium transition ${
                 activeTab === 'view'
                   ? 'border-b-2 border-blue-600 text-blue-600'
                   : 'text-gray-500 hover:text-gray-700'
               }`}
             >
-              View Attendance
+              {userRole === 7 ? 'My Attendance' : 'View Attendance'}
             </button>
           </div>
         </div>
 
-        {/* Mark Attendance Tab */}
-        {activeTab === 'mark' && (
+        {/* Mark Attendance Tab - Only for Admin/Principal */}
+        {activeTab === 'mark' && userRole !== 7 && (
           <>
             {message && (
               <div className={`mb-6 p-4 rounded-lg ${
@@ -761,7 +939,14 @@ export default function StaffAttendancePage() {
                       <tbody className="divide-y divide-gray-200">
                         {staffMembers.map((staff) => (
                           <tr key={staff.id} className={`hover:bg-gray-50 ${!isEditMode ? 'bg-gray-50' : ''}`}>
-                            <td className="px-6 py-4 text-sm text-gray-900">{staff.user?.full_name || 'N/A'}</td>
+                            <td className="px-6 py-4 text-sm text-gray-900 font-medium">
+                              <div>{staff.user?.full_name || 'N/A'}</div>
+                              {(staff.assigned_class || staff.assignedClass) ? (
+                                <div className="text-xs text-blue-600 font-semibold mt-0.5">
+                                  {staff.assigned_class || staff.assignedClass} - {staff.assigned_section || staff.assignedSection || 'A'}
+                                </div>
+                              ) : null}
+                            </td>
                             <td className="px-6 py-4 text-sm text-gray-900">{staff.designation || 'N/A'}</td>
                             <td className="px-6 py-4 text-sm text-gray-900">{staff.department || 'N/A'}</td>
                             <td className="px-6 py-4">
@@ -928,11 +1113,12 @@ export default function StaffAttendancePage() {
               </>
             ) : (
               <>
-                {/* View Attendance Summary View */}
-                <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
-                  <h2 className="text-xl font-semibold mb-4">View Attendance Summary</h2>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* View Attendance Summary View - Only show date selector for Admin/Principal */}
+                {userRole !== 7 && (
+                  <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
+                    <h2 className="text-xl font-semibold mb-4">View Attendance Summary</h2>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {/* Start Date */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">From Date</label>
@@ -995,22 +1181,38 @@ export default function StaffAttendancePage() {
                     </div>
                   </div>
                 </div>
+                )}
+
+                {/* Show info message for teachers */}
+                {userRole === 7 && !selectedStaffDetail && (
+                  <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-6 mb-6 text-center">
+                    <svg className="w-12 h-12 mx-auto text-blue-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p className="text-gray-700 text-lg font-medium">Your Attendance Record (Last 30 Days)</p>
+                    <p className="text-gray-600 text-sm mt-1">Click on your name below to view detailed attendance</p>
+                  </div>
+                )}
 
                 {/* View Attendance Table */}
                 {overallData.length > 0 && (
                   <div className="bg-white rounded-lg shadow-sm border">
                     <div className="p-6 border-b flex items-center justify-between">
-                      <h2 className="text-xl font-semibold">Staff Attendance Summary (Click to view details)</h2>
-                      <button
-                        onClick={downloadOverallAttendanceExcel}
-                        className="flex items-center gap-2 bg-green-50 text-green-700 border-2 border-green-400 px-4 py-2 rounded-lg hover:bg-green-100 active:scale-95 transition font-medium"
-                        title="Download Excel"
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        Download Excel
-                      </button>
+                      <h2 className="text-xl font-semibold">
+                        {userRole === 7 ? 'My Attendance Summary' : 'Staff Attendance Summary (Click to view details)'}
+                      </h2>
+                      {userRole !== 7 && (
+                        <button
+                          onClick={downloadOverallAttendanceExcel}
+                          className="flex items-center gap-2 bg-green-50 text-green-700 border-2 border-green-400 px-4 py-2 rounded-lg hover:bg-green-100 active:scale-95 transition font-medium"
+                          title="Download Excel"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          Download Excel
+                        </button>
+                      )}
                     </div>
                     
                     <div className="overflow-x-auto">
@@ -1021,6 +1223,8 @@ export default function StaffAttendancePage() {
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Staff Name</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Designation</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Department</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Class</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Section</th>
                             <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Total Days</th>
                             <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Present</th>
                             <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Absent</th>
@@ -1039,9 +1243,18 @@ export default function StaffAttendancePage() {
                                 className="hover:bg-blue-50 cursor-pointer transition"
                               >
                                 <td className="px-6 py-4 text-sm text-gray-900">{index + 1}</td>
-                                <td className="px-6 py-4 text-sm font-medium text-blue-600">{staff.name}</td>
+                                <td className="px-6 py-4 text-sm font-medium text-blue-600">
+                                  <div>{staff.name}</div>
+                                  {(staff.class && staff.class !== '-') ? (
+                                    <div className="text-xs text-blue-600 font-semibold mt-0.5">
+                                      {staff.class} - {staff.section && staff.section !== '-' ? staff.section : 'A'}
+                                    </div>
+                                  ) : null}
+                                </td>
                                 <td className="px-6 py-4 text-sm text-gray-900">{staff.designation}</td>
                                 <td className="px-6 py-4 text-sm text-gray-900">{staff.department}</td>
+                                <td className="px-6 py-4 text-sm text-gray-900">{staff.class}</td>
+                                <td className="px-6 py-4 text-sm text-gray-900">{staff.section}</td>
                                 <td className="px-6 py-4 text-sm text-center text-gray-900">{staff.totalDays}</td>
                                 <td className="px-6 py-4 text-sm text-center">
                                   <span className="inline-flex px-3 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">

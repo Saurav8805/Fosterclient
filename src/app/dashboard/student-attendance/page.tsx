@@ -55,6 +55,9 @@ export default function StudentAttendancePage() {
   const [detailedRecords, setDetailedRecords] = useState<any[]>([])
   const [detailLoading, setDetailLoading] = useState(false)
 
+  // Student's own stats
+  const [stats, setStats] = useState<any>(null)
+
   useEffect(() => {
     const role = localStorage.getItem('userRole')
     if (!role) {
@@ -64,10 +67,21 @@ export default function StudentAttendancePage() {
     const roleNum = Number(role)
     setUserRole(roleNum)
     
-    // Only admin and faculty can access
+    // Route based on role
+    if (roleNum === 19) {
+      // Student - load their own attendance
+      loadStudentOwnAttendance()
+      return
+    }
+    
+    // Only admin and faculty can mark/view all attendance
     if (roleNum !== 6 && roleNum !== 7) {
       router.push('/dashboard')
       return
+    }
+
+    if (roleNum === 6) {
+      setActiveTab('view')
     }
     
     fetchStudentsList()
@@ -75,6 +89,55 @@ export default function StudentAttendancePage() {
     fetchClasses()
     fetchSections()
   }, [])
+
+  const loadStudentOwnAttendance = async () => {
+    try {
+      setLoading(true)
+      const studentId = localStorage.getItem('studentId')
+      
+      if (!studentId) {
+        setMessage({ type: 'error', text: 'Student ID not found' })
+        setLoading(false)
+        return
+      }
+
+      console.log('👨‍🎓 Loading student attendance for ID:', studentId)
+
+      // Fetch attendance for this student
+      const result = await attendanceApi.getStudentAttendance({ studentId })
+
+      console.log('📊 Student attendance result:', result)
+
+      if (result.success) {
+        const records = result.data?.attendance || []
+        setDetailedRecords(records)
+
+        // Calculate statistics
+        const totalDays = records.length
+        const present = records.filter((r: any) => r.status === 'Present').length
+        const absent = records.filter((r: any) => r.status === 'Absent').length
+        const leave = records.filter((r: any) => r.status === 'Leave').length
+        const percentage = totalDays > 0 ? Math.round((present / totalDays) * 100) : 0
+
+        setStats({
+          totalDays,
+          present,
+          absent,
+          leave,
+          percentage
+        })
+
+        console.log('✅ Student stats:', { totalDays, present, absent, leave, percentage })
+      } else {
+        setMessage({ type: 'error', text: result.error || 'Failed to fetch attendance' })
+      }
+    } catch (error: any) {
+      console.error('❌ Failed to load student attendance:', error)
+      setMessage({ type: 'error', text: 'Failed to load your attendance' })
+    } finally {
+      setLoading(false)
+    }
+  }
 
   // Filter students when class or section changes
   useEffect(() => {
@@ -759,6 +822,194 @@ export default function StudentAttendancePage() {
     return null
   }
 
+  // ─── STUDENT VIEW (Role 19) ─────────────────────────────────────────────────
+  if (userRole === 19) {
+    const getPercentageColor = (percentage: number) => {
+      if (percentage >= 75) return 'text-green-600'
+      if (percentage >= 50) return 'text-yellow-600'
+      return 'text-red-600'
+    }
+
+    const getProgressColor = (percentage: number) => {
+      if (percentage >= 75) return 'bg-green-600'
+      if (percentage >= 50) return 'bg-yellow-600'
+      return 'bg-red-600'
+    }
+
+    const getStatusIcon = (status: string) => {
+      switch (status) {
+        case 'Present':
+          return (
+            <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          )
+        case 'Absent':
+          return (
+            <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          )
+        case 'Leave':
+          return (
+            <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          )
+        default:
+          return null
+      }
+    }
+
+    return (
+      <div className="min-h-screen bg-white">
+        <div className="px-6 pt-6 pb-2">
+          <div className="max-w-6xl mx-auto">
+            <div className="flex items-center justify-between">
+              <h1 className="text-3xl font-bold text-gray-900">My Attendance</h1>
+              <button
+                onClick={loadStudentOwnAttendance}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Refresh
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="max-w-6xl mx-auto p-6">
+          {message && (
+            <div className={`mb-6 p-4 rounded-lg ${
+              message.type === 'success' 
+                ? 'bg-green-50 text-green-800 border border-green-200' 
+                : 'bg-red-50 text-red-800 border border-red-200'
+            }`}>
+              {message.text}
+            </div>
+          )}
+
+          {stats && (
+            <>
+              {/* Overall Statistics Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+                <div className="bg-white rounded-lg shadow-sm border p-4">
+                  <div className="text-sm font-medium text-gray-600 mb-1">Total Days</div>
+                  <div className="text-2xl font-bold text-gray-900">{stats.totalDays}</div>
+                </div>
+                
+                <div className="bg-green-50 rounded-lg shadow-sm border border-green-200 p-4">
+                  <div className="text-sm font-medium text-green-700 mb-1">Present</div>
+                  <div className="text-2xl font-bold text-green-900">{stats.present}</div>
+                </div>
+                
+                <div className="bg-red-50 rounded-lg shadow-sm border border-red-200 p-4">
+                  <div className="text-sm font-medium text-red-700 mb-1">Absent</div>
+                  <div className="text-2xl font-bold text-red-900">{stats.absent}</div>
+                </div>
+                
+                <div className="bg-yellow-50 rounded-lg shadow-sm border border-yellow-200 p-4">
+                  <div className="text-sm font-medium text-yellow-700 mb-1">Leave</div>
+                  <div className="text-2xl font-bold text-yellow-900">{stats.leave}</div>
+                </div>
+                
+                <div className="bg-blue-50 rounded-lg shadow-sm border border-blue-200 p-4">
+                  <div className="text-sm font-medium text-blue-700 mb-1">Attendance</div>
+                  <div className={`text-2xl font-bold ${getPercentageColor(stats.percentage)}`}>
+                    {stats.percentage}%
+                  </div>
+                </div>
+              </div>
+
+              {/* Progress Bar */}
+              <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
+                <div className="flex justify-between items-center mb-2">
+                  <h2 className="text-lg font-semibold">Attendance Progress</h2>
+                  <span className={`text-xl font-bold ${getPercentageColor(stats.percentage)}`}>
+                    {stats.percentage}%
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
+                  <div 
+                    className={`h-full ${getProgressColor(stats.percentage)} transition-all duration-500`}
+                    style={{ width: `${stats.percentage}%` }}
+                  />
+                </div>
+                <div className="flex justify-between mt-2 text-sm text-gray-600">
+                  <span>
+                    {stats.percentage >= 75 ? '✓ Good Attendance' : 
+                     stats.percentage >= 50 ? '⚠ Needs Improvement' : 
+                     '✗ Poor Attendance'}
+                  </span>
+                  <span>{stats.present} / {stats.totalDays} days</span>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Day-wise Attendance List */}
+          <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
+            <div className="px-6 py-4 border-b bg-gray-50">
+              <h2 className="text-lg font-semibold">Day-wise Attendance Records</h2>
+            </div>
+            
+            <div className="divide-y max-h-[600px] overflow-y-auto">
+              {detailedRecords.length > 0 ? (
+                detailedRecords
+                  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                  .map((record, index) => (
+                    <div key={index} className="p-4 hover:bg-gray-50 transition">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className={`p-2 rounded-full ${getStatusColor(record.status)}`}>
+                            {getStatusIcon(record.status)}
+                          </div>
+                          <div>
+                            <div className="font-medium text-gray-900">
+                              {new Date(record.date).toLocaleDateString('en-IN', {
+                                day: '2-digit',
+                                month: 'long',
+                                year: 'numeric'
+                              })}
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              {getDayName(record.date)}
+                            </div>
+                          </div>
+                        </div>
+                        <div>
+                          <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(record.status)}`}>
+                            {record.status}
+                          </span>
+                        </div>
+                      </div>
+                      {record.remarks && (
+                        <div className="mt-2 ml-14 text-sm text-gray-600">
+                          <span className="font-medium">Remarks:</span> {record.remarks}
+                        </div>
+                      )}
+                    </div>
+                  ))
+              ) : (
+                <div className="p-12 text-center text-gray-500">
+                  <svg className="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <p className="text-lg font-medium">No attendance records found</p>
+                  <p className="text-sm mt-1">Your attendance records will appear here once marked by the school</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ─── TEACHER/PRINCIPAL VIEW ────────────────────────────────────────────────
+
   return (
     <div className="min-h-screen bg-white">
       <div className="px-6 pt-6 pb-2">
@@ -771,16 +1022,18 @@ export default function StudentAttendancePage() {
         {/* Tab Navigation */}
         <div className="bg-white rounded-lg shadow-sm border mb-6">
           <div className="flex border-b">
-            <button
-              onClick={() => setActiveTab('mark')}
-              className={`flex-1 px-6 py-4 text-sm font-medium transition ${
-                activeTab === 'mark'
-                  ? 'border-b-2 border-blue-600 text-blue-600'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              Mark Attendance
-            </button>
+            {userRole !== 6 && (
+              <button
+                onClick={() => setActiveTab('mark')}
+                className={`flex-1 px-6 py-4 text-sm font-medium transition ${
+                  activeTab === 'mark'
+                    ? 'border-b-2 border-blue-600 text-blue-600'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Mark Attendance
+              </button>
+            )}
             <button
               onClick={() => setActiveTab('view')}
               className={`flex-1 px-6 py-4 text-sm font-medium transition ${
@@ -795,7 +1048,7 @@ export default function StudentAttendancePage() {
         </div>
 
         {/* Mark Attendance Tab */}
-        {activeTab === 'mark' && (
+        {activeTab === 'mark' && userRole !== 6 && (
           <>
             {message && (
               <div className={`mb-6 p-4 rounded-lg ${
