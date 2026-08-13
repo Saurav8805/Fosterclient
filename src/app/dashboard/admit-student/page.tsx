@@ -301,14 +301,371 @@ export default function AdmitStudentPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="px-6 pt-6 pb-2">
+    <div className="min-h-full bg-white">
+      <div className="px-3 sm:px-4 md:px-6 pt-4 sm:pt-5 md:pt-6 pb-2">
         <div className="max-w-6xl mx-auto">
-          <h1 className="text-3xl font-bold text-gray-900">Admit New Student</h1>
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">Admit New Student</h1>
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto p-6">
+      <div className="max-w-4xl mx-auto px-3 sm:px-4 md:px-6 pb-6">
+        {/* Success/Error Message */}
+        {message && (
+          <div className={`mb-4 sm:mb-6 p-3 sm:p-4 rounded-lg border text-xs sm:text-sm ${
+            message.type === 'success' 
+              ? 'bg-green-50 text-green-800 border-green-200' 
+              : 'bg-red-50 text-red-800 border-red-200'
+          }`}>
+            <p className="font-semibold">{message.text}</p>
+            {message.credentials && (
+              <div className="mt-2 sm:mt-3 p-2 sm:p-3 bg-white rounded border border-green-300">
+                <p className="text-xs sm:text-sm font-semibold text-gray-900 mb-2">Login Credentials:</p>
+                <p className="text-xs sm:text-sm text-gray-700">Mobile: <span className="font-mono font-bold">{message.credentials.mobile}</span></p>
+                <p className="text-xs sm:text-sm text-gray-700">Password: <span className="font-mono font-bold">{message.credentials.password}</span></p>
+                <p className="text-[10px] sm:text-xs text-gray-600 mt-2">⚠️ Please save these credentials and share with the student/parent.</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="bg-white rounded-lg shadow-sm border p-4 sm:p-5 md:p-6">
+          <h2 className="text-base sm:text-lg md:text-xl font-semibold mb-4 sm:mb-5 md:mb-6">Student Admission Form</h2>
+          
+          <form onSubmit={handleSubmit}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5 md:gap-6">
+              {/* Student Name */}
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Student Name *</label>
+                <input 
+                  type="text" 
+                  required
+                  className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base touch-manipulation"
+                  value={formData.studentName}
+                  onChange={(e) => setFormData({...formData, studentName: e.target.value})}
+                  placeholder="Enter full name"
+                />
+              </div>
+
+              {/* Date of Birth */}
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Date of Birth *</label>
+                <input 
+                  type="date" 
+                  required
+                  className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base touch-manipulation"
+                  value={formData.dob}
+                  onChange={(e) => handleDobChange(e.target.value)}
+                />
+              </div>
+
+              {/* Age (Auto-calculated) */}
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Age (Auto-calculated)</label>
+                <input 
+                  type="text" 
+                  readOnly
+                  className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border rounded-lg bg-gray-100 cursor-not-allowed text-sm sm:text-base"
+                  value={formData.age ? `${formData.age} years` : 'Enter date of birth'}
+                  placeholder="Auto-calculated from DOB"
+                />
+              </div>
+
+              {/* Admission Date */}
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Admission Date *</label>
+                <input 
+                  type="date" 
+                  required
+                  className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base touch-manipulation"
+                  value={formData.admissionDate}
+                  onChange={(e) => setFormData({...formData, admissionDate: e.target.value})}
+                />
+              </div>
+
+              {/* Aadhar Number */}
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Aadhar Number</label>
+                <input 
+                  type="text" 
+                  pattern="[0-9]{12}"
+                  maxLength={12}
+                  className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base touch-manipulation"
+                  value={formData.aadharNumber}
+                  onChange={(e) => setFormData({...formData, aadharNumber: e.target.value})}
+                  placeholder="12-digit Aadhar (optional)"
+                />
+              </div>
+
+              {/* Gender */}
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Gender *</label>
+                <select 
+                  required
+                  className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base touch-manipulation"
+                  value={formData.gender}
+                  onChange={(e) => setFormData({...formData, gender: e.target.value})}
+                >
+                  <option value="">Select Gender</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+
+              {/* Blood Group */}
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Blood Group</label>
+                <select 
+                  className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base touch-manipulation"
+                  value={formData.bloodGroup}
+                  onChange={(e) => setFormData({...formData, bloodGroup: e.target.value})}
+                >
+                  <option value="">Select Blood Group</option>
+                  {bloodGroups.map((bg) => (
+                    <option key={bg} value={bg}>{bg}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Class */}
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
+                  Class * {userRole !== 6 && <span className="text-[10px] sm:text-xs text-blue-600 font-normal">(🔒 Pre-filled)</span>}
+                </label>
+                {userRole === 6 ? (
+                  <select 
+                    required
+                    className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base touch-manipulation"
+                    value={formData.studentClass}
+                    onChange={(e) => setFormData({...formData, studentClass: e.target.value})}
+                  >
+                    {classes.map((className) => (
+                      <option key={className} value={className}>{className}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    readOnly
+                    value={formData.studentClass || 'Nursery'}
+                    className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border rounded-lg bg-gray-100 font-semibold text-gray-800 cursor-not-allowed text-sm sm:text-base"
+                  />
+                )}
+              </div>
+
+              {/* Section */}
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
+                  Section * {userRole !== 6 && <span className="text-[10px] sm:text-xs text-blue-600 font-normal">(🔒 Pre-filled)</span>}
+                </label>
+                {userRole === 6 ? (
+                  <select 
+                    required
+                    className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base touch-manipulation"
+                    value={formData.section}
+                    onChange={(e) => setFormData({...formData, section: e.target.value})}
+                  >
+                    {sections.map((section) => (
+                      <option key={section} value={section}>{section}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    readOnly
+                    value={formData.section || 'A'}
+                    className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border rounded-lg bg-gray-100 font-semibold text-gray-800 cursor-not-allowed text-sm sm:text-base"
+                  />
+                )}
+              </div>
+
+              {/* Roll Number */}
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Roll Number</label>
+                <input 
+                  type="number" 
+                  min="1"
+                  step="1"
+                  className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base touch-manipulation"
+                  value={formData.rollNo}
+                  onChange={(e) => setFormData({...formData, rollNo: e.target.value})}
+                  placeholder="e.g., 1"
+                />
+              </div>
+
+              {/* Assigned Teacher (Visible only for Principal) */}
+              {userRole === 6 && (
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Assigned Teacher *</label>
+                  <select 
+                    required
+                    className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base touch-manipulation"
+                    value={formData.teacherId}
+                    onChange={(e) => setFormData({...formData, teacherId: e.target.value})}
+                    disabled={loadingTeachers}
+                  >
+                    <option value="">Select Teacher</option>
+                    {teachers.map((teacher) => (
+                      <option key={teacher.id} value={teacher.id}>
+                        {teacher.display_label || teacher.full_name} ({teacher.mobile})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Parent/Guardian Name */}
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Father Name *</label>
+                <input 
+                  type="text" 
+                  required
+                  className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base touch-manipulation"
+                  value={formData.parentName}
+                  onChange={(e) => setFormData({...formData, parentName: e.target.value})}
+                  placeholder="Enter father's name"
+                />
+              </div>
+
+              {/* Mother Name */}
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Mother Name *</label>
+                <input 
+                  type="text" 
+                  required
+                  className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base touch-manipulation"
+                  value={formData.motherName}
+                  onChange={(e) => setFormData({...formData, motherName: e.target.value})}
+                  placeholder="Enter mother's name"
+                />
+              </div>
+
+              {/* Mobile Number */}
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Mobile Number * (Login ID)</label>
+                <input 
+                  type="tel" 
+                  required
+                  pattern="[0-9]{10}"
+                  className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base touch-manipulation"
+                  value={formData.mobile}
+                  onChange={(e) => setFormData({...formData, mobile: e.target.value})}
+                  placeholder="10-digit mobile"
+                />
+                <p className="text-[10px] sm:text-xs text-gray-500 mt-1">This will be used as login ID</p>
+              </div>
+
+              {/* Emergency Contact */}
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Emergency Contact</label>
+                <input 
+                  type="tel" 
+                  pattern="[0-9]{10}"
+                  className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base touch-manipulation"
+                  value={formData.emergencyContact}
+                  onChange={(e) => setFormData({...formData, emergencyContact: e.target.value})}
+                  placeholder="Alternate contact"
+                />
+              </div>
+
+              {/* Email */}
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Email</label>
+                <input 
+                  type="email" 
+                  className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base touch-manipulation"
+                  value={formData.email}
+                  onChange={(e) => setFormData({...formData, email: e.target.value})}
+                  placeholder="student@example.com"
+                />
+              </div>
+
+              {/* Address */}
+              <div className="md:col-span-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Address *</label>
+                <textarea 
+                  required
+                  rows={2}
+                  className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base touch-manipulation resize-none"
+                  value={formData.address}
+                  onChange={(e) => setFormData({...formData, address: e.target.value})}
+                  placeholder="House/Flat No., Street, Area"
+                ></textarea>
+              </div>
+
+              {/* City */}
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">City *</label>
+                <input 
+                  type="text" 
+                  required
+                  className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base touch-manipulation"
+                  value={formData.city}
+                  onChange={(e) => setFormData({...formData, city: e.target.value})}
+                  placeholder="Enter city"
+                />
+              </div>
+
+              {/* State */}
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">State *</label>
+                <input 
+                  type="text" 
+                  required
+                  className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base touch-manipulation"
+                  value={formData.state}
+                  onChange={(e) => setFormData({...formData, state: e.target.value})}
+                  placeholder="Enter state"
+                />
+              </div>
+
+              {/* Pincode */}
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Pincode *</label>
+                <input 
+                  type="text" 
+                  required
+                  pattern="[0-9]{6}"
+                  className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base touch-manipulation"
+                  value={formData.pincode}
+                  onChange={(e) => setFormData({...formData, pincode: e.target.value})}
+                  placeholder="6-digit pincode"
+                />
+              </div>
+            </div>
+
+            {/* Buttons */}
+            <div className="mt-4 sm:mt-5 md:mt-6 flex flex-col sm:flex-row gap-3 sm:gap-4">
+              <button 
+                type="submit"
+                disabled={loading}
+                className="bg-blue-50 text-blue-700 border-2 border-blue-400 px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg hover:bg-blue-100 transition disabled:bg-gray-100 disabled:border-gray-300 disabled:text-gray-400 disabled:cursor-not-allowed font-medium text-sm sm:text-base touch-manipulation"
+              >
+                {loading ? 'Submitting...' : 'Admit Student'}
+              </button>
+              <button 
+                type="button"
+                onClick={handleReset}
+                disabled={loading}
+                className="bg-gray-200 text-gray-700 px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg hover:bg-gray-300 transition disabled:bg-gray-100 disabled:cursor-not-allowed text-sm sm:text-base touch-manipulation"
+              >
+                Reset Form
+              </button>
+            </div>
+
+            {/* Info Note */}
+            <div className="mt-3 sm:mt-4 p-3 sm:p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-xs sm:text-sm text-blue-800">
+                <span className="font-semibold">Note:</span> Default password will be <span className="font-mono font-bold">default123</span>. 
+                The mobile number will be used as the login ID.
+              </p>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  )
+}
         {/* Success/Error Message */}
         {message && (
           <div className={`mb-6 p-4 rounded-lg border ${

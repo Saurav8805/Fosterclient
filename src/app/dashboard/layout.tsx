@@ -174,23 +174,23 @@ const DashboardSidebar = memo(function DashboardSidebar() {
   const menuItems = userRole === 6 ? principalMenuItems : userRole === 8 ? adminMenuItems : userRole === 7 ? facultyMenuItems : studentMenuItems
 
   return (
-    <aside className={`${isOpen ? 'w-56' : 'w-0 overflow-hidden'} bg-white border-r border-gray-100 transition-all duration-300 flex flex-col flex-shrink-0 h-full shadow-sm`}>
+    <aside className={`${isOpen ? 'w-64 sm:w-56' : 'w-0 overflow-hidden'} bg-white border-r border-gray-100 transition-all duration-300 flex flex-col flex-shrink-0 h-full shadow-sm lg:relative fixed left-0 top-0 z-40 lg:z-auto`}>
       {/* Logo */}
-      <div className="h-20 flex items-center justify-center pl-7 pr-4 border-b border-gray-100 flex-shrink-0">
+      <div className="h-16 sm:h-20 flex items-center justify-center pl-4 sm:pl-7 pr-3 sm:pr-4 border-b border-gray-100 flex-shrink-0">
         <Image 
           src="/LOGO-2.png" 
           alt="Foster Kids" 
           width={180} 
           height={60} 
-          className="h-14 w-auto object-contain max-w-full" 
-          style={{ width: 'auto', height: '3.5rem' }} 
+          className="h-10 sm:h-14 w-auto object-contain max-w-full" 
+          style={{ width: 'auto', height: 'clamp(2.5rem, 10vw, 3.5rem)' }} 
           priority 
           loading="eager"
         />
       </div>
 
       {/* Menu Items */}
-      <nav className="flex-1 overflow-y-auto py-3 scrollbar-hide">
+      <nav className="flex-1 overflow-y-auto py-2 sm:py-3 scrollbar-hide">
         {menuItems.map((item, index) => {
           const active = pathname === item.path
           return (
@@ -198,7 +198,7 @@ const DashboardSidebar = memo(function DashboardSidebar() {
               key={index}
               href={item.path}
               prefetch={false}
-              className={`flex items-center gap-3 mx-2 px-3 py-2.5 rounded-lg transition-all duration-150 ${
+              className={`flex items-center gap-2 sm:gap-3 mx-2 px-3 sm:px-3 py-2 sm:py-2.5 rounded-lg transition-all duration-150 ${
                 active
                   ? 'bg-[#5e3a9e] text-white'
                   : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800'
@@ -207,20 +207,20 @@ const DashboardSidebar = memo(function DashboardSidebar() {
               <span className={`flex-shrink-0 ${active ? 'text-white' : 'text-gray-400'}`}>
                 {item.icon}
               </span>
-              <span className="text-sm font-medium truncate">{item.name}</span>
+              <span className="text-xs sm:text-sm font-medium truncate">{item.name}</span>
             </Link>
           )
         })}
       </nav>
 
       {/* Logout */}
-      <div className="px-2 py-3 border-t border-gray-100 flex-shrink-0">
+      <div className="px-2 py-2 sm:py-3 border-t border-gray-100 flex-shrink-0">
         <button
           onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-500 hover:bg-red-50 hover:text-red-600 transition-all duration-150"
+          className="w-full flex items-center gap-2 sm:gap-3 px-3 py-2 sm:py-2.5 rounded-lg text-gray-500 hover:bg-red-50 hover:text-red-600 transition-all duration-150"
         >
           <span className="flex-shrink-0">{Icons.logout}</span>
-          <span className="text-sm font-medium">Logout</span>
+          <span className="text-xs sm:text-sm font-medium">Logout</span>
         </button>
       </div>
     </aside>
@@ -232,15 +232,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <SidebarProvider>
       <div className="flex h-screen w-screen overflow-hidden">
         <DashboardSidebar />
-        <div className="flex-1 flex flex-col min-h-0">
-          <div className="flex items-center bg-white border-b border-gray-100 flex-shrink-0 h-20">
+        {/* Mobile overlay */}
+        <MobileOverlay />
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <div className="flex items-center bg-white border-b border-gray-100 flex-shrink-0 h-14 sm:h-16 lg:h-20 px-2 lg:px-0">
             <HamburgerButton />
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 overflow-hidden">
               <HeaderContent />
             </div>
           </div>
-          <main className="flex-1 h-full bg-white overflow-auto scrollbar-hide">
-            {children}
+          <main className="flex-1 bg-white overflow-y-auto overflow-x-hidden scrollbar-hide">
+            <div className="min-h-full">
+              {children}
+            </div>
           </main>
         </div>
       </div>
@@ -248,15 +252,29 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   )
 }
 
+const MobileOverlay = memo(function MobileOverlay() {
+  const { isOpen, toggle } = useSidebar()
+  
+  if (!isOpen) return null
+  
+  return (
+    <div 
+      className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+      onClick={toggle}
+      aria-label="Close sidebar"
+    />
+  )
+})
+
 const HamburgerButton = memo(function HamburgerButton() {
   const { toggle } = useSidebar()
   return (
     <button
       onClick={toggle}
-      className="p-4 text-gray-500 hover:bg-gray-100 transition flex-shrink-0"
+      className="p-2 sm:p-3 lg:p-4 text-gray-500 hover:bg-gray-100 transition flex-shrink-0 touch-manipulation"
       aria-label="Toggle sidebar"
     >
-      <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
       </svg>
     </button>

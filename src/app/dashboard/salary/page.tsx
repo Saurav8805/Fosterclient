@@ -363,26 +363,28 @@ export default function SalaryManagementPage() {
                           : 'Pending'}
                       </span>
                     </td>
-                    <td className="p-4 text-right space-x-2">
-                      {staff.status === 'Paid' ? (
-                        <span className="inline-flex items-center gap-1 px-3.5 py-1.5 bg-emerald-50 text-emerald-700 rounded-xl text-xs font-bold border border-emerald-200 cursor-default">
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                          Fully Paid
-                        </span>
-                      ) : (
+                    <td className="p-4">
+                      <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                        {staff.status === 'Paid' ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-50 text-emerald-700 rounded-lg text-[10px] font-bold border border-emerald-200 cursor-default whitespace-nowrap min-w-[60px] justify-center">
+                            <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                            Paid
+                          </span>
+                        ) : (
+                          <button 
+                            onClick={() => openPayModal(staff)}
+                            className="px-2 py-1 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition text-[10px] font-bold shadow-sm whitespace-nowrap touch-manipulation min-w-[60px]"
+                          >
+                            Pay
+                          </button>
+                        )}
                         <button 
-                          onClick={() => openPayModal(staff)}
-                          className="px-3.5 py-1.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition text-xs font-bold shadow-sm"
+                          onClick={() => openHistoryModal(staff)}
+                          className="px-2 py-1 bg-gray-100 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-200 transition text-[10px] font-bold whitespace-nowrap touch-manipulation min-w-[60px]"
                         >
-                          {staff.status === 'Partial' ? 'Pay Remaining' : 'Pay Salary'}
+                          History
                         </button>
-                      )}
-                      <button 
-                        onClick={() => openHistoryModal(staff)}
-                        className="px-3.5 py-1.5 bg-gray-100 text-gray-700 border border-gray-300 rounded-xl hover:bg-gray-200 transition text-xs font-bold"
-                      >
-                        History
-                      </button>
+                      </div>
                     </td>
                   </tr>
                 ))
