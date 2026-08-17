@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { studentsApi, staffApi, eventsApi, feesApi, configApi, homeworkApi } from '@/lib/api'
@@ -22,7 +22,12 @@ export default function DashboardPage() {
   const [upcomingEvents, setUpcomingEvents] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
+  // Prevent duplicate API calls
+  const dataFetched = useRef(false)
+
   useEffect(() => {
+    if (dataFetched.current) return
+    
     const mobile = localStorage.getItem('userMobile')
     const role = localStorage.getItem('userRole')
     const name = localStorage.getItem('userName')
@@ -33,6 +38,7 @@ export default function DashboardPage() {
       return
     }
 
+    dataFetched.current = true
     setUserRole(Number(role))
     setUserName(name || 'User')
     
@@ -54,17 +60,11 @@ export default function DashboardPage() {
 
   const fetchAdminStats = async () => {
     try {
-      console.log('📊 Fetching admin stats...')
-      
       const [studentsResponse, staffResponse, eventsResponse] = await Promise.all([
         studentsApi.list(),
         staffApi.list(),
         eventsApi.list()
       ])
-      
-      console.log('👨‍🎓 Students response:', studentsResponse)
-      console.log('👥 Staff response:', staffResponse)
-      console.log('📅 Events response:', eventsResponse)
       
       // Students API returns: { success: true, data: { students: [...] } }
       const studentCount = studentsResponse.success && studentsResponse.data?.students 
@@ -75,8 +75,6 @@ export default function DashboardPage() {
       const staffCount = staffResponse.success && Array.isArray(staffResponse.data)
         ? staffResponse.data.length
         : 0
-      
-      console.log('✅ Calculated counts:', { studentCount, staffCount })
       
       // Fetch real fees summary and class stats
       let feesCollected = 0;

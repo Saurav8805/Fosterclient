@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { Bell } from 'lucide-react';
 import { notificationsApi } from '@/lib/api';
@@ -18,6 +18,10 @@ export default function HeaderContent() {
   // Initialize push notifications
   const { isSupported, isEnabled, requestPermission } = usePushNotifications(userId);
   const [showPushPrompt, setShowPushPrompt] = useState(false);
+
+  // Refs to prevent duplicate calls
+  const notificationsFetched = useRef(false);
+  const serviceWorkerListenerAdded = useRef(false);
 
   useEffect(() => {
     const name = localStorage.getItem('userName');
@@ -48,7 +52,9 @@ export default function HeaderContent() {
       }
     }
 
-    if (uid) {
+    // Fetch notifications only once
+    if (uid && !notificationsFetched.current) {
+      notificationsFetched.current = true;
       fetchNotifications(uid);
     }
 
@@ -61,8 +67,9 @@ export default function HeaderContent() {
       }
     }
 
-    // Listen for navigation messages from service worker
-    if ('serviceWorker' in navigator) {
+    // Listen for navigation messages from service worker (only once)
+    if ('serviceWorker' in navigator && !serviceWorkerListenerAdded.current) {
+      serviceWorkerListenerAdded.current = true;
       navigator.serviceWorker.addEventListener('message', (event) => {
         if (event.data && event.data.type === 'NAVIGATE') {
           window.location.href = event.data.url;
@@ -84,18 +91,17 @@ export default function HeaderContent() {
 
   const fetchNotifications = async (uid: string) => {
     try {
-      console.log('🔔 Fetching notifications for user:', uid);
       const res = await notificationsApi.list(uid) as { success: boolean; data?: { notifications: any[]; unreadCount: number } };
-      console.log('🔔 Notifications response:', res);
       if (res.success && res.data) {
         // Show only the 7 most recent notifications in the dropdown
         const recentNotifications = (res.data.notifications || []).slice(0, 7);
-        console.log('🔔 Setting notifications:', recentNotifications);
         setNotifications(recentNotifications);
         setUnreadCount(res.data.unreadCount || 0);
       }
     } catch (err) {
-      console.log('❌ Error loading notifications:', err);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('❌ Error loading notifications:', err);
+      }
     }
   };
 
