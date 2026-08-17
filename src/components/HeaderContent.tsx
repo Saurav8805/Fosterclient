@@ -61,6 +61,15 @@ export default function HeaderContent() {
       }
     }
 
+    // Listen for navigation messages from service worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data && event.data.type === 'NAVIGATE') {
+          window.location.href = event.data.url;
+        }
+      });
+    }
+
     // Close dropdown when clicking outside
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
