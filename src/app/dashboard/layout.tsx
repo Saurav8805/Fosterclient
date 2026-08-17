@@ -107,6 +107,7 @@ const DashboardSidebar = memo(function DashboardSidebar() {
   const pathname = usePathname()
   const { isOpen, toggle } = useSidebar()
   const [userRole, setUserRole] = useState<number | null>(null)
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
 
   useEffect(() => {
     const role = localStorage.getItem('userRole')
@@ -114,9 +115,21 @@ const DashboardSidebar = memo(function DashboardSidebar() {
   }, [])
 
   const handleLogout = () => {
+    setShowLogoutConfirm(true)
+  }
+
+  const confirmLogout = () => {
     localStorage.removeItem('userMobile')
+    localStorage.removeItem('userName')
     localStorage.removeItem('userRole')
+    localStorage.removeItem('userId')
+    localStorage.removeItem('userDesignation')
+    setShowLogoutConfirm(false)
     router.push('/login')
+  }
+
+  const cancelLogout = () => {
+    setShowLogoutConfirm(false)
   }
 
   const adminMenuItems = [
@@ -176,6 +189,55 @@ const DashboardSidebar = memo(function DashboardSidebar() {
 
   return (
     <aside className={`${isOpen ? 'w-64 sm:w-56' : 'w-0 overflow-hidden'} bg-white border-r border-gray-100 transition-all duration-300 flex flex-col flex-shrink-0 h-full shadow-sm lg:relative fixed left-0 top-0 z-[60] lg:z-auto`}>
+      {/* Logout Confirmation Modal */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center">
+          {/* Overlay */}
+          <div 
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={cancelLogout}
+          />
+          
+          {/* Modal */}
+          <div className="relative bg-white rounded-2xl shadow-2xl p-6 sm:p-8 mx-4 max-w-md w-full animate-scale-in">
+            <div className="text-center">
+              {/* Icon */}
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-8 h-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
+                </svg>
+              </div>
+              
+              {/* Title */}
+              <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
+                Confirm Logout
+              </h3>
+              
+              {/* Message */}
+              <p className="text-sm sm:text-base text-gray-600 mb-6">
+                Are you sure you want to logout? You will need to login again to access your dashboard.
+              </p>
+              
+              {/* Buttons */}
+              <div className="flex flex-col-reverse sm:flex-row gap-3 sm:gap-4">
+                <button
+                  onClick={cancelLogout}
+                  className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-semibold hover:bg-gray-200 transition-all duration-200 text-sm sm:text-base"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmLogout}
+                  className="flex-1 px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-all duration-200 text-sm sm:text-base shadow-lg hover:shadow-xl"
+                >
+                  Yes, Logout
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Logo */}
       <div className="h-16 sm:h-20 flex items-center justify-center pl-4 sm:pl-7 pr-3 sm:pr-4 border-b border-gray-100 flex-shrink-0">
         <Image 
