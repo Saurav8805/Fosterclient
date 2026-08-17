@@ -2,7 +2,7 @@
   "name": "Foster Kids Management System",
   "short_name": "Foster Kids",
   "description": "Complete school management system for Foster Kids",
-  "start_url": "/",
+  "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#5e3a9e",

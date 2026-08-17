@@ -73,35 +73,60 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   console.log('Notification clicked:', event);
 
+  // Close the notification
   event.notification.close();
 
+  // If user clicked "Dismiss", do nothing
   if (event.action === 'close') {
     return;
   }
 
-  // Open the app or focus existing tab
+  // Get the URL to open (either from data or default)
+  const urlToOpen = event.notification.data?.url || '/dashboard/notifications';
+  
+  // Handle "View" button click or notification body click
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true })
-      .then((clientList) => {
-        const url = event.notification.data.url || '/dashboard/notifications';
+    clients.matchAll({ 
+      type: 'window', 
+      includeUncontrolled: true 
+    })
+    .then((clientList) => {
+      console.log('Found clients:', clientList.length);
+      
+      // Try to find an existing Foster Kids tab/window
+      for (const client of clientList) {
+        const clientUrl = new URL(client.url);
         
-        // Check if there's already a window open
-        for (let i = 0; i < clientList.length; i++) {
-          const client = clientList[i];
-          if (client.url.includes('/dashboard') && 'focus' in client) {
-            return client.focus().then(client => {
-              if ('navigate' in client) {
-                return client.navigate(url);
-              }
+        // If we find any Foster Kids window (even login page)
+        if (clientUrl.origin === self.location.origin) {
+          console.log('Found existing Foster Kids window, focusing and navigating...');
+          // Focus the existing window and navigate to the notification page
+          return client.focus().then(() => {
+            if ('navigate' in client) {
+              return client.navigate(urlToOpen);
+            }
+            // If navigate is not supported, send message to client
+            return client.postMessage({
+              type: 'NAVIGATE',
+              url: urlToOpen
             });
-          }
+          });
         }
-        
-        // If no window is open, open a new one
-        if (clients.openWindow) {
-          return clients.openWindow(url);
-        }
-      })
+      }
+      
+      // No Foster Kids window found - open a new one
+      console.log('No existing window found, opening new window...');
+      if (clients.openWindow) {
+        return clients.openWindow(urlToOpen);
+      }
+    })
+    .catch((error) => {
+      console.error('Error handling notification click:', error);
+      // Fallback: try to open window anyway
+      if (clients.openWindow) {
+        return clients.openWindow('/dashboard/notifications');
+      }
+    })
   );
 });
 
