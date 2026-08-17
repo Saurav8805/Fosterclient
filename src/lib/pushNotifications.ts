@@ -76,14 +76,15 @@ export async function subscribeToPushNotifications(
 
     if (!subscription) {
       // Subscribe to push notifications
-      const convertedVapidKey = vapidPublicKey 
-        ? urlBase64ToUint8Array(vapidPublicKey)
-        : null;
+      const options: PushSubscriptionOptionsInit = {
+        userVisibleOnly: true
+      };
 
-      subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: convertedVapidKey || undefined
-      });
+      if (vapidPublicKey) {
+        options.applicationServerKey = urlBase64ToUint8Array(vapidPublicKey) as BufferSource;
+      }
+
+      subscription = await registration.pushManager.subscribe(options);
 
       console.log('✅ Push subscription created:', subscription);
     } else {
@@ -189,7 +190,6 @@ export async function showLocalNotification(
       body,
       icon: '/LOGO-2.png',
       badge: '/LOGO-2.png',
-      vibrate: [200, 100, 200],
       tag: 'notification-' + Date.now(),
       data: { url: url || '/dashboard/notifications' },
       requireInteraction: false
