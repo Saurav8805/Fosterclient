@@ -213,3 +213,19 @@
 .btn-purple-glowing {
   @apply shadow-[0_4px_14px_0_rgba(94,58,158,0.3)] hover:shadow-[0_6px_20px_rgba(94,58,158,0.5)] transition-all duration-300;
 }
+
+
+@keyframes slide-in {
+  0% {
+    transform: translateX(400px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in {
+  animation: slide-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
