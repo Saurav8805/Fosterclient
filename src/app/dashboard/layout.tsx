@@ -6,6 +6,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { SidebarProvider, useSidebar } from '@/components/ui/sidebar'
 import HeaderContent from '@/components/HeaderContent'
+import PushNotificationManager from '@/components/PushNotificationManager'
 
 // Monochrome SVG icons
 const Icons = {
@@ -230,6 +231,9 @@ const DashboardSidebar = memo(function DashboardSidebar() {
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
+      {/* Push Notification Manager - handles service worker registration and subscriptions */}
+      <PushNotificationManager />
+      
       <div className="flex h-screen w-screen overflow-hidden">
         <DashboardSidebar />
         {/* Mobile overlay */}

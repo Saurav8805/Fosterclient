@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { Bell } from 'lucide-react';
 import { notificationsApi } from '@/lib/api';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 
 export default function HeaderContent() {
   const [userName, setUserName] = useState('');
@@ -12,6 +14,10 @@ export default function HeaderContent() {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [showDropdown, setShowDropdown] = useState(false);
+
+  // Initialize push notifications
+  const { isSupported, isEnabled, requestPermission } = usePushNotifications(userId);
+  const [showPushPrompt, setShowPushPrompt] = useState(false);
 
   useEffect(() => {
     const name = localStorage.getItem('userName');
@@ -46,6 +52,15 @@ export default function HeaderContent() {
       fetchNotifications(uid);
     }
 
+    // Check if we should show push notification prompt
+    if (uid && isSupported && !isEnabled) {
+      const hasSeenPrompt = localStorage.getItem('pushNotificationPromptSeen');
+      if (!hasSeenPrompt) {
+        // Show prompt after 3 seconds
+        setTimeout(() => setShowPushPrompt(true), 3000);
+      }
+    }
+
     // Close dropdown when clicking outside
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
@@ -56,7 +71,7 @@ export default function HeaderContent() {
     
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [isSupported, isEnabled]);
 
   const fetchNotifications = async (uid: string) => {
     try {
@@ -89,8 +104,53 @@ export default function HeaderContent() {
     }
   };
 
+  const handleEnablePushNotifications = async () => {
+    const success = await requestPermission();
+    if (success) {
+      setShowPushPrompt(false);
+      localStorage.setItem('pushNotificationPromptSeen', 'true');
+      alert('✅ Push notifications enabled! You\'ll now receive notifications even when the app is closed.');
+    } else {
+      alert('❌ Unable to enable push notifications. Please check your browser settings.');
+    }
+  };
+
+  const handleDismissPushPrompt = () => {
+    setShowPushPrompt(false);
+    localStorage.setItem('pushNotificationPromptSeen', 'true');
+  };
+
   return (
     <header className="flex-shrink-0 relative z-50">
+      {/* Push Notification Prompt */}
+      {showPushPrompt && (
+        <div className="fixed top-24 right-4 w-80 bg-gradient-to-br from-purple-50 to-blue-50 rounded-2xl shadow-2xl border-2 border-purple-200 z-[99999] p-4 animate-slide-in">
+          <div className="flex items-start gap-3">
+            <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
+              <Bell className="w-5 h-5 text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-sm font-bold text-gray-900 mb-1">Enable Push Notifications</h3>
+              <p className="text-xs text-gray-600 mb-3">Get notified instantly about important updates, even when the app is closed!</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleEnablePushNotifications}
+                  className="flex-1 px-3 py-1.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white text-xs font-semibold rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all"
+                >
+                  Enable
+                </button>
+                <button
+                  onClick={handleDismissPushPrompt}
+                  className="px-3 py-1.5 bg-gray-200 text-gray-700 text-xs font-medium rounded-lg hover:bg-gray-300 transition-all"
+                >
+                  Later
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="px-4 h-20 flex justify-between items-center">
         <div className="min-w-0 flex-1 mr-4">
           <h1 className="text-sm font-semibold text-gray-800 truncate">Welcome, {userName}</h1>
@@ -106,9 +166,7 @@ export default function HeaderContent() {
               className="relative p-2.5 text-gray-700 hover:bg-purple-50 rounded-full transition-all duration-200 flex items-center justify-center border-2 border-transparent hover:border-purple-200 active:scale-95"
               aria-label="Notifications"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
-              </svg>
+              <Bell className="w-6 h-6" strokeWidth={2} />
               {unreadCount > 0 && (
                 <span className="absolute -top-1 -right-1 px-2 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] text-center leading-tight shadow-lg border-2 border-white animate-pulse">
                   {unreadCount}
