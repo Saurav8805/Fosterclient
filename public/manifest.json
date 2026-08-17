@@ -1,0 +1,29 @@
+{
+  "name": "Foster Kids Management System",
+  "short_name": "Foster Kids",
+  "description": "Complete school management system for Foster Kids",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#5e3a9e",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/LOGO-2.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/LOGO-2.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["education", "productivity"],
+  "lang": "en-US",
+  "dir": "ltr",
+  "scope": "/",
+  "gcm_sender_id": "103953800507"
+}

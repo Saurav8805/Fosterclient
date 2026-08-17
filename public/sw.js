@@ -20,7 +20,7 @@ self.addEventListener('push', (event) => {
       data = event.data.json();
     } catch (e) {
       data = {
-        title: 'New Notification',
+        title: 'Foster Kids Notification',
         body: event.data.text(),
         icon: '/LOGO-2.png',
         badge: '/LOGO-2.png'
@@ -31,14 +31,19 @@ self.addEventListener('push', (event) => {
   const title = data.title || 'Foster Kids';
   const options = {
     body: data.body || data.message || 'You have a new notification',
-    icon: data.icon || '/LOGO-2.png',
-    badge: data.badge || '/LOGO-2.png',
-    vibrate: [200, 100, 200],
-    tag: data.tag || 'notification-' + Date.now(),
+    icon: '/LOGO-2.png', // 192x192 or larger for best display
+    badge: '/LOGO-2.png', // 96x96 monochrome for notification tray
+    image: data.image || null, // Optional large image
+    tag: data.tag || 'foster-kids-notification', // Group similar notifications
+    renotify: false, // Don't vibrate/sound for updates to same tag
+    requireInteraction: false, // Auto-dismiss after timeout
+    silent: false, // Play default notification sound
+    timestamp: data.timestamp || Date.now(),
     data: {
       dateOfArrival: Date.now(),
       primaryKey: 1,
-      url: data.url || '/dashboard/notifications'
+      url: data.url || '/dashboard/notifications',
+      notificationId: data.notificationId || null
     },
     actions: [
       {
@@ -52,8 +57,11 @@ self.addEventListener('push', (event) => {
         icon: '/LOGO-2.png'
       }
     ],
-    requireInteraction: false,
-    silent: false
+    // Additional metadata for better delivery
+    dir: 'ltr', // Text direction
+    lang: 'en-US', // Language
+    // Visual appearance
+    vibrate: [200, 100, 200], // Vibration pattern on mobile
   };
 
   event.waitUntil(
@@ -99,5 +107,8 @@ self.addEventListener('notificationclick', (event) => {
 
 // Handle notification close
 self.addEventListener('notificationclose', (event) => {
-  console.log('Notification closed:', event);
+  console.log('Notification closed:', event.notification.tag);
+  
+  // Optional: Track notification dismissal
+  // You can send analytics here if needed
 });
