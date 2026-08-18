@@ -173,7 +173,8 @@ export default function HeaderContent() {
       }
     } catch (error) {
       console.error('❌ Translation error:', error);
-      alert(`Translation error: ${error.message}. Please check if the backend is running on port 5000.`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      alert(`Translation error: ${errorMessage}. Please check if the backend is running on port 5000.`);
     } finally {
       setTranslatingIds(prev => {
         const newSet = new Set(prev);
