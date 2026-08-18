@@ -5,13 +5,6 @@ import Link from 'next/link';
 import { Bell } from 'lucide-react';
 import { notificationsApi } from '@/lib/api';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
-import { 
-  getLanguagePreference, 
-  toggleLanguage, 
-  translateNotifications,
-  LANGUAGES,
-  type Language 
-} from '@/lib/translation';
 
 export default function HeaderContent() {
   const [userName, setUserName] = useState('');
@@ -19,11 +12,10 @@ export default function HeaderContent() {
   const [userRole, setUserRole] = useState<number | null>(null);
   const [userId, setUserId] = useState<string>('');
   const [notifications, setNotifications] = useState<any[]>([]);
-  const [originalNotifications, setOriginalNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [showDropdown, setShowDropdown] = useState(false);
-  const [currentLanguage, setCurrentLanguage] = useState<Language>('en');
-  const [translating, setTranslating] = useState(false);
+  const [translatingIds, setTranslatingIds] = useState<Set<string>>(new Set());
+  const [translatedNotifications, setTranslatedNotifications] = useState<Map<string, any>>(new Map());
 
   // Initialize push notifications
   const { isSupported, isEnabled, requestPermission } = usePushNotifications(userId);
@@ -40,9 +32,6 @@ export default function HeaderContent() {
     const role = localStorage.getItem('userRole');
     const uid = localStorage.getItem('userId') || '';
     setUserId(uid);
-    
-    // Load language preference
-    setCurrentLanguage(getLanguagePreference());
     
     if (name) {
       setUserName(name);
@@ -108,16 +97,7 @@ export default function HeaderContent() {
       if (res.success && res.data) {
         // Show only the 7 most recent notifications in the dropdown
         const recentNotifications = (res.data.notifications || []).slice(0, 7);
-        setOriginalNotifications(recentNotifications);
-        
-        // Apply language preference
-        if (currentLanguage === 'mr') {
-          const translated = await translateNotifications(recentNotifications, 'mr');
-          setNotifications(translated);
-        } else {
-          setNotifications(recentNotifications);
-        }
-        
+        setNotifications(recentNotifications);
         setUnreadCount(res.data.unreadCount || 0);
       }
     } catch (err) {
@@ -127,21 +107,54 @@ export default function HeaderContent() {
     }
   };
 
-  const handleLanguageToggle = async () => {
-    const newLang = toggleLanguage();
-    setCurrentLanguage(newLang);
-    setTranslating(true);
-    
-    if (newLang === 'mr') {
-      // Translate to Marathi
-      const translated = await translateNotifications(originalNotifications, 'mr');
-      setNotifications(translated);
-    } else {
-      // Show English (original)
-      setNotifications(originalNotifications);
+  const handleTranslateNotification = async (notificationId: string) => {
+    // Check if already translated
+    if (translatedNotifications.has(notificationId)) {
+      // Toggle back to original
+      setTranslatedNotifications(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(notificationId);
+        return newMap;
+      });
+      return;
     }
-    
-    setTranslating(false);
+
+    // Start translation
+    setTranslatingIds(prev => new Set(prev).add(notificationId));
+
+    try {
+      const notification = notifications.find(n => n.id === notificationId);
+      if (!notification) return;
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/translate/notifications`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          notifications: [notification],
+          targetLang: 'mr'
+        })
+      });
+
+      const data = await response.json();
+      
+      if (data.success && data.data?.notifications?.[0]) {
+        setTranslatedNotifications(prev => {
+          const newMap = new Map(prev);
+          newMap.set(notificationId, data.data.notifications[0]);
+          return newMap;
+        });
+      }
+    } catch (error) {
+      console.error('Translation error:', error);
+    } finally {
+      setTranslatingIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(notificationId);
+        return newSet;
+      });
+    }
   };
 
   const handleMarkRead = async () => {
@@ -233,60 +246,80 @@ export default function HeaderContent() {
               <div className="fixed top-20 right-4 w-72 sm:w-80 bg-white rounded-2xl shadow-lg border border-gray-200 z-[99999] overflow-hidden">
                 <div className="p-3 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-blue-50 flex justify-between items-center">
                   <h4 className="text-sm font-semibold text-gray-900">Recent Notifications</h4>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-medium text-gray-600 bg-white px-2 py-0.5 rounded-full">Last 7</span>
-                    {/* Language Toggle Button */}
-                    <button
-                      onClick={handleLanguageToggle}
-                      disabled={translating}
-                      className="flex items-center gap-1 px-2 py-1 bg-white hover:bg-gray-50 rounded-lg border border-gray-200 transition-all text-[10px] font-medium disabled:opacity-50"
-                      title={`Switch to ${currentLanguage === 'en' ? 'मराठी' : 'English'}`}
-                    >
-                      <span>{LANGUAGES[currentLanguage].flag}</span>
-                      <span className="hidden sm:inline">{LANGUAGES[currentLanguage].label}</span>
-                      {translating && (
-                        <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                      )}
-                    </button>
-                  </div>
+                  <span className="text-[10px] font-medium text-gray-600 bg-white px-2 py-0.5 rounded-full">Last 7</span>
                 </div>
                 <div className="max-h-80 overflow-y-auto divide-y divide-gray-100">
                   {notifications.length > 0 ? (
-                    notifications.map((n) => (
-                      <div 
-                        key={n.id} 
-                        className={`p-3 transition-colors hover:bg-gray-50 cursor-pointer ${
-                          n.read 
-                            ? 'bg-white' 
-                            : 'bg-blue-50 border-l-2 border-blue-400'
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-xs text-gray-900 mb-0.5 leading-snug">{n.title}</p>
-                            <p className="text-[11px] text-gray-600 leading-relaxed line-clamp-2">{n.message}</p>
-                            <p className="text-[10px] text-gray-400 mt-1.5 font-medium">
-                              {new Date(n.created_at).toLocaleString('en-IN', { 
-                                day: '2-digit', 
-                                month: 'short', 
-                                year: 'numeric',
-                                hour: '2-digit', 
-                                minute: '2-digit',
-                                hour12: true 
-                              })}
-                            </p>
-                          </div>
-                          {!n.read && (
-                            <div className="flex-shrink-0">
-                              <span className="inline-block w-1.5 h-1.5 bg-blue-500 rounded-full"></span>
+                    notifications.map((n) => {
+                      const displayNotification = translatedNotifications.get(n.id) || n;
+                      const isTranslated = translatedNotifications.has(n.id);
+                      const isTranslating = translatingIds.has(n.id);
+                      
+                      return (
+                        <div 
+                          key={n.id} 
+                          className={`p-3 transition-colors hover:bg-gray-50 ${
+                            n.read 
+                              ? 'bg-white' 
+                              : 'bg-blue-50 border-l-2 border-blue-400'
+                          }`}
+                        >
+                          <div className="flex items-start gap-2">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-xs text-gray-900 mb-0.5 leading-snug">{displayNotification.title}</p>
+                              <p className="text-[11px] text-gray-600 leading-relaxed line-clamp-2">{displayNotification.message}</p>
+                              <p className="text-[10px] text-gray-400 mt-1.5 font-medium">
+                                {new Date(n.created_at).toLocaleString('en-IN', { 
+                                  day: '2-digit', 
+                                  month: 'short', 
+                                  year: 'numeric',
+                                  hour: '2-digit', 
+                                  minute: '2-digit',
+                                  hour12: true 
+                                })}
+                              </p>
                             </div>
-                          )}
+                            <div className="flex flex-col items-center gap-2">
+                              {/* Translate Button */}
+                              <button
+                                onClick={() => handleTranslateNotification(n.id)}
+                                disabled={isTranslating}
+                                className={`flex-shrink-0 p-1.5 rounded-lg transition-all ${
+                                  isTranslated
+                                    ? 'bg-blue-100 text-blue-600 hover:bg-blue-200'
+                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                } disabled:opacity-50 disabled:cursor-not-allowed`}
+                                title={isTranslated ? 'Show original (English)' : 'Translate to Marathi'}
+                              >
+                                {isTranslating ? (
+                                  <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                  </svg>
+                                ) : (
+                                  <svg 
+                                    xmlns="http://www.w3.org/2000/svg" 
+                                    className="h-4 w-4" 
+                                    viewBox="0 0 24 24" 
+                                    fill="none" 
+                                    stroke="currentColor" 
+                                    strokeWidth="2" 
+                                    strokeLinecap="round" 
+                                    strokeLinejoin="round"
+                                  >
+                                    <path d="M12.87 15.07l-2.54-2.51.03-.03c1.74-1.94 2.98-4.17 3.71-6.53H17V4h-7V2H8v2H1v1.99h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11.76-2.04zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12zm-2.62 7l1.62-4.33L19.12 17h-3.24z"/>
+                                  </svg>
+                                )}
+                              </button>
+                              {/* Unread indicator */}
+                              {!n.read && (
+                                <span className="inline-block w-1.5 h-1.5 bg-blue-500 rounded-full"></span>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    ))
+                      );
+                    })
                   ) : (
                     <div className="p-6 text-center">
                       <svg xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 mx-auto text-gray-300 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
