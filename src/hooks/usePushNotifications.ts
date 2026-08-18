@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { 
   initializePushNotifications, 
   isPushNotificationSupported,
@@ -11,24 +11,26 @@ export function usePushNotifications(userId: string | null) {
   const [isSupported, setIsSupported] = useState(false);
   const [isEnabled, setIsEnabled] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Ref to prevent duplicate initialization
+  const initialized = useRef(false);
 
   useEffect(() => {
     setIsSupported(isPushNotificationSupported());
   }, []);
 
   useEffect(() => {
-    if (userId && isSupported) {
-      // Auto-initialize push notifications
-      const initNotifications = async () => {
-        setIsLoading(true);
-        const enabled = await initializePushNotifications(userId);
-        setIsEnabled(enabled);
-        setIsLoading(false);
-      };
-
+    if (userId && isSupported && !initialized.current) {
       // Check if user has already granted permission
       if (typeof window !== 'undefined' && 'Notification' in window) {
         if (Notification.permission === 'granted') {
+          initialized.current = true;
+          const initNotifications = async () => {
+            setIsLoading(true);
+            const enabled = await initializePushNotifications(userId);
+            setIsEnabled(enabled);
+            setIsLoading(false);
+          };
           initNotifications();
         } else if (Notification.permission === 'default') {
           // Don't auto-request, wait for user action
@@ -39,8 +41,9 @@ export function usePushNotifications(userId: string | null) {
   }, [userId, isSupported]);
 
   const requestPermission = async () => {
-    if (!userId || !isSupported) return false;
+    if (!userId || !isSupported || initialized.current) return false;
 
+    initialized.current = true;
     setIsLoading(true);
     const enabled = await initializePushNotifications(userId);
     setIsEnabled(enabled);

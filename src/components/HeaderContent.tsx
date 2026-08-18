@@ -1,10 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { Bell } from 'lucide-react';
 import { notificationsApi } from '@/lib/api';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
+import { 
+  getLanguagePreference, 
+  toggleLanguage, 
+  translateNotifications,
+  LANGUAGES,
+  type Language 
+} from '@/lib/translation';
 
 export default function HeaderContent() {
   const [userName, setUserName] = useState('');
@@ -12,12 +19,19 @@ export default function HeaderContent() {
   const [userRole, setUserRole] = useState<number | null>(null);
   const [userId, setUserId] = useState<string>('');
   const [notifications, setNotifications] = useState<any[]>([]);
+  const [originalNotifications, setOriginalNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [currentLanguage, setCurrentLanguage] = useState<Language>('en');
+  const [translating, setTranslating] = useState(false);
 
   // Initialize push notifications
   const { isSupported, isEnabled, requestPermission } = usePushNotifications(userId);
   const [showPushPrompt, setShowPushPrompt] = useState(false);
+
+  // Refs to prevent duplicate calls
+  const notificationsFetched = useRef(false);
+  const serviceWorkerListenerAdded = useRef(false);
 
   useEffect(() => {
     const name = localStorage.getItem('userName');
@@ -26,6 +40,9 @@ export default function HeaderContent() {
     const role = localStorage.getItem('userRole');
     const uid = localStorage.getItem('userId') || '';
     setUserId(uid);
+    
+    // Load language preference
+    setCurrentLanguage(getLanguagePreference());
     
     if (name) {
       setUserName(name);
@@ -48,7 +65,9 @@ export default function HeaderContent() {
       }
     }
 
-    if (uid) {
+    // Fetch notifications only once
+    if (uid && !notificationsFetched.current) {
+      notificationsFetched.current = true;
       fetchNotifications(uid);
     }
 
@@ -61,8 +80,9 @@ export default function HeaderContent() {
       }
     }
 
-    // Listen for navigation messages from service worker
-    if ('serviceWorker' in navigator) {
+    // Listen for navigation messages from service worker (only once)
+    if ('serviceWorker' in navigator && !serviceWorkerListenerAdded.current) {
+      serviceWorkerListenerAdded.current = true;
       navigator.serviceWorker.addEventListener('message', (event) => {
         if (event.data && event.data.type === 'NAVIGATE') {
           window.location.href = event.data.url;
@@ -84,19 +104,44 @@ export default function HeaderContent() {
 
   const fetchNotifications = async (uid: string) => {
     try {
-      console.log('🔔 Fetching notifications for user:', uid);
       const res = await notificationsApi.list(uid) as { success: boolean; data?: { notifications: any[]; unreadCount: number } };
-      console.log('🔔 Notifications response:', res);
       if (res.success && res.data) {
         // Show only the 7 most recent notifications in the dropdown
         const recentNotifications = (res.data.notifications || []).slice(0, 7);
-        console.log('🔔 Setting notifications:', recentNotifications);
-        setNotifications(recentNotifications);
+        setOriginalNotifications(recentNotifications);
+        
+        // Apply language preference
+        if (currentLanguage === 'mr') {
+          const translated = await translateNotifications(recentNotifications, 'mr');
+          setNotifications(translated);
+        } else {
+          setNotifications(recentNotifications);
+        }
+        
         setUnreadCount(res.data.unreadCount || 0);
       }
     } catch (err) {
-      console.log('❌ Error loading notifications:', err);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('❌ Error loading notifications:', err);
+      }
     }
+  };
+
+  const handleLanguageToggle = async () => {
+    const newLang = toggleLanguage();
+    setCurrentLanguage(newLang);
+    setTranslating(true);
+    
+    if (newLang === 'mr') {
+      // Translate to Marathi
+      const translated = await translateNotifications(originalNotifications, 'mr');
+      setNotifications(translated);
+    } else {
+      // Show English (original)
+      setNotifications(originalNotifications);
+    }
+    
+    setTranslating(false);
   };
 
   const handleMarkRead = async () => {
@@ -188,7 +233,25 @@ export default function HeaderContent() {
               <div className="fixed top-20 right-4 w-72 sm:w-80 bg-white rounded-2xl shadow-lg border border-gray-200 z-[99999] overflow-hidden">
                 <div className="p-3 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-blue-50 flex justify-between items-center">
                   <h4 className="text-sm font-semibold text-gray-900">Recent Notifications</h4>
-                  <span className="text-[10px] font-medium text-gray-600 bg-white px-2 py-0.5 rounded-full">Last 7</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-medium text-gray-600 bg-white px-2 py-0.5 rounded-full">Last 7</span>
+                    {/* Language Toggle Button */}
+                    <button
+                      onClick={handleLanguageToggle}
+                      disabled={translating}
+                      className="flex items-center gap-1 px-2 py-1 bg-white hover:bg-gray-50 rounded-lg border border-gray-200 transition-all text-[10px] font-medium disabled:opacity-50"
+                      title={`Switch to ${currentLanguage === 'en' ? 'मराठी' : 'English'}`}
+                    >
+                      <span>{LANGUAGES[currentLanguage].flag}</span>
+                      <span className="hidden sm:inline">{LANGUAGES[currentLanguage].label}</span>
+                      {translating && (
+                        <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                      )}
+                    </button>
+                  </div>
                 </div>
                 <div className="max-h-80 overflow-y-auto divide-y divide-gray-100">
                   {notifications.length > 0 ? (

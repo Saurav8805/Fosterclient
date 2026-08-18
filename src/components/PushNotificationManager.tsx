@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 
 /**
@@ -12,14 +12,21 @@ import { usePushNotifications } from '@/hooks/usePushNotifications';
 export default function PushNotificationManager() {
   const userId = typeof window !== 'undefined' ? localStorage.getItem('userId') : null;
   const { isSupported, isEnabled } = usePushNotifications(userId);
+  
+  // Ref to prevent duplicate logs
+  const loggedStatus = useRef(false);
 
   useEffect(() => {
-    if (userId && isSupported && isEnabled) {
-      console.log('✅ Push notifications are enabled for user:', userId);
-    } else if (userId && isSupported && !isEnabled) {
-      console.log('⚠️ Push notifications available but not enabled. User needs to grant permission.');
-    } else if (userId && !isSupported) {
-      console.log('⚠️ Push notifications not supported on this device/browser');
+    if (!loggedStatus.current && userId) {
+      loggedStatus.current = true;
+      
+      if (isSupported && isEnabled) {
+        console.log('✅ Push notifications are enabled for user:', userId);
+      } else if (isSupported && !isEnabled) {
+        console.log('⚠️ Push notifications available but not enabled. User needs to grant permission.');
+      } else if (!isSupported) {
+        console.log('⚠️ Push notifications not supported on this device/browser');
+      }
     }
   }, [userId, isSupported, isEnabled]);
 
