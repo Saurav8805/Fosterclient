@@ -28,22 +28,24 @@ self.addEventListener('push', (event) => {
     }
   }
 
-  const title = data.title || 'Foster Kids';
+  const title = data.title || 'Foster Kids Management';
   const options = {
     body: data.body || data.message || 'You have a new notification',
     icon: '/LOGO-2.png', // 192x192 or larger for best display
     badge: '/LOGO-2.png', // 96x96 monochrome for notification tray
     image: data.image || null, // Optional large image
-    tag: data.tag || 'foster-kids-notification', // Group similar notifications
-    renotify: false, // Don't vibrate/sound for updates to same tag
-    requireInteraction: false, // Auto-dismiss after timeout
+    tag: data.tag || 'foster-notification-' + Date.now(), // Unique tags prevent spam detection
+    renotify: true, // Alert user for each notification
+    requireInteraction: true, // Keep visible until user interacts - reduces spam perception
     silent: false, // Play default notification sound
     timestamp: data.timestamp || Date.now(),
     data: {
       dateOfArrival: Date.now(),
       primaryKey: 1,
       url: data.url || '/dashboard/notifications',
-      notificationId: data.notificationId || null
+      notificationId: data.notificationId || null,
+      source: data.data?.source || 'Foster Kids School Management System',
+      type: data.data?.type || 'announcement'
     },
     actions: [
       {
