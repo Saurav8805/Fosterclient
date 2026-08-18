@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { notificationsApi } from '@/lib/api';
-import { Bell, Plus, X, Send, Users } from 'lucide-react';
+import { Bell, Plus, X, Send, Users, Languages } from 'lucide-react';
 
 interface NotificationItem {
   id: string;
@@ -22,6 +22,8 @@ export default function NotificationsPage() {
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [translatingIds, setTranslatingIds] = useState<Set<string>>(new Set());
+  const [translatedNotifications, setTranslatedNotifications] = useState<Map<string, any>>(new Map());
   
   // Create notification modal state (Admin only)
   const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
@@ -73,6 +75,72 @@ export default function NotificationsPage() {
       setUnreadCount(0);
     } catch (err) {
       console.error('Mark read error:', err);
+    }
+  };
+
+  const handleTranslateNotification = async (notificationId: string) => {
+    // Check if already translated
+    if (translatedNotifications.has(notificationId)) {
+      // Toggle back to original
+      setTranslatedNotifications(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(notificationId);
+        console.log('🔄 Reverted to English');
+        return newMap;
+      });
+      return;
+    }
+
+    // Find notification
+    const notification = notifications.find(n => n.id === notificationId);
+    if (!notification) return;
+
+    setTranslatingIds(prev => new Set(prev).add(notificationId));
+
+    try {
+      console.log('🌐 Translating notification:', notification.title);
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/translate/notifications`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          notifications: [{
+            id: notification.id,
+            title: notification.title,
+            message: notification.message || ''
+          }],
+          targetLang: 'mr'
+        })
+      });
+
+      const data = await response.json();
+      console.log('📥 Translation response:', data);
+      
+      if (data.success && data.data?.notifications?.[0]) {
+        const translatedNotif = data.data.notifications[0];
+        console.log('✅ Translated successfully:', translatedNotif.title);
+        
+        setTranslatedNotifications(prev => {
+          const newMap = new Map(prev);
+          newMap.set(notificationId, translatedNotif);
+          console.log('💾 Updated translation map, size:', newMap.size);
+          return newMap;
+        });
+      } else {
+        console.error('❌ Translation failed:', data);
+        alert('Translation service unavailable');
+      }
+    } catch (error) {
+      console.error('❌ Translation error:', error);
+      alert('Failed to translate notification');
+    } finally {
+      setTranslatingIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(notificationId);
+        return newSet;
+      });
     }
   };
 
@@ -203,50 +271,74 @@ export default function NotificationsPage() {
             </div>
           ) : (
             <div className="space-y-3">
-              {notifications.map(item => (
-                <div
-                  key={item.id}
-                  className={`p-3 sm:p-4 rounded-xl border transition flex items-start justify-between gap-3 sm:gap-4 ${
-                    !item.read
-                      ? 'bg-purple-50/60 border-purple-200 shadow-xs'
-                      : 'bg-gray-50/50 border-gray-100'
-                  }`}
-                >
-                  <div className="flex items-start gap-2 sm:gap-3 flex-1 min-w-0">
-                    <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${
-                      !item.read ? 'bg-[#5e3a9e] text-white' : 'bg-gray-200 text-gray-600'
-                    }`}>
-                      <Bell className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              {notifications.map(item => {
+                const displayNotification = translatedNotifications.get(item.id) || item;
+                const isTranslated = translatedNotifications.has(item.id);
+                const isTranslating = translatingIds.has(item.id);
+                
+                return (
+                  <div
+                    key={item.id}
+                    className={`p-3 sm:p-4 rounded-xl border transition flex items-start justify-between gap-3 sm:gap-4 ${
+                      !item.read
+                        ? 'bg-purple-50/60 border-purple-200 shadow-xs'
+                        : 'bg-gray-50/50 border-gray-100'
+                    }`}
+                  >
+                    <div className="flex items-start gap-2 sm:gap-3 flex-1 min-w-0">
+                      <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                        !item.read ? 'bg-[#5e3a9e] text-white' : 'bg-gray-200 text-gray-600'
+                      }`}>
+                        <Bell className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className={`text-xs sm:text-sm font-bold ${!item.read ? 'text-gray-900' : 'text-gray-700'}`}>
+                          {displayNotification.title}
+                        </h4>
+                        {displayNotification.message && (
+                          <p className="text-xs text-gray-600 mt-1 break-words">{displayNotification.message}</p>
+                        )}
+                        <span className="text-[10px] sm:text-[11px] text-gray-400 mt-2 block">
+                          {formatDate(item.created_at)}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className={`text-xs sm:text-sm font-bold truncate ${!item.read ? 'text-gray-900' : 'text-gray-700'}`}>
-                        {item.title}
-                      </h4>
-                      {item.message && (
-                        <p className="text-xs text-gray-600 mt-1 break-words">{item.message}</p>
-                      )}
-                      <span className="text-[10px] sm:text-[11px] text-gray-400 mt-2 block">
-                        {formatDate(item.created_at)}
-                      </span>
-                    </div>
-                  </div>
 
-                  <div className="flex items-start gap-2 flex-shrink-0">
-                    {!item.read && (
-                      <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-rose-500 mt-2"></span>
-                    )}
-                    {isAdmin && (
+                    <div className="flex items-start gap-2 flex-shrink-0">
+                      {/* Translation Button */}
                       <button
-                        onClick={() => handleDeleteNotification(item.id)}
-                        className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition touch-manipulation"
-                        title="Delete notification"
+                        onClick={() => handleTranslateNotification(item.id)}
+                        disabled={isTranslating}
+                        className={`p-1.5 rounded-lg transition-all ${
+                          isTranslated
+                            ? 'bg-blue-100 text-blue-600 hover:bg-blue-200'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        } disabled:opacity-50 disabled:cursor-not-allowed`}
+                        title={isTranslated ? 'Show original (English)' : 'Translate to Marathi'}
                       >
-                        <X className="w-4 h-4" />
+                        {isTranslating ? (
+                          <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                        ) : (
+                          <Languages className="w-4 h-4" />
+                        )}
                       </button>
-                    )}
+                      
+                      {!item.read && (
+                        <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-rose-500 mt-2"></span>
+                      )}
+                      {isAdmin && (
+                        <button
+                          onClick={() => handleDeleteNotification(item.id)}
+                          className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition touch-manipulation"
+                          title="Delete notification"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
