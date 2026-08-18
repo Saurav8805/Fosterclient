@@ -23,7 +23,7 @@ export default function NotificationsPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [translatingIds, setTranslatingIds] = useState<Set<string>>(new Set());
-  const [translatedNotifications, setTranslatedNotifications] = useState<Map<string, any>>(new Map());
+  const [translatedNotifications, setTranslatedNotifications] = useState<Record<string, any>>({});
   
   // Create notification modal state (Admin only)
   const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
@@ -79,26 +79,36 @@ export default function NotificationsPage() {
   };
 
   const handleTranslateNotification = async (notificationId: string) => {
+    console.log('🎯 Translation button clicked for:', notificationId);
+    
     // Check if already translated
-    if (translatedNotifications.has(notificationId)) {
-      // Toggle back to original
+    if (translatedNotifications[notificationId]) {
+      // Toggle back to original - remove from object
       setTranslatedNotifications(prev => {
-        const newMap = new Map(prev);
-        newMap.delete(notificationId);
-        console.log('🔄 Reverted to English');
-        return newMap;
+        const newState = { ...prev };
+        delete newState[notificationId];
+        return newState;
       });
+      console.log('🔄 Reverted to English');
       return;
     }
 
     // Find notification
     const notification = notifications.find(n => n.id === notificationId);
-    if (!notification) return;
+    if (!notification) {
+      console.error('❌ Notification not found:', notificationId);
+      return;
+    }
 
-    setTranslatingIds(prev => new Set(prev).add(notificationId));
+    setTranslatingIds(prev => {
+      const newSet = new Set(prev);
+      newSet.add(notificationId);
+      return newSet;
+    });
 
     try {
       console.log('🌐 Translating notification:', notification.title);
+      console.log('📍 API URL:', `${process.env.NEXT_PUBLIC_API_URL}/translate/notifications`);
 
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/translate/notifications`, {
         method: 'POST',
@@ -115,19 +125,29 @@ export default function NotificationsPage() {
         })
       });
 
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
       const data = await response.json();
-      console.log('📥 Translation response:', data);
+      console.log('📥 Full API response:', data);
       
       if (data.success && data.data?.notifications?.[0]) {
         const translatedNotif = data.data.notifications[0];
-        console.log('✅ Translated successfully:', translatedNotif.title);
+        console.log('✅ Translated title:', translatedNotif.title);
+        console.log('✅ Translated message:', translatedNotif.message);
         
-        setTranslatedNotifications(prev => {
-          const newMap = new Map(prev);
-          newMap.set(notificationId, translatedNotif);
-          console.log('💾 Updated translation map, size:', newMap.size);
-          return newMap;
-        });
+        // Update state with plain object (React will detect this change)
+        setTranslatedNotifications(prev => ({
+          ...prev,
+          [notificationId]: {
+            ...notification,
+            title: translatedNotif.title,
+            message: translatedNotif.message
+          }
+        }));
+        
+        console.log('✅ Translation state updated successfully');
       } else {
         console.error('❌ Translation failed:', data);
         alert('Translation service unavailable');
@@ -272,8 +292,8 @@ export default function NotificationsPage() {
           ) : (
             <div className="space-y-3">
               {notifications.map(item => {
-                const displayNotification = translatedNotifications.get(item.id) || item;
-                const isTranslated = translatedNotifications.has(item.id);
+                const displayNotification = translatedNotifications[item.id] || item;
+                const isTranslated = !!translatedNotifications[item.id];
                 const isTranslating = translatingIds.has(item.id);
                 
                 return (
