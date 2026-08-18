@@ -23,7 +23,7 @@ export default function NotificationsPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [translatingIds, setTranslatingIds] = useState<Set<string>>(new Set());
-  const [translatedNotifications, setTranslatedNotifications] = useState<Map<string, any>>(new Map());
+  const [translatedNotifications, setTranslatedNotifications] = useState<Record<string, any>>({});
   
   // Create notification modal state (Admin only)
   const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
@@ -82,12 +82,14 @@ export default function NotificationsPage() {
     console.log('🎯 Translation button clicked for:', notificationId);
     
     // Check if already translated
-    if (translatedNotifications.has(notificationId)) {
-      // Toggle back to original
-      const newMap = new Map(translatedNotifications);
-      newMap.delete(notificationId);
-      setTranslatedNotifications(newMap);
-      console.log('🔄 Reverted to English, map size:', newMap.size);
+    if (translatedNotifications[notificationId]) {
+      // Toggle back to original - remove from object
+      setTranslatedNotifications(prev => {
+        const newState = { ...prev };
+        delete newState[notificationId];
+        return newState;
+      });
+      console.log('🔄 Reverted to English');
       return;
     }
 
@@ -135,20 +137,17 @@ export default function NotificationsPage() {
         console.log('✅ Translated title:', translatedNotif.title);
         console.log('✅ Translated message:', translatedNotif.message);
         
-        // Force a new Map to trigger re-render
-        setTranslatedNotifications(prev => {
-          const newMap = new Map(prev);
-          newMap.set(notificationId, {
+        // Update state with plain object (React will detect this change)
+        setTranslatedNotifications(prev => ({
+          ...prev,
+          [notificationId]: {
             ...notification,
             title: translatedNotif.title,
             message: translatedNotif.message
-          });
-          console.log('💾 Updated map, size:', newMap.size);
-          console.log('💾 Has this notification?', newMap.has(notificationId));
-          return newMap;
-        });
+          }
+        }));
         
-        console.log('✅ State updated successfully');
+        console.log('✅ Translation state updated successfully');
       } else {
         console.error('❌ Translation failed:', data);
         alert('Translation service unavailable');
@@ -293,8 +292,8 @@ export default function NotificationsPage() {
           ) : (
             <div className="space-y-3">
               {notifications.map(item => {
-                const displayNotification = translatedNotifications.get(item.id) || item;
-                const isTranslated = translatedNotifications.has(item.id);
+                const displayNotification = translatedNotifications[item.id] || item;
+                const isTranslated = !!translatedNotifications[item.id];
                 const isTranslating = translatingIds.has(item.id);
                 
                 return (
