@@ -116,6 +116,7 @@ export default function HeaderContent() {
         newMap.delete(notificationId);
         return newMap;
       });
+      console.log('🔄 Showing original notification');
       return;
     }
 
@@ -124,7 +125,13 @@ export default function HeaderContent() {
 
     try {
       const notification = notifications.find(n => n.id === notificationId);
-      if (!notification) return;
+      if (!notification) {
+        console.error('❌ Notification not found:', notificationId);
+        return;
+      }
+
+      console.log('🌐 Translating notification:', notification.title);
+      console.log('📍 API URL:', `${process.env.NEXT_PUBLIC_API_URL}/translate/notifications`);
 
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/translate/notifications`, {
         method: 'POST',
@@ -137,17 +144,37 @@ export default function HeaderContent() {
         })
       });
 
+      console.log('📡 Response status:', response.status);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Translation API error:', response.status, errorText);
+        alert(`Translation failed: ${response.status}. Please check if the backend is running.`);
+        return;
+      }
+
       const data = await response.json();
+      console.log('✅ Translation response:', data);
       
       if (data.success && data.data?.notifications?.[0]) {
+        const translatedNotif = data.data.notifications[0];
+        console.log('📝 Translated title:', translatedNotif.title);
+        console.log('📝 Translated message:', translatedNotif.message);
+        
         setTranslatedNotifications(prev => {
           const newMap = new Map(prev);
-          newMap.set(notificationId, data.data.notifications[0]);
+          newMap.set(notificationId, translatedNotif);
           return newMap;
         });
+        console.log('✅ Translation cached successfully');
+      } else {
+        console.error('❌ Invalid translation response format:', data);
+        alert('Translation failed: Invalid response from server');
       }
     } catch (error) {
-      console.error('Translation error:', error);
+      console.error('❌ Translation error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      alert(`Translation error: ${errorMessage}. Please check if the backend is running on port 5000.`);
     } finally {
       setTranslatingIds(prev => {
         const newSet = new Set(prev);
