@@ -160,10 +160,14 @@ export default function HeaderContent() {
         const translatedNotif = data.data.notifications[0];
         console.log('📝 Translated title:', translatedNotif.title);
         console.log('📝 Translated message:', translatedNotif.message);
+        console.log('🔑 Notification ID:', notificationId);
+        console.log('📦 Full translated notification object:', translatedNotif);
         
         setTranslatedNotifications(prev => {
           const newMap = new Map(prev);
           newMap.set(notificationId, translatedNotif);
+          console.log('💾 Map size after setting:', newMap.size);
+          console.log('🗺️ Map has notification?', newMap.has(notificationId));
           return newMap;
         });
         console.log('✅ Translation cached successfully');
