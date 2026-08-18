@@ -79,26 +79,34 @@ export default function NotificationsPage() {
   };
 
   const handleTranslateNotification = async (notificationId: string) => {
+    console.log('🎯 Translation button clicked for:', notificationId);
+    
     // Check if already translated
     if (translatedNotifications.has(notificationId)) {
       // Toggle back to original
-      setTranslatedNotifications(prev => {
-        const newMap = new Map(prev);
-        newMap.delete(notificationId);
-        console.log('🔄 Reverted to English');
-        return newMap;
-      });
+      const newMap = new Map(translatedNotifications);
+      newMap.delete(notificationId);
+      setTranslatedNotifications(newMap);
+      console.log('🔄 Reverted to English, map size:', newMap.size);
       return;
     }
 
     // Find notification
     const notification = notifications.find(n => n.id === notificationId);
-    if (!notification) return;
+    if (!notification) {
+      console.error('❌ Notification not found:', notificationId);
+      return;
+    }
 
-    setTranslatingIds(prev => new Set(prev).add(notificationId));
+    setTranslatingIds(prev => {
+      const newSet = new Set(prev);
+      newSet.add(notificationId);
+      return newSet;
+    });
 
     try {
       console.log('🌐 Translating notification:', notification.title);
+      console.log('📍 API URL:', `${process.env.NEXT_PUBLIC_API_URL}/translate/notifications`);
 
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/translate/notifications`, {
         method: 'POST',
@@ -115,19 +123,32 @@ export default function NotificationsPage() {
         })
       });
 
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
       const data = await response.json();
-      console.log('📥 Translation response:', data);
+      console.log('📥 Full API response:', data);
       
       if (data.success && data.data?.notifications?.[0]) {
         const translatedNotif = data.data.notifications[0];
-        console.log('✅ Translated successfully:', translatedNotif.title);
+        console.log('✅ Translated title:', translatedNotif.title);
+        console.log('✅ Translated message:', translatedNotif.message);
         
+        // Force a new Map to trigger re-render
         setTranslatedNotifications(prev => {
           const newMap = new Map(prev);
-          newMap.set(notificationId, translatedNotif);
-          console.log('💾 Updated translation map, size:', newMap.size);
+          newMap.set(notificationId, {
+            ...notification,
+            title: translatedNotif.title,
+            message: translatedNotif.message
+          });
+          console.log('💾 Updated map, size:', newMap.size);
+          console.log('💾 Has this notification?', newMap.has(notificationId));
           return newMap;
         });
+        
+        console.log('✅ State updated successfully');
       } else {
         console.error('❌ Translation failed:', data);
         alert('Translation service unavailable');
