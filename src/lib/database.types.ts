@@ -178,30 +178,56 @@ export interface Database {
           id: string
           student_id: string
           total_fees: number
-          paid_amount: number
-          pending_amount: number
           due_date: string | null
-          status: string
           created_at: string
         }
         Insert: {
           id?: string
           student_id: string
           total_fees: number
-          paid_amount?: number
-          pending_amount?: number
           due_date?: string | null
-          status?: string
           created_at?: string
         }
         Update: {
           id?: string
           student_id?: string
           total_fees?: number
-          paid_amount?: number
-          pending_amount?: number
           due_date?: string | null
-          status?: string
+          created_at?: string
+        }
+      }
+      fee_payments: {
+        Row: {
+          id: string
+          student_id: string
+          amount: number
+          payment_date: string
+          payment_mode: string
+          month: string | null
+          year: string | null
+          remarks: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          student_id: string
+          amount: number
+          payment_date?: string
+          payment_mode?: string
+          month?: string | null
+          year?: string | null
+          remarks?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          student_id?: string
+          amount?: number
+          payment_date?: string
+          payment_mode?: string
+          month?: string | null
+          year?: string | null
+          remarks?: string | null
           created_at?: string
         }
       }

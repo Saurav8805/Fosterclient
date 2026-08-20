@@ -48,8 +48,51 @@ export default function SyllabusPage() {
     const storedRole = localStorage.getItem('userRole');
     if (storedRole) setRole(Number(storedRole));
 
-    fetchClassesAndSyllabus();
+    // If student role, get their class and fetch only their syllabus
+    if (storedRole && Number(storedRole) === 19) {
+      fetchStudentSyllabus();
+    } else {
+      fetchClassesAndSyllabus();
+    }
   }, []);
+
+  const fetchStudentSyllabus = async () => {
+    setLoading(true);
+    try {
+      // Get student's class from localStorage (stored as userClass during login)
+      const studentClass = localStorage.getItem('userClass');
+      
+      if (!studentClass) {
+        console.error('Student class not found in localStorage');
+        setLoading(false);
+        return;
+      }
+
+      console.log('📚 Loading syllabus for student class:', studentClass);
+
+      // Fetch syllabus for this class only
+      const syllabusRes = await syllabusApi.list(studentClass);
+      const syllabusData: SyllabusRecord[] = (syllabusRes.success && Array.isArray(syllabusRes.data))
+        ? syllabusRes.data : [];
+
+      console.log('✅ Syllabus data fetched:', syllabusData);
+
+      // Directly open syllabus detail for student's class
+      setSelectedClass(studentClass);
+      setViewMode('syllabusDetail');
+      
+      if (syllabusData.length > 0) {
+        const combined = syllabusData.map(r => r.topics || r.description || '').filter(Boolean).join('\n\n');
+        setRawContent(combined);
+      } else {
+        setRawContent('');
+      }
+    } catch (err) {
+      console.error('Failed to load student syllabus:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchClassesAndSyllabus = async () => {
     setLoading(true);
@@ -189,51 +232,20 @@ export default function SyllabusPage() {
     window.print();
   };
 
-  // Helper parser for professional formatting of raw pasted syllabus content
+  // Helper to display raw syllabus content (no formatting)
   const renderFormattedSyllabus = (content: string) => {
     if (!content.trim()) {
       return (
         <div className="text-center py-16 px-4 text-gray-400">
           <p className="text-lg font-medium text-gray-600 mb-1">No syllabus added yet for Class {selectedClass}</p>
-          <p className="text-xs">Click "Add / Update Syllabus" to paste class syllabus content.</p>
+          <p className="text-xs">Click "Add / Update Syllabus" to add syllabus content.</p>
         </div>
       );
     }
 
-    const lines = content.split('\n');
     return (
-      <div className="space-y-6 text-gray-800 leading-relaxed font-sans">
-        {lines.map((line, idx) => {
-          const trimmed = line.trim();
-          if (!trimmed) return <div key={idx} className="h-2"></div>;
-
-          // Header line (e.g. Subject, Unit, Chapter)
-          if (trimmed.startsWith('#') || trimmed.toUpperCase().includes('SUBJECT:') || trimmed.toUpperCase().includes('UNIT ') || trimmed.toUpperCase().includes('CHAPTER ') || /^[A-Z\s]{4,}:?$/.test(trimmed)) {
-            const cleanText = trimmed.replace(/^#+\s*/, '');
-            return (
-              <div key={idx} className="pt-4 border-b pb-2 border-purple-200">
-                <h3 className="text-xl font-bold text-[#5e3a9e] tracking-tight">{cleanText}</h3>
-              </div>
-            );
-          }
-
-          // Bullet points or numbered lists
-          if (trimmed.startsWith('-') || trimmed.startsWith('*') || /^\d+[\.\)]/.test(trimmed)) {
-            const cleanText = trimmed.replace(/^[-*\d\.\)]\s*/, '');
-            return (
-              <div key={idx} className="flex items-start gap-3 pl-4">
-                <span className="w-2 h-2 rounded-full bg-[#5e3a9e] mt-2 flex-shrink-0"></span>
-                <p className="text-sm font-medium text-gray-700">{cleanText}</p>
-              </div>
-            );
-          }
-
-          return (
-            <p key={idx} className="text-sm text-gray-700 pl-2">
-              {line}
-            </p>
-          );
-        })}
+      <div className="whitespace-pre-wrap text-gray-800 leading-relaxed font-sans text-sm">
+        {content}
       </div>
     );
   };
@@ -246,13 +258,16 @@ export default function SyllabusPage() {
           <div>
             {/* Breadcrumb Navigation */}
             <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 mb-1">
-              <span
-                onClick={() => setViewMode('classList')}
-                className="hover:text-[#5e3a9e] cursor-pointer transition"
-              >
-                📚 Syllabus Management
-              </span>
-              {viewMode === 'syllabusDetail' && selectedClass && (
+              {role !== 19 && (
+                <span
+                  onClick={() => setViewMode('classList')}
+                  className="hover:text-[#5e3a9e] cursor-pointer transition"
+                >
+                  📚 Syllabus Management
+                </span>
+              )}
+              {role === 19 && <span>📚 My Syllabus</span>}
+              {viewMode === 'syllabusDetail' && selectedClass && role !== 19 && (
                 <>
                   <span>/</span>
                   <span className="text-[#5e3a9e]">Class {selectedClass}</span>
@@ -260,7 +275,7 @@ export default function SyllabusPage() {
               )}
             </div>
             <h1 className="text-3xl font-bold text-gray-900">
-              {viewMode === 'classList' ? 'Class Syllabus Overview' : `Syllabus - Class ${selectedClass}`}
+              {role === 19 ? `My Syllabus - Class ${selectedClass}` : viewMode === 'classList' ? 'Class Syllabus Overview' : `Syllabus - Class ${selectedClass}`}
             </h1>
           </div>
 
@@ -268,12 +283,14 @@ export default function SyllabusPage() {
           <div className="flex items-center gap-3">
             {viewMode === 'syllabusDetail' && (
               <>
-                <button
-                  onClick={() => setViewMode('classList')}
-                  className="px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-100 rounded-xl text-xs font-semibold transition"
-                >
-                  ← Back to Classes
-                </button>
+                {role !== 19 && (
+                  <button
+                    onClick={() => setViewMode('classList')}
+                    className="px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-100 rounded-xl text-xs font-semibold transition"
+                  >
+                    ← Back to Classes
+                  </button>
+                )}
 
                 {role !== 19 && !isEditing && (
                   <button
@@ -383,12 +400,12 @@ export default function SyllabusPage() {
             </div>
 
             {isEditing ? (
-              /* Paste-to-Format Text Editor */
+              /* Simple Text Editor */
               <div className="space-y-4 print:hidden">
                 <div className="p-4 bg-purple-50 rounded-xl border border-purple-100">
-                  <h3 className="text-sm font-bold text-[#5e3a9e] mb-1">📋 Paste & Auto-Format Syllabus</h3>
+                  <h3 className="text-sm font-bold text-[#5e3a9e] mb-1">📋 Add/Update Syllabus</h3>
                   <p className="text-xs text-gray-600">
-                    Paste your raw text syllabus below. Use headers like "MATHEMATICS", "ENGLISH", or bullet points (- point). The system automatically formats it into a professional layout!
+                    Enter the syllabus content below. The text will be displayed exactly as you type it.
                   </p>
                 </div>
 
@@ -396,15 +413,8 @@ export default function SyllabusPage() {
                   rows={14}
                   value={rawContent}
                   onChange={(e) => setRawContent(e.target.value)}
-                  placeholder="Paste syllabus text here...
-Example:
-MATHEMATICS:
-- Chapter 1: Numbers & Counting
-- Chapter 2: Addition & Subtraction
-
-ENGLISH:
-- Unit 1: Alphabets & Phonics"
-                  className="w-full p-4 border border-gray-300 rounded-xl text-sm font-mono focus:ring-2 focus:ring-[#5e3a9e] outline-none"
+                  placeholder="Enter syllabus content here..."
+                  className="w-full p-4 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#5e3a9e] outline-none"
                 ></textarea>
 
                 <div className="flex items-center justify-end gap-3 pt-4 border-t">
@@ -419,12 +429,12 @@ ENGLISH:
                     disabled={saving}
                     className="px-6 py-2 bg-[#5e3a9e] text-white hover:bg-[#4a2d7e] rounded-xl text-sm font-semibold shadow-sm transition disabled:opacity-50"
                   >
-                    {saving ? 'Saving Syllabus...' : 'Save & Auto-Format'}
+                    {saving ? 'Saving...' : 'Save Syllabus'}
                   </button>
                 </div>
               </div>
             ) : (
-              /* Rendered Formatted Professional Syllabus */
+              /* Display Syllabus Content */
               <div>
                 {renderFormattedSyllabus(activeSyllabusText || rawContent)}
               </div>

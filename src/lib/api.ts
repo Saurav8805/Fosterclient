@@ -180,6 +180,16 @@ export const feesApi = {
   summary: () => apiClient.get('/fees/summary'),
   update: (data: any) => apiClient.put('/fees/update', data),
   collect: (data: any) => apiClient.post('/fees/collect', data),
+  getHistory: (studentId: string, params?: { month?: string; year?: string }) => {
+    let url = `/fees/history/${studentId}`;
+    if (params) {
+      const q = new URLSearchParams();
+      if (params.month) q.append('month', params.month);
+      if (params.year) q.append('year', params.year);
+      if (q.toString()) url += `?${q}`;
+    }
+    return apiClient.get(url);
+  },
 };
 
 // ─── Progress ─────────────────────────────────────────────────────────────────

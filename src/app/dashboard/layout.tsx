@@ -156,6 +156,7 @@ const DashboardSidebar = memo(function DashboardSidebar() {
     { name: 'Student List', icon: Icons.studentList, path: '/dashboard/student-list' },
     { name: 'Student Attendance', icon: Icons.attendance, path: '/dashboard/student-attendance' },
     { name: 'Calendar & Events', icon: Icons.calendar, path: '/dashboard/calendar' },
+    { name: 'Salary Status', icon: Icons.salary, path: '/dashboard/salary' },
     { name: 'Syllabus', icon: Icons.syllabus, path: '/dashboard/syllabus' },
     { name: 'Homework', icon: Icons.homework, path: '/dashboard/homework' },
     { name: 'Student Behaviour', icon: Icons.behaviour, path: '/dashboard/behaviour' },
