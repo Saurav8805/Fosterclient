@@ -10,11 +10,13 @@ interface BehaviourRecord {
   studentName?: string;
   studentClass?: string;
   studentSection?: string;
-  type: 'Positive' | 'Negative' | 'Neutral';
-  incident: string;
-  action_taken: string;
+  rating: number; // 1-5 star rating
+  comment?: string;
   date: string;
-  reported_by: string;
+  teacher_id: string;
+  teacher?: {
+    full_name: string;
+  };
   reporterName?: string;
   created_at?: string;
 }
@@ -42,6 +44,7 @@ export default function BehaviourManagementPage() {
 
   // States for Student View
   const [studentRecords, setStudentRecords] = useState<BehaviourRecord[]>([]);
+  const [averageRating, setAverageRating] = useState<number>(0);
 
   // States for Teacher/Principal View
   const [students, setStudents] = useState<Student[]>([]);
@@ -49,16 +52,15 @@ export default function BehaviourManagementPage() {
   const [filteredRecords, setFilteredRecords] = useState<BehaviourRecord[]>([]);
   
   // Filters
-  const [typeFilter, setTypeFilter] = useState<string>('All');
+  const [ratingFilter, setRatingFilter] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [formData, setFormData] = useState({
-    type: 'Positive',
-    incident: '',
-    action_taken: '',
+    rating: 5,
+    comment: '',
     date: new Date().toISOString().split('T')[0],
   });
   
@@ -106,19 +108,11 @@ export default function BehaviourManagementPage() {
 
   useEffect(() => {
     if (userRole === 19 && userId) {
-      // For students, we need to get the student record ID
       const storedStudentId = localStorage.getItem('studentId');
       const studentRecordId = storedStudentId || userId;
       
       console.log('👨‍🎓 Fetching student behaviour for ID:', studentRecordId);
       fetchStudentRecords(studentRecordId);
-      
-      // Auto-refresh every 15 seconds for students
-      const interval = setInterval(() => {
-        fetchStudentRecords(studentRecordId);
-      }, 15000);
-      
-      return () => clearInterval(interval);
     } else if ((userRole === 7 || userRole === 6) && userId) {
       if (userRole === 7 && teacherAssignedClass) {
         fetchStudents();
@@ -130,33 +124,28 @@ export default function BehaviourManagementPage() {
     }
   }, [userRole, userId, teacherAssignedClass, teacherAssignedSection]);
 
-  // Auto-refresh for principal to see real-time updates
-  useEffect(() => {
-    if (userRole === 6 && userId) {
-      console.log('👔 Setting up principal auto-refresh');
-      const interval = setInterval(() => {
-        console.log('🔄 Principal auto-refresh triggered');
-        fetchAllRecords();
-      }, 5000); // Refresh every 5 seconds for principal
-      
-      return () => clearInterval(interval);
-    }
-  }, [userRole, userId]);
-
   // Filter records when filters change
   useEffect(() => {
     filterRecords();
-  }, [allRecords, typeFilter, searchQuery]);
+  }, [allRecords, ratingFilter, searchQuery]);
 
   const fetchStudentRecords = async (studentId: string) => {
     try {
       setLoading(true);
       const res = await behaviourApi.getMyBehaviour(studentId);
       console.log('📊 Student behaviour records fetched:', res);
-      setStudentRecords(res?.data || []);
+      
+      if (res?.data) {
+        setStudentRecords(res.data.records || []);
+        setAverageRating(res.data.averageRating || 0);
+      } else {
+        setStudentRecords([]);
+        setAverageRating(0);
+      }
     } catch (error) {
       console.error('Error fetching student records:', error);
       setStudentRecords([]);
+      setAverageRating(0);
     } finally {
       setLoading(false);
     }
@@ -239,9 +228,10 @@ export default function BehaviourManagementPage() {
   const filterRecords = () => {
     let filtered = [...allRecords];
     
-    // Filter by type
-    if (typeFilter !== 'All') {
-      filtered = filtered.filter(r => r.type === typeFilter);
+    // Filter by rating
+    if (ratingFilter !== 'All') {
+      const rating = parseInt(ratingFilter);
+      filtered = filtered.filter(r => r.rating === rating);
     }
     
     // Filter by search query
@@ -249,8 +239,7 @@ export default function BehaviourManagementPage() {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(r => 
         r.studentName?.toLowerCase().includes(query) ||
-        r.incident?.toLowerCase().includes(query) ||
-        r.action_taken?.toLowerCase().includes(query)
+        r.comment?.toLowerCase().includes(query)
       );
     }
     
@@ -267,9 +256,8 @@ export default function BehaviourManagementPage() {
     try {
       const response = await behaviourApi.add({
         studentId: selectedStudent.id,
-        type: formData.type as 'Positive' | 'Negative' | 'Neutral',
-        incident: formData.incident,
-        actionTaken: formData.action_taken,
+        rating: formData.rating,
+        incident: formData.comment,
         date: formData.date,
         reportedBy: userId,
       });
@@ -279,9 +267,8 @@ export default function BehaviourManagementPage() {
       setMessage({ type: 'success', text: 'Behaviour record added successfully!' });
       setIsModalOpen(false);
       setFormData({
-        type: 'Positive',
-        incident: '',
-        action_taken: '',
+        rating: 5,
+        comment: '',
         date: new Date().toISOString().split('T')[0],
       });
       setSelectedStudent(null);
@@ -324,11 +311,84 @@ export default function BehaviourManagementPage() {
     setIsModalOpen(false);
     setSelectedStudent(null);
     setFormData({
-      type: 'Positive',
-      incident: '',
-      action_taken: '',
+      rating: 5,
+      comment: '',
       date: new Date().toISOString().split('T')[0],
     });
+  };
+
+  // Star rendering component with half-star support
+  const renderStars = (rating: number, size: 'sm' | 'md' | 'lg' = 'md') => {
+    const stars = [];
+    const fullStars = Math.floor(rating);
+    const hasHalfStar = rating % 1 >= 0.5;
+    const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+    
+    const sizeClass = {
+      sm: 'w-4 h-4',
+      md: 'w-5 h-5',
+      lg: 'w-6 h-6'
+    }[size];
+
+    // Full stars
+    for (let i = 0; i < fullStars; i++) {
+      stars.push(
+        <svg key={`full-${i}`} className={`${sizeClass} text-yellow-400 fill-current`} viewBox="0 0 24 24">
+          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+        </svg>
+      );
+    }
+
+    // Half star
+    if (hasHalfStar) {
+      stars.push(
+        <svg key="half" className={`${sizeClass} text-yellow-400`} viewBox="0 0 24 24">
+          <defs>
+            <linearGradient id="half-fill">
+              <stop offset="50%" stopColor="currentColor" />
+              <stop offset="50%" stopColor="transparent" />
+            </linearGradient>
+          </defs>
+          <path fill="url(#half-fill)" d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+          <path fill="none" stroke="currentColor" strokeWidth="1" d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+        </svg>
+      );
+    }
+
+    // Empty stars
+    for (let i = 0; i < emptyStars; i++) {
+      stars.push(
+        <svg key={`empty-${i}`} className={`${sizeClass} text-gray-300`} fill="none" stroke="currentColor" strokeWidth="1" viewBox="0 0 24 24">
+          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+        </svg>
+      );
+    }
+
+    return <div className="flex items-center gap-0.5">{stars}</div>;
+  };
+
+  const getRatingLabel = (rating: number) => {
+    if (rating >= 5) return 'Excellent';
+    if (rating >= 4) return 'Very Good';
+    if (rating >= 3) return 'Good';
+    if (rating >= 2) return 'Fair';
+    return 'Poor';
+  };
+
+  const getRatingColor = (rating: number) => {
+    if (rating >= 5) return 'text-green-600';
+    if (rating >= 4) return 'text-blue-600';
+    if (rating >= 3) return 'text-yellow-600';
+    if (rating >= 2) return 'text-orange-600';
+    return 'text-red-600';
+  };
+
+  const getRatingDescription = (rating: number) => {
+    if (rating === 5) return 'Outstanding behaviour; highly respectful, responsible, disciplined, and cooperative.';
+    if (rating === 4) return 'Consistently positive and respectful behaviour with minor issues.';
+    if (rating === 3) return 'Meets normal behavioural expectations.';
+    if (rating === 2) return 'Below expectations; occasional significant behaviour issues.';
+    return 'Frequently inappropriate or disrespectful behaviour.';
   };
 
   if (loading) {
@@ -353,88 +413,67 @@ export default function BehaviourManagementPage() {
     );
   }
 
-  const getTypeColor = (type: string) => {
-    switch (type) {
-      case 'Positive': return 'bg-green-100 text-green-800 border-green-300';
-      case 'Negative': return 'bg-red-100 text-red-800 border-red-300';
-      case 'Neutral': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
-      default: return 'bg-gray-100 text-gray-800 border-gray-300';
-    }
-  };
-
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case 'Positive': 
-        return (
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        );
-      case 'Negative':
-        return (
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        );
-      case 'Neutral':
-        return (
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        );
-      default:
-        return null;
-    }
-  };
-
   // Render Student View (Role 19)
   if (userRole === 19) {
-    const totalPositive = studentRecords.filter(r => r.type === 'Positive').length;
-    const totalNegative = studentRecords.filter(r => r.type === 'Negative').length;
-    const totalNeutral = studentRecords.filter(r => r.type === 'Neutral').length;
+    // Count ratings by star level
+    const ratingCounts = {
+      5: studentRecords.filter(r => r.rating === 5).length,
+      4: studentRecords.filter(r => r.rating === 4).length,
+      3: studentRecords.filter(r => r.rating === 3).length,
+      2: studentRecords.filter(r => r.rating === 2).length,
+      1: studentRecords.filter(r => r.rating === 1).length,
+    };
 
     return (
       <div className="p-6 bg-white min-h-screen">
-        <div className="flex items-center justify-between mb-6">
+        <div className="mb-6">
           <h1 className="text-2xl font-bold text-[#5e3a9e]">My Behaviour Records</h1>
-          <button
-            onClick={() => {
-              const storedStudentId = localStorage.getItem('studentId');
-              const studentRecordId = storedStudentId || userId;
-              if (studentRecordId) fetchStudentRecords(studentRecordId);
-            }}
-            className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            Refresh
-          </button>
         </div>
         
-        {/* Summary Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
-          <div className="bg-white border shadow-sm rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-2">
-              {getTypeIcon('Positive')}
-              <h3 className="text-gray-500 text-sm font-medium">Positive</h3>
-            </div>
-            <p className="text-2xl font-bold text-green-600">{totalPositive}</p>
+        {/* Overall Rating Card */}
+        <div className="bg-gradient-to-br from-purple-50 to-blue-50 border-2 border-purple-200 shadow-lg rounded-xl p-3 mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+            <h2 className="text-sm font-semibold text-gray-700">Overall Behaviour Rating</h2>
+            <p className="text-xs text-gray-500">Based on {studentRecords.length} record{studentRecords.length !== 1 ? 's' : ''}</p>
           </div>
-          <div className="bg-white border shadow-sm rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-2">
-              {getTypeIcon('Negative')}
-              <h3 className="text-gray-500 text-sm font-medium">Negative</h3>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <div className="flex items-center gap-1">
+              {renderStars(averageRating, 'sm')}
             </div>
-            <p className="text-2xl font-bold text-red-600">{totalNegative}</p>
-          </div>
-          <div className="bg-white border shadow-sm rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-2">
-              {getTypeIcon('Neutral')}
-              <h3 className="text-gray-500 text-sm font-medium">Neutral</h3>
+            <div className="flex items-center gap-1">
+              <p className="text-lg font-bold text-gray-700">
+                {averageRating.toFixed(2)}
+              </p>
+              <p className="text-sm font-medium text-gray-400">/ 5.00</p>
             </div>
-            <p className="text-2xl font-bold text-yellow-600">{totalNeutral}</p>
+            <p className="text-xs text-gray-600 font-medium">{getRatingLabel(averageRating)}</p>
           </div>
+        </div>
+
+        {/* Rating Distribution */}
+        <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5 mb-4">
+          {[5, 4, 3, 2, 1].map((rating) => {
+            const shadowColors = {
+              5: 'shadow-[0_2px_8px_rgba(34,197,94,0.3)]', // green
+              4: 'shadow-[0_2px_8px_rgba(59,130,246,0.3)]', // blue
+              3: 'shadow-[0_2px_8px_rgba(234,179,8,0.3)]', // yellow
+              2: 'shadow-[0_2px_8px_rgba(249,115,22,0.3)]', // orange
+              1: 'shadow-[0_2px_8px_rgba(239,68,68,0.3)]', // red
+            };
+            return (
+              <div key={rating} className={`bg-white border rounded-lg p-2 ${shadowColors[rating as keyof typeof shadowColors]}`}>
+                <div className="flex items-center justify-between">
+                  <div className="pl-1">
+                    <div className="flex scale-75 origin-left mb-0.5">
+                      {renderStars(rating, 'sm')}
+                    </div>
+                    <p className="text-[10px] text-gray-500 leading-tight">{getRatingLabel(rating)}</p>
+                  </div>
+                  <p className="text-sm font-bold text-gray-800 pr-1">{ratingCounts[rating as keyof typeof ratingCounts]}</p>
+                </div>
+              </div>
+            );
+          })}
         </div>
 
         {/* Records List */}
@@ -445,31 +484,31 @@ export default function BehaviourManagementPage() {
             <p className="text-sm text-gray-400 mt-2">Your behaviour records will appear here</p>
           </div>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-3">
             {studentRecords.map((record, idx) => (
-              <div key={record.id || idx} className="border rounded-lg p-5 shadow-sm bg-white hover:shadow-md transition">
-                <div className="flex justify-between items-start mb-3">
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium border flex items-center gap-1 ${getTypeColor(record.type)}`}>
-                    {getTypeIcon(record.type)}
-                    {record.type}
-                  </span>
-                  <span className="text-sm text-gray-500">
+              <div key={record.id || idx} className="border rounded-lg p-4 shadow-sm bg-white hover:shadow-md transition">
+                <div className="flex justify-between items-start mb-2">
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      {renderStars(record.rating, 'sm')}
+                    </div>
+                    <p className={`text-xs font-semibold ${getRatingColor(record.rating)}`}>
+                      {getRatingLabel(record.rating)}
+                    </p>
+                  </div>
+                  <span className="text-xs text-gray-500">
                     {new Date(record.date).toLocaleDateString()}
                   </span>
                 </div>
-                <div className="mb-3">
-                  <h4 className="text-sm font-semibold text-gray-700 mb-1">Incident</h4>
-                  <p className="text-gray-600 text-sm">{record.incident}</p>
-                </div>
-                {record.action_taken && (
-                  <div className="mb-3">
-                    <h4 className="text-sm font-semibold text-gray-700 mb-1">Action Taken</h4>
-                    <p className="text-gray-600 text-sm">{record.action_taken}</p>
+                {record.comment && (
+                  <div className="mb-2">
+                    <h4 className="text-xs font-semibold text-gray-500 uppercase mb-1">Comments</h4>
+                    <p className="text-gray-600 text-xs leading-relaxed">{record.comment}</p>
                   </div>
                 )}
-                {record.reported_by && (
-                  <div className="mt-4 pt-4 border-t text-xs text-gray-400">
-                    Reported by: {record.reported_by}
+                {record.teacher_id && (
+                  <div className="mt-3 pt-3 border-t text-xs text-gray-400">
+                    Reported by: {record.teacher?.full_name || 'Teacher'}
                   </div>
                 )}
               </div>
@@ -483,9 +522,15 @@ export default function BehaviourManagementPage() {
   // Render Teacher (Role 7) or Principal (Role 6) View
   const isPrincipal = userRole === 6;
   const totalRecords = filteredRecords.length;
-  const totalPos = filteredRecords.filter(r => r.type === 'Positive').length;
-  const totalNeg = filteredRecords.filter(r => r.type === 'Negative').length;
-  const totalNeu = filteredRecords.filter(r => r.type === 'Neutral').length;
+  
+  // Calculate rating counts for filtered records
+  const ratingCounts = {
+    5: filteredRecords.filter(r => r.rating === 5).length,
+    4: filteredRecords.filter(r => r.rating === 4).length,
+    3: filteredRecords.filter(r => r.rating === 3).length,
+    2: filteredRecords.filter(r => r.rating === 2).length,
+    1: filteredRecords.filter(r => r.rating === 1).length,
+  };
 
   // Check if teacher has no assigned class
   if (userRole === 7 && !teacherAssignedClass) {
@@ -504,7 +549,7 @@ export default function BehaviourManagementPage() {
   return (
     <div className="p-6 bg-white min-h-screen">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="mb-6">
         <div>
           <h1 className="text-2xl font-bold text-[#5e3a9e]">
             {isPrincipal ? 'School Behaviour Management' : 'Class Behaviour Management'}
@@ -515,19 +560,6 @@ export default function BehaviourManagementPage() {
             </p>
           )}
         </div>
-        <button
-          onClick={async () => {
-            setLoading(true);
-            await fetchAllRecords();
-            setLoading(false);
-          }}
-          className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
-          Refresh
-        </button>
       </div>
 
       {/* Success/Error Messages */}
@@ -542,37 +574,42 @@ export default function BehaviourManagementPage() {
       )}
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <div className="bg-white border shadow-sm rounded-lg p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            <h3 className="text-gray-500 text-sm font-medium">Total Records</h3>
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-8">
+        <div className="bg-white border shadow-sm rounded-lg p-2">
+          <div className="flex items-center justify-between">
+            <div className="pl-1">
+              <svg className="w-4 h-4 text-gray-400 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <p className="text-[10px] text-gray-500 leading-tight">Total</p>
+            </div>
+            <p className="text-sm font-bold text-gray-800 pr-1">{totalRecords}</p>
           </div>
-          <p className="text-2xl font-bold text-gray-800">{totalRecords}</p>
         </div>
-        <div className="bg-white border shadow-sm rounded-lg p-4">
-          <div className="flex items-center gap-2 mb-2">
-            {getTypeIcon('Positive')}
-            <h3 className="text-gray-500 text-sm font-medium">Positive</h3>
-          </div>
-          <p className="text-2xl font-bold text-green-600">{totalPos}</p>
-        </div>
-        <div className="bg-white border shadow-sm rounded-lg p-4">
-          <div className="flex items-center gap-2 mb-2">
-            {getTypeIcon('Negative')}
-            <h3 className="text-gray-500 text-sm font-medium">Negative</h3>
-          </div>
-          <p className="text-2xl font-bold text-red-600">{totalNeg}</p>
-        </div>
-        <div className="bg-white border shadow-sm rounded-lg p-4">
-          <div className="flex items-center gap-2 mb-2">
-            {getTypeIcon('Neutral')}
-            <h3 className="text-gray-500 text-sm font-medium">Neutral</h3>
-          </div>
-          <p className="text-2xl font-bold text-yellow-600">{totalNeu}</p>
-        </div>
+        {[5, 4, 3, 2, 1].map((rating) => {
+          const shadowColors = {
+            5: 'shadow-[0_2px_8px_rgba(34,197,94,0.3)]', // green
+            4: 'shadow-[0_2px_8px_rgba(59,130,246,0.3)]', // blue
+            3: 'shadow-[0_2px_8px_rgba(234,179,8,0.3)]', // yellow
+            2: 'shadow-[0_2px_8px_rgba(249,115,22,0.3)]', // orange
+            1: 'shadow-[0_2px_8px_rgba(239,68,68,0.3)]', // red
+          };
+          return (
+            <div key={rating} className={`bg-white border rounded-lg p-2 ${shadowColors[rating as keyof typeof shadowColors]}`}>
+              <div className="flex items-center justify-between">
+                <div className="pl-1">
+                  <div className="flex scale-75 origin-left mb-0.5">
+                    {renderStars(rating, 'sm')}
+                  </div>
+                  <p className="text-[10px] text-gray-500 leading-tight">{getRatingLabel(rating)}</p>
+                </div>
+                <p className="text-sm font-bold text-gray-800 pr-1">
+                  {ratingCounts[rating as keyof typeof ratingCounts]}
+                </p>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {/* Students List Section */}
@@ -631,14 +668,16 @@ export default function BehaviourManagementPage() {
           {/* Filters */}
           <div className="flex gap-2">
             <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
+              value={ratingFilter}
+              onChange={(e) => setRatingFilter(e.target.value)}
               className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-[#5e3a9e] focus:ring-1 focus:ring-[#5e3a9e]"
             >
-              <option value="All">All Types</option>
-              <option value="Positive">Positive</option>
-              <option value="Negative">Negative</option>
-              <option value="Neutral">Neutral</option>
+              <option value="All">All Ratings</option>
+              <option value="5">⭐⭐⭐⭐⭐ Excellent</option>
+              <option value="4">⭐⭐⭐⭐ Very Good</option>
+              <option value="3">⭐⭐⭐ Good</option>
+              <option value="2">⭐⭐ Fair</option>
+              <option value="1">⭐ Poor</option>
             </select>
             
             <input
@@ -665,9 +704,8 @@ export default function BehaviourManagementPage() {
                   <th className="py-3 px-4 font-medium text-sm">Date</th>
                   <th className="py-3 px-4 font-medium text-sm">Student</th>
                   <th className="py-3 px-4 font-medium text-sm">Class</th>
-                  <th className="py-3 px-4 font-medium text-sm">Type</th>
-                  <th className="py-3 px-4 font-medium text-sm">Incident</th>
-                  <th className="py-3 px-4 font-medium text-sm">Action Taken</th>
+                  <th className="py-3 px-4 font-medium text-sm">Rating</th>
+                  <th className="py-3 px-4 font-medium text-sm">Comments</th>
                   <th className="py-3 px-4 font-medium text-sm text-right">Actions</th>
                 </tr>
               </thead>
@@ -686,19 +724,16 @@ export default function BehaviourManagementPage() {
                         {record.studentClass || student?.class} - {record.studentSection || student?.section}
                       </td>
                       <td className="py-3 px-4 text-sm">
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${getTypeColor(record.type)} flex items-center gap-1 w-fit`}>
-                          {getTypeIcon(record.type)}
-                          {record.type}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-sm text-gray-600 max-w-xs">
-                        <div className="truncate" title={record.incident}>
-                          {record.incident}
+                        <div className="flex flex-col gap-1">
+                          {renderStars(record.rating, 'sm')}
+                          <span className={`text-xs font-medium ${getRatingColor(record.rating)}`}>
+                            {getRatingLabel(record.rating)}
+                          </span>
                         </div>
                       </td>
                       <td className="py-3 px-4 text-sm text-gray-600 max-w-xs">
-                        <div className="truncate" title={record.action_taken || '-'}>
-                          {record.action_taken || '-'}
+                        <div className="truncate" title={record.comment}>
+                          {record.comment || '-'}
                         </div>
                       </td>
                       <td className="py-3 px-4 text-sm text-right">
@@ -721,7 +756,7 @@ export default function BehaviourManagementPage() {
       {/* Add Record Modal */}
       {isModalOpen && selectedStudent && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4 border-b pb-3">
               <h3 className="text-lg font-bold text-gray-800">
                 Add Behaviour Record
@@ -756,59 +791,64 @@ export default function BehaviourManagementPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Behaviour Type</label>
-                <select
-                  required
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#5e3a9e] focus:border-transparent"
-                  value={formData.type}
-                  onChange={(e) => setFormData({...formData, type: e.target.value})}
-                >
-                  <option value="Positive">✅ Positive</option>
-                  <option value="Negative">❌ Negative</option>
-                  <option value="Neutral">ℹ️ Neutral</option>
-                </select>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Behaviour Rating</label>
+                <div className="space-y-2">
+                  {[5, 4, 3, 2, 1].map((rating) => (
+                    <label
+                      key={rating}
+                      className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition ${
+                        formData.rating === rating
+                          ? 'border-[#5e3a9e] bg-purple-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="rating"
+                        value={rating}
+                        checked={formData.rating === rating}
+                        onChange={(e) => setFormData({...formData, rating: parseInt(e.target.value)})}
+                        className="mt-1"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          {renderStars(rating, 'sm')}
+                          <span className={`font-semibold text-sm ${getRatingColor(rating)}`}>
+                            {getRatingLabel(rating)}
+                          </span>
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Incident Description <span className="text-red-500">*</span>
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Comments / Observations</label>
                 <textarea
                   required
-                  rows={3}
+                  rows={4}
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#5e3a9e] focus:border-transparent"
-                  placeholder="Describe what happened..."
-                  value={formData.incident}
-                  onChange={(e) => setFormData({...formData, incident: e.target.value})}
+                  placeholder="Describe the behaviour observation or incident..."
+                  value={formData.comment}
+                  onChange={(e) => setFormData({...formData, comment: e.target.value})}
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Action Taken</label>
-                <textarea
-                  rows={2}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#5e3a9e] focus:border-transparent"
-                  placeholder="e.g. Discussed with parents, gave warning..."
-                  value={formData.action_taken}
-                  onChange={(e) => setFormData({...formData, action_taken: e.target.value})}
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
+              <div className="flex gap-3 pt-4">
                 <button
                   type="button"
                   onClick={closeModal}
-                  disabled={saving}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition disabled:opacity-50"
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-6 py-2 bg-[#5e3a9e] text-white rounded-lg text-sm font-medium hover:bg-opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 px-4 py-2 bg-[#5e3a9e] text-white rounded-lg text-sm font-medium hover:bg-opacity-90 transition disabled:opacity-50"
                 >
-                  {saving ? 'Saving...' : 'Save Record'}
+                  {saving ? 'Saving...' : 'Add Record'}
                 </button>
               </div>
             </form>
