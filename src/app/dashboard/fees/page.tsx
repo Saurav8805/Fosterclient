@@ -21,6 +21,7 @@ export default function FeesPage() {
   // Student view state
   const [myFees, setMyFees] = useState<any[]>([]);
   const [myPaymentHistory, setMyPaymentHistory] = useState<any[]>([]);
+  const [showStudentHistory, setShowStudentHistory] = useState(false);
 
   // Admin/Teacher view state
   const [feesList, setFeesList] = useState<any[]>([]);
