@@ -80,8 +80,11 @@ class ApiClient {
     return this.request<T>(endpoint, { method: 'PUT', body: JSON.stringify(data) });
   }
 
-  async delete<T = any>(endpoint: string): Promise<ApiResponse<T>> {
-    return this.request<T>(endpoint, { method: 'DELETE' });
+  async delete<T = any>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
+    return this.request<T>(endpoint, { 
+      method: 'DELETE', 
+      body: data ? JSON.stringify(data) : undefined 
+    });
   }
 }
 
@@ -290,7 +293,8 @@ export const syllabusApi = {
 export const configApi = {
   getClasses: () => apiClient.get('/config/classes'),
   getClassStats: () => apiClient.get('/config/class-stats'),
-  updateClass: (data: { oldClassName: string; newClassName?: string; teacherId?: string; section?: string }) => apiClient.put('/config/update-class', data),
+  updateClass: (data: { oldClassName: string; newClassName?: string; teacherId?: string; teacherId2?: string; section?: string }) => apiClient.put('/config/update-class', data),
+  deleteClass: (className: string) => apiClient.delete('/config/delete-class', { className }),
   getSections: () => apiClient.get('/config/sections'),
   getDepartments: () => apiClient.get('/config/departments'),
   getDesignations: () => apiClient.get('/config/designations'),
