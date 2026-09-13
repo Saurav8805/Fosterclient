@@ -39,20 +39,23 @@ export default function DashboardPage() {
     }
 
     dataFetched.current = true
-    setUserRole(Number(role))
+    const roleNum = Number(role)
+    setUserRole(roleNum)
     setUserName(name || 'User')
     
+    // Redirect parents/students to homework page instead of dashboard
+    if (roleNum === 19) {
+      router.replace('/dashboard/homework')
+      return
+    }
+    
     // Fetch appropriate data based on role
-    const roleNum = Number(role)
     if (roleNum === 6 || roleNum === 8) {
       // Admin/Principal
       fetchAdminStats()
     } else if (roleNum === 7) {
       // Teacher
       fetchTeacherStats(userId)
-    } else if (roleNum === 19) {
-      // Student
-      fetchStudentStats(userId)
     } else {
       setLoading(false)
     }

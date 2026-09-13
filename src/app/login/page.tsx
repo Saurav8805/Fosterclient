@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { authApi } from '@/lib/api'
+import { saveAuthData, isAuthenticated } from '@/lib/auth'
 
 export default function LoginPage() {
   const [mobile, setMobile] = useState('')
@@ -13,6 +14,13 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const router = useRouter()
+
+  // Check if user is already logged in
+  useEffect(() => {
+    if (isAuthenticated()) {
+      router.replace('/dashboard/profile')
+    }
+  }, [router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -28,43 +36,57 @@ export default function LoginPage() {
         return
       }
 
-      // Store user data in localStorage
+      // Store user data with session token
       const user = response.data?.user
       if (user) {
-        localStorage.setItem('userId', user.id)
-        localStorage.setItem('userMobile', user.mobile)
-        localStorage.setItem('userRole', user.role.toString())
-        localStorage.setItem('userName', user.full_name || user.mobile)
+        // Prepare user data for authentication
+        const userData: any = {
+          id: user.id,
+          mobile: user.mobile,
+          role: user.role,
+          full_name: user.full_name || user.mobile,
+        }
         
-        // Store designation if available (for staff)
+        // Add designation and other details based on role
         if (user.additionalData && user.additionalData.designation) {
-          localStorage.setItem('userDesignation', user.additionalData.designation)
+          userData.designation = user.additionalData.designation
+          
           // Store teacher's assigned class/section
           if (user.additionalData.assigned_class) {
-            localStorage.setItem('userClass', user.additionalData.assigned_class)
+            userData.assigned_class = user.additionalData.assigned_class
           }
           if (user.additionalData.assigned_section) {
-            localStorage.setItem('userSection', user.additionalData.assigned_section)
+            userData.assigned_section = user.additionalData.assigned_section
           }
           if (user.additionalData.id) {
-            localStorage.setItem('staffId', user.additionalData.id)
+            userData.staffId = user.additionalData.id
           }
         } else if (user.role === 19) {
-          localStorage.setItem('userDesignation', 'Student')
+          userData.designation = 'Student'
+          
           // Store student class/section if available
           if (user.additionalData?.class) {
-            localStorage.setItem('userClass', user.additionalData.class)
+            userData.assigned_class = user.additionalData.class
           }
           if (user.additionalData?.section) {
-            localStorage.setItem('userSection', user.additionalData.section)
+            userData.assigned_section = user.additionalData.section
           }
           if (user.additionalData?.id) {
-            localStorage.setItem('studentId', user.additionalData.id)
+            userData.studentId = user.additionalData.id
           }
         }
 
-        // Redirect to dashboard
-        router.push('/dashboard/profile')
+        // Save authentication data (includes session token and cookies)
+        saveAuthData(userData)
+
+        // Redirect based on role
+        if (userData.role === 19) {
+          // Parents/Students go to homework page
+          router.push('/dashboard/homework')
+        } else {
+          // All other roles (Principal, Teacher, Staff) go to profile
+          router.push('/dashboard/profile')
+        }
       } else {
         setError('Invalid response from server')
       }

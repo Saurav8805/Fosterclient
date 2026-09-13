@@ -7,6 +7,7 @@ import Image from 'next/image'
 import { SidebarProvider, useSidebar } from '@/components/ui/sidebar'
 import HeaderContent from '@/components/HeaderContent'
 import PushNotificationManager from '@/components/PushNotificationManager'
+import { isAuthenticated, refreshSession, clearAuthData } from '@/lib/auth'
 
 // Monochrome SVG icons
 const Icons = {
@@ -110,20 +111,39 @@ const DashboardSidebar = memo(function DashboardSidebar() {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
 
   useEffect(() => {
+    // Check authentication on mount
+    if (!isAuthenticated()) {
+      router.replace('/login')
+      return
+    }
+
+    // Refresh session to extend expiry
+    refreshSession()
+
+    // Get user role from localStorage
     const role = localStorage.getItem('userRole')
     if (role) setUserRole(Number(role))
-  }, [])
+
+    // Set up session refresh interval (every 5 minutes)
+    const intervalId = setInterval(() => {
+      if (isAuthenticated()) {
+        refreshSession()
+      } else {
+        // Session expired, redirect to login
+        clearAuthData()
+        router.replace('/login')
+      }
+    }, 5 * 60 * 1000) // 5 minutes
+
+    return () => clearInterval(intervalId)
+  }, [router])
 
   const handleLogout = () => {
     setShowLogoutConfirm(true)
   }
 
   const confirmLogout = () => {
-    localStorage.removeItem('userMobile')
-    localStorage.removeItem('userName')
-    localStorage.removeItem('userRole')
-    localStorage.removeItem('userId')
-    localStorage.removeItem('userDesignation')
+    clearAuthData()
     setShowLogoutConfirm(false)
     router.push('/login')
   }
@@ -168,7 +188,7 @@ const DashboardSidebar = memo(function DashboardSidebar() {
   const studentMenuItems = [
     { name: 'Profile', icon: Icons.profile, path: '/dashboard/profile' },
     { name: 'My Attendance', icon: Icons.attendance, path: '/dashboard/student-attendance' },
-    { name: 'Fees Status', icon: Icons.fees, path: '/dashboard/fees' },
+    // { name: 'Fees Status', icon: Icons.fees, path: '/dashboard/fees' }, // COMMENTED OUT: Hidden from parent navigation
     { name: 'Calendar & Events', icon: Icons.calendar, path: '/dashboard/calendar' },
     { name: 'Syllabus', icon: Icons.syllabus, path: '/dashboard/syllabus' },
     { name: 'Homework', icon: Icons.homework, path: '/dashboard/homework' },

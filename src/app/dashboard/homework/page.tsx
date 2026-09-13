@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { homeworkApi, staffApi, usersApi } from '@/lib/api';
+import { homeworkApi, staffApi, usersApi, configApi } from '@/lib/api';
 
 const CLASSES = ['Playgroup', 'Nursery', 'LKG', 'UKG', 'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5'];
 const SECTIONS = ['A', 'B', 'C', 'D'];
@@ -20,6 +20,10 @@ export default function HomeworkPage() {
   const [homeworkList, setHomeworkList] = useState<any[]>([]);
   const [assignedClass, setAssignedClass] = useState<string>('');
   const [assignedSection, setAssignedSection] = useState<string>('');
+  
+  // All classes from database (for teachers to select from)
+  const [allClassesList, setAllClassesList] = useState<Array<{class: string, section: string}>>([])
+  const [selectedClass, setSelectedClass] = useState<{class: string, section: string} | null>(null)
   
   // Principal filter states
   const [filterClass, setFilterClass] = useState<string>('');
@@ -42,6 +46,16 @@ export default function HomeworkPage() {
   // Expanded descriptions for students
   const [expandedDesc, setExpandedDesc] = useState<Record<string, boolean>>({});
 
+  // Helper function to sort homework by date (most recent first)
+  const sortHomeworkByDate = (homeworkArray: any[]) => {
+    return [...homeworkArray].sort((a, b) => {
+      // Sort by assignedDate in descending order (most recent first)
+      const dateA = new Date(a.assignedDate || a.assigned_date || 0).getTime();
+      const dateB = new Date(b.assignedDate || b.assigned_date || 0).getTime();
+      return dateB - dateA; // Descending order (recent to old)
+    });
+  };
+
   useEffect(() => {
     const init = async () => {
       try {
@@ -54,29 +68,39 @@ export default function HomeworkPage() {
         if (storedUserRole) setUserRole(Number(storedUserRole));
 
         if (storedUserRole === '7' && storedUserId) {
-          // Teacher - fetch assigned class
-          console.log('👨‍🏫 Fetching teacher assignment...');
-          const staffRes = await staffApi.list();
-          const staffs = staffRes.success && Array.isArray(staffRes.data) ? staffRes.data : [];
-          const me = staffs.find((s: any) => String(s.user_id || s.userId || s.user?.id) === String(storedUserId));
+          // Teacher - fetch ALL classes (not restricted to assigned classes for homework)
+          console.log('👨‍🏫 Fetching all classes for teacher homework...');
           
-          if (me) {
-            const cls = me.assigned_class || me.assignedClass || '';
-            const sec = me.assigned_section || me.assignedSection || '';
-            console.log('📚 Teacher assigned to:', cls, sec);
-            setAssignedClass(cls);
-            setAssignedSection(sec);
+          // Fetch all classes from config
+          const classStatsRes = await configApi.getClassStats()
+          if (classStatsRes.success && Array.isArray(classStatsRes.data)) {
+            const allClasses: Array<{class: string, section: string}> = []
+            classStatsRes.data.forEach((cls: any) => {
+              cls.sections.forEach((sec: string) => {
+                allClasses.push({class: cls.name, section: sec})
+              })
+            })
+            console.log('📚 All classes available for homework:', allClasses)
+            setAllClassesList(allClasses)
             
-            const hwRes = await homeworkApi.list(cls, sec);
-            console.log('✅ Fetched teacher homework:', hwRes);
-            setHomeworkList(hwRes.success && Array.isArray(hwRes.data) ? hwRes.data : []);
+            // Set first class as default
+            if (allClasses.length > 0) {
+              const firstClass = allClasses[0]
+              setSelectedClass(firstClass)
+              setAssignedClass(firstClass.class)
+              setAssignedSection(firstClass.section)
+              
+              const hwRes = await homeworkApi.list(firstClass.class, firstClass.section)
+              console.log('✅ Fetched homework for first class:', hwRes)
+              setHomeworkList(sortHomeworkByDate(hwRes.success && Array.isArray(hwRes.data) ? hwRes.data : []))
+            }
           }
         } else if (storedUserRole === '6') {
           // Principal - fetch all
           console.log('👔 Fetching all homework (Principal)...');
           const hwRes = await homeworkApi.list('', '');
           console.log('✅ Fetched principal homework:', hwRes);
-          setHomeworkList(hwRes.success && Array.isArray(hwRes.data) ? hwRes.data : []);
+          setHomeworkList(sortHomeworkByDate(hwRes.success && Array.isArray(hwRes.data) ? hwRes.data : []));
         } else if (storedUserRole === '19' && storedUserId) {
           // Student - fetch by class/section
           console.log('👨‍🎓 Fetching student homework...');
@@ -88,13 +112,13 @@ export default function HomeworkPage() {
             console.log('📚 Student class:', sClass, sSection);
             const hwRes = await homeworkApi.list(sClass, sSection);
             console.log('✅ Fetched student homework:', hwRes);
-            setHomeworkList(hwRes.success && Array.isArray(hwRes.data) ? hwRes.data : []);
+            setHomeworkList(sortHomeworkByDate(hwRes.success && Array.isArray(hwRes.data) ? hwRes.data : []));
           } catch (e) {
              const sClass = localStorage.getItem('userClass') || '';
              const sSection = localStorage.getItem('userSection') || '';
              const hwRes = await homeworkApi.list(sClass, sSection);
              console.log('✅ Fetched student homework (fallback):', hwRes);
-             setHomeworkList(hwRes.success && Array.isArray(hwRes.data) ? hwRes.data : []);
+             setHomeworkList(sortHomeworkByDate(hwRes.success && Array.isArray(hwRes.data) ? hwRes.data : []));
           }
         }
       } catch (error) {
@@ -112,7 +136,7 @@ export default function HomeworkPage() {
       const fetchFiltered = async () => {
         try {
           const hwRes = await homeworkApi.list(filterClass, filterSection);
-          setHomeworkList(hwRes.success && Array.isArray(hwRes.data) ? hwRes.data : []);
+          setHomeworkList(sortHomeworkByDate(hwRes.success && Array.isArray(hwRes.data) ? hwRes.data : []));
         } catch (error) {
           console.error("Error fetching filtered homework:", error);
         }
@@ -195,14 +219,14 @@ export default function HomeworkPage() {
         console.log('✅ Update response:', response);
         
         if (response.success && response.data) {
-          setHomeworkList(prev => prev.map(hw => hw.id === editingId ? response.data : hw));
+          setHomeworkList(prev => sortHomeworkByDate(prev.map(hw => hw.id === editingId ? response.data : hw)));
         }
       } else {
         const response = await homeworkApi.create(payload);
         console.log('✅ Create response:', response);
         
         if (response.success && response.data) {
-          setHomeworkList(prev => [response.data, ...prev]);
+          setHomeworkList(prev => sortHomeworkByDate([response.data, ...prev]));
         }
       }
       
@@ -233,36 +257,48 @@ export default function HomeworkPage() {
         
         {/* Header Section */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800">
-              {isTeacher && assignedClass ? `Homework - ${assignedClass} ${assignedSection}` : 'Homework Management'}
-            </h1>
-            <p className="text-sm text-gray-500 mt-1">Manage and track student assignments</p>
+          <div className="flex items-center gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-800">
+                {isTeacher && selectedClass ? `Homework - ${selectedClass.class} ${selectedClass.section}` : 'Homework Management'}
+              </h1>
+              <p className="text-sm text-gray-500 mt-1">Manage and track student assignments</p>
+            </div>
+            
+            {/* Teacher Class Dropdown - Shows ALL classes */}
+            {isTeacher && allClassesList.length > 0 && (
+              <select
+                value={selectedClass ? `${selectedClass.class}-${selectedClass.section}` : ''}
+                onChange={async (e) => {
+                  const [cls, sec] = e.target.value.split('-')
+                  const classObj = allClassesList.find(a => a.class === cls && a.section === sec)
+                  if (classObj) {
+                    setSelectedClass(classObj)
+                    setAssignedClass(classObj.class)
+                    setAssignedSection(classObj.section)
+                    
+                    // Fetch homework for selected class
+                    setLoading(true)
+                    try {
+                      const hwRes = await homeworkApi.list(classObj.class, classObj.section)
+                      setHomeworkList(sortHomeworkByDate(hwRes.success && Array.isArray(hwRes.data) ? hwRes.data : []))
+                    } finally {
+                      setLoading(false)
+                    }
+                  }
+                }}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-semibold text-gray-800 bg-white focus:ring-2 focus:ring-[#5e3a9e]/30 focus:border-[#5e3a9e] outline-none shadow-sm"
+              >
+                {allClassesList.map((classObj, idx) => (
+                  <option key={idx} value={`${classObj.class}-${classObj.section}`}>
+                    {classObj.class} - {classObj.section}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
           
           <div className="flex gap-3">
-            <button
-              onClick={async () => {
-                setLoading(true);
-                try {
-                  if (userRole === 7) {
-                    const hwRes = await homeworkApi.list(assignedClass, assignedSection);
-                    setHomeworkList(hwRes.success && Array.isArray(hwRes.data) ? hwRes.data : []);
-                  } else if (userRole === 6) {
-                    const hwRes = await homeworkApi.list(filterClass, filterSection);
-                    setHomeworkList(hwRes.success && Array.isArray(hwRes.data) ? hwRes.data : []);
-                  }
-                } finally {
-                  setLoading(false);
-                }
-              }}
-              className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors shadow-sm flex items-center gap-2"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              Refresh
-            </button>
             {(isTeacher || isPrincipal) && (
               <button 
                 onClick={handleOpenModal}
@@ -307,25 +343,58 @@ export default function HomeworkPage() {
                 homeworkList.map((hw) => {
                   const isOverdue = new Date(hw.dueDate) < new Date(new Date().setHours(0,0,0,0));
                   return (
-                    <div key={hw.id} className="border-b last:border-0 p-4 hover:bg-gray-50 transition-colors">
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <h3 className="font-semibold text-lg text-[#5e3a9e]">{hw.title}</h3>
-                          <p className="text-sm font-medium text-gray-600">{hw.subject}</p>
+                    <div key={hw.id} className="border-2 border-purple-300 rounded-lg last:border-2 p-5 mb-4 hover:bg-gray-50 hover:border-purple-400 transition-all shadow-sm">
+                      {/* Header with Subject and Title (SWAPPED) */}
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="flex-1">
+                          <h3 className="font-bold text-lg text-[#5e3a9e] mb-1">{hw.subject}</h3>
+                          <p className="text-sm font-semibold text-gray-700 bg-purple-50 inline-block px-3 py-1 rounded-full">
+                            📝 {hw.title}
+                          </p>
                         </div>
-                        <div className="text-right">
-                          <span className={`text-sm px-2 py-1 rounded ${isOverdue ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'}`}>
-                            Due: {hw.dueDate} {isOverdue && '(Overdue)'}
+                        <div className="text-right ml-4">
+                          <span className={`text-xs font-semibold px-3 py-1.5 rounded-full ${isOverdue ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                            {isOverdue ? '⚠️ Overdue' : '✅ Active'}
                           </span>
                         </div>
                       </div>
-                      <div className="text-gray-700 mt-2 text-sm">
-                        {expandedDesc[hw.id] ? hw.description : `${(hw.description || '').substring(0, 100)}...`}
-                        {(hw.description || '').length > 100 && (
-                          <button onClick={() => toggleDesc(hw.id)} className="text-[#5e3a9e] ml-2 font-medium hover:underline">
-                            {expandedDesc[hw.id] ? 'Show less' : 'Read more'}
-                          </button>
-                        )}
+
+                      {/* Description */}
+                      <div className="mb-3 bg-gray-50 p-3 rounded-lg border border-gray-200">
+                        <p className="text-sm font-medium text-gray-500 mb-1">Description:</p>
+                        <div className="text-gray-700 text-sm leading-relaxed">
+                          {expandedDesc[hw.id] ? hw.description : `${(hw.description || '').substring(0, 150)}...`}
+                          {(hw.description || '').length > 150 && (
+                            <button onClick={() => toggleDesc(hw.id)} className="text-[#5e3a9e] ml-2 font-medium hover:underline">
+                              {expandedDesc[hw.id] ? 'Show less' : 'Read more'}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Dates and Teacher Info - 60% (dates) and 40% (teacher) */}
+                      <div className="flex flex-col sm:flex-row gap-3 text-sm">
+                        {/* Left side: Dates (60%) */}
+                        <div className="flex-[0_0_100%] sm:flex-[0_0_60%] grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div className="flex items-center gap-2 bg-blue-50 px-3 py-2 rounded-lg border border-blue-200">
+                            <span className="text-blue-600 font-semibold">📅 Assigned:</span>
+                            <span className="text-gray-700 font-medium">{hw.assignedDate || hw.assigned_date || 'N/A'}</span>
+                          </div>
+                          <div className="flex items-center gap-2 bg-orange-50 px-3 py-2 rounded-lg border border-orange-200">
+                            <span className="text-orange-600 font-semibold">⏰ Due:</span>
+                            <span className="text-gray-700 font-medium">{hw.dueDate || hw.due_date || 'N/A'}</span>
+                          </div>
+                        </div>
+                        
+                        {/* Right side: Teacher (40%) */}
+                        <div className="flex-[0_0_100%] sm:flex-[0_0_40%]">
+                          <div className="flex items-center gap-2 bg-purple-50 px-3 py-2 rounded-lg border border-purple-200 h-full">
+                            <span className="text-purple-600 font-semibold whitespace-nowrap">👨‍🏫 Assigned By:</span>
+                            <span className="text-gray-700 font-medium truncate" title={hw.teacher?.full_name || hw.teacher_name || hw.assignedBy || 'Teacher'}>
+                              {hw.teacher?.full_name || hw.teacher_name || hw.assignedBy || 'Teacher'}
+                            </span>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   );
@@ -425,14 +494,53 @@ export default function HomeworkPage() {
                 )}
 
                 {isTeacher && (
-                  <div className="flex gap-4 opacity-75">
-                     <div className="flex-1">
+                  <div className="flex gap-4">
+                    <div className="flex-1">
                       <label className="block text-sm font-medium text-gray-700 mb-1">Class</label>
-                      <input type="text" value={formData.class} disabled className="w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-100" />
+                      <select
+                        required
+                        value={formData.class}
+                        onChange={e => {
+                          const selectedClassName = e.target.value
+                          const classObj = allClassesList.find(a => a.class === selectedClassName && a.section === formData.section)
+                          if (!classObj) {
+                            // Find first matching class
+                            const firstMatch = allClassesList.find(a => a.class === selectedClassName)
+                            if (firstMatch) {
+                              setFormData({
+                                ...formData, 
+                                class: selectedClassName,
+                                section: firstMatch.section
+                              })
+                            }
+                          } else {
+                            setFormData({...formData, class: selectedClassName})
+                          }
+                        }}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-[#5e3a9e] focus:border-[#5e3a9e]"
+                      >
+                        <option value="">Select Class</option>
+                        {[...new Set(allClassesList.map(c => c.class))].map((className, idx) => (
+                          <option key={idx} value={className}>{className}</option>
+                        ))}
+                      </select>
                     </div>
                     <div className="flex-1">
                       <label className="block text-sm font-medium text-gray-700 mb-1">Section</label>
-                      <input type="text" value={formData.section} disabled className="w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-100" />
+                      <select
+                        required
+                        value={formData.section}
+                        onChange={e => setFormData({...formData, section: e.target.value})}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-[#5e3a9e] focus:border-[#5e3a9e]"
+                        disabled={!formData.class}
+                      >
+                        <option value="">Select Section</option>
+                        {allClassesList
+                          .filter(c => c.class === formData.class)
+                          .map((classObj, idx) => (
+                            <option key={idx} value={classObj.section}>{classObj.section}</option>
+                          ))}
+                      </select>
                     </div>
                   </div>
                 )}

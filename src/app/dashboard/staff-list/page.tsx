@@ -31,7 +31,7 @@ export default function StaffListPage() {
   // Add Staff Modal state
   const [showAddModal, setShowAddModal] = useState(false)
   const [addLoading, setAddLoading] = useState(false)
-  const [assignedClasses, setAssignedClasses] = useState<{ assignedClass: string; assignedSection: string; teacherName: string }[]>([])
+  const [assignedClasses, setAssignedClasses] = useState<{ staffId?: string; assignedClass: string; assignedSection: string; teacherName: string }[]>([])
   const [addCredentials, setAddCredentials] = useState<{ mobile: string; password: string } | null>(null)
   const [addFormData, setAddFormData] = useState({
     fullName: '',
@@ -100,12 +100,16 @@ export default function StaffListPage() {
   }
 
   const isPairTaken = (cls: string, sec: string) => {
-    return assignedClasses.some(a => a.assignedClass === cls && a.assignedSection === sec)
+    const assignments = assignedClasses.filter(a => a.assignedClass === cls && a.assignedSection === sec)
+    // Allow up to 2 teachers per class-section
+    return assignments.length >= 2
   }
 
-  const getAssignedTeacherName = (cls: string, sec: string) => {
-    const found = assignedClasses.find(a => a.assignedClass === cls && a.assignedSection === sec)
-    return found ? found.teacherName : null
+  const getAssignedTeacherNames = (cls: string, sec: string) => {
+    const assignments = assignedClasses.filter(a => a.assignedClass === cls && a.assignedSection === sec)
+    if (assignments.length === 0) return null
+    if (assignments.length === 1) return `${assignments[0].teacherName} (1 teacher assigned)`
+    return `${assignments[0].teacherName} & ${assignments[1].teacherName} (2 teachers)`
   }
 
   const handleOpenAddModal = () => {
@@ -383,7 +387,28 @@ export default function StaffListPage() {
                       <td className="px-6 py-4 text-sm text-gray-900">{index + 1}</td>
                       <td className="px-6 py-4 text-sm text-gray-900 font-medium">
                         <div>{staff.user?.full_name || 'N/A'}</div>
-                        {staff.assigned_class || staff.assignedClass ? (
+                        {/* Show multiple class assignments if available, otherwise fallback to single assignment */}
+                        {staff.class_assignments && staff.class_assignments.length > 0 ? (
+                          <div className="text-xs text-blue-600 font-semibold mt-0.5">
+                            {staff.class_assignments.map((assignment: any, idx: number) => (
+                              <div key={idx} className="flex items-center gap-1">
+                                {assignment.class} - {assignment.section}
+                                {(() => {
+                                  const coTeachers = assignedClasses.filter(a => 
+                                    a.assignedClass === assignment.class && 
+                                    a.assignedSection === assignment.section &&
+                                    a.staffId !== staff.id
+                                  );
+                                  return coTeachers.length > 0 ? (
+                                    <span className="ml-1 text-purple-600 text-[10px]">
+                                      (w/ {coTeachers[0].teacherName})
+                                    </span>
+                                  ) : null;
+                                })()}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (staff.assigned_class || staff.assignedClass) ? (
                           <div className="text-xs text-blue-600 font-semibold mt-0.5">
                             {staff.assigned_class || staff.assignedClass} - {staff.assigned_section || staff.assignedSection || 'A'}
                           </div>
@@ -396,7 +421,32 @@ export default function StaffListPage() {
                       <td className="px-6 py-4 text-sm text-gray-900">{staff.user?.mobile || 'N/A'}</td>
                       <td className="px-6 py-4 text-sm text-gray-900">{staff.designation || 'N/A'}</td>
                       <td className="px-6 py-4 text-sm font-semibold text-blue-700">
-                        {staff.assigned_class || staff.assignedClass ? `${staff.assigned_class || staff.assignedClass} - ${staff.assigned_section || staff.assignedSection || 'A'}` : (staff.designation === 'Teacher' || staff.department === 'Teaching' ? 'Unassigned' : '-')}
+                        {staff.class_assignments && staff.class_assignments.length > 0 ? (
+                          <div className="space-y-1">
+                            {staff.class_assignments.map((assignment: any, idx: number) => (
+                              <div key={idx}>
+                                <div>{assignment.class} - {assignment.section}</div>
+                                {(() => {
+                                  const coTeachers = assignedClasses.filter(a => 
+                                    a.assignedClass === assignment.class && 
+                                    a.assignedSection === assignment.section &&
+                                    a.staffId !== staff.id
+                                  );
+                                  if (coTeachers.length > 0) {
+                                    return (
+                                      <div className="text-xs text-purple-600 font-normal">
+                                        + {coTeachers[0].teacherName}
+                                      </div>
+                                    );
+                                  }
+                                  return null;
+                                })()}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (staff.assigned_class || staff.assignedClass) ? (
+                          <div>{staff.assigned_class || staff.assignedClass} - {staff.assigned_section || staff.assignedSection || 'A'}</div>
+                        ) : (staff.designation === 'Teacher' || staff.department === 'Teaching' ? 'Unassigned' : '-')}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-900">{staff.department || 'N/A'}</td>
                       <td className="px-6 py-4">
@@ -542,6 +592,54 @@ export default function StaffListPage() {
                     <option value="Teaching">Teaching</option>
                     <option value="Administration">Administration</option>
                     <option value="Support">Support</option>
+                  </select>
+                </div>
+
+                {/* Assign Class (For Teachers) */}
+                <div>
+                  <label htmlFor="edit-assignedClass" className="block text-sm font-medium text-gray-700 mb-1">Assign Class (For Teachers)</label>
+                  <select
+                    id="edit-assignedClass"
+                    name="assignedClass"
+                    value={formData.assignedClass}
+                    onChange={(e) => setFormData({ ...formData, assignedClass: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Select Class</option>
+                    {classList.map(cls => (
+                      <option key={cls} value={cls}>{cls}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Assign Section */}
+                <div>
+                  <label htmlFor="edit-assignedSection" className="block text-sm font-medium text-gray-700 mb-1">Assign Section</label>
+                  <select
+                    id="edit-assignedSection"
+                    name="assignedSection"
+                    value={formData.assignedSection}
+                    onChange={(e) => setFormData({ ...formData, assignedSection: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Select Section</option>
+                    {sectionList.map(sec => {
+                      const taken = formData.assignedClass ? isPairTaken(formData.assignedClass, sec) : false;
+                      const teachers = formData.assignedClass ? getAssignedTeacherNames(formData.assignedClass, sec) : null;
+                      // Check if current staff is one of the assigned teachers
+                      const currentStaffAssigned = assignedClasses.some(a => 
+                        a.assignedClass === formData.assignedClass && 
+                        a.assignedSection === sec && 
+                        a.staffId === selectedStaff?.id
+                      );
+                      const isDisabled = taken && !currentStaffAssigned;
+                      
+                      return (
+                        <option key={sec} value={sec} disabled={isDisabled}>
+                          Section {sec} {isDisabled ? '❌ (' + teachers + ')' : teachers && !currentStaffAssigned ? '⚠️ (' + teachers + ')' : '✓'}
+                        </option>
+                      )
+                    })}
                   </select>
                 </div>
 
@@ -754,10 +852,10 @@ export default function StaffListPage() {
                     <option value="">Select Section</option>
                     {sectionList.map(sec => {
                       const taken = addFormData.assignedClass ? isPairTaken(addFormData.assignedClass, sec) : false;
-                      const teacher = addFormData.assignedClass ? getAssignedTeacherName(addFormData.assignedClass, sec) : null;
+                      const teachers = addFormData.assignedClass ? getAssignedTeacherNames(addFormData.assignedClass, sec) : null;
                       return (
                         <option key={sec} value={sec} disabled={taken}>
-                          Section {sec} {taken ? '❌ (' + teacher + ')' : '✓'}
+                          Section {sec} {taken ? '❌ (' + teachers + ')' : teachers ? '⚠️ (' + teachers + ')' : '✓'}
                         </option>
                       )
                     })}

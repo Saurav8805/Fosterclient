@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardHeader, CardContent } from '@/components/ui/Card'
-import { studentsApi, attendanceApi } from '@/lib/api'
+import { studentsApi, attendanceApi, staffApi } from '@/lib/api'
 
 // Lazy load XLSX only when export is triggered
 let XLSX: any = null;
@@ -58,6 +58,10 @@ export default function StudentAttendancePage() {
   // Student's own stats
   const [stats, setStats] = useState<any>(null)
 
+  // Teacher's assigned classes
+  const [teacherAssignedClasses, setTeacherAssignedClasses] = useState<Array<{class: string, section: string}>>([])
+  const [isTeacher, setIsTeacher] = useState(false)
+
   useEffect(() => {
     const role = localStorage.getItem('userRole')
     if (!role) {
@@ -82,6 +86,12 @@ export default function StudentAttendancePage() {
 
     if (roleNum === 6) {
       setActiveTab('view')
+    }
+    
+    // Fetch teacher's assigned classes if role is teacher
+    if (roleNum === 7) {
+      setIsTeacher(true)
+      fetchTeacherProfile()
     }
     
     fetchStudentsList()
@@ -136,6 +146,33 @@ export default function StudentAttendancePage() {
       setMessage({ type: 'error', text: 'Failed to load your attendance' })
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchTeacherProfile = async () => {
+    try {
+      const mobile = localStorage.getItem('userMobile')
+      const res = await staffApi.list() as { success: boolean; data?: any[] }
+      if (res.success && res.data) {
+        const myStaff = res.data.find((s: any) => s.user?.mobile === mobile)
+        if (myStaff) {
+          // Get all class assignments for this teacher
+          const assignments = myStaff.class_assignments || []
+          
+          console.log('👨‍🏫 Teacher assigned to classes for attendance:', assignments)
+          
+          // Store teacher's assigned classes
+          setTeacherAssignedClasses(assignments)
+          
+          // Set first assignment as default if exists
+          if (assignments.length > 0) {
+            setSelectedClass(assignments[0].class)
+            setSelectedSection(assignments[0].section)
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching teacher profile:', err)
     }
   }
 
@@ -1093,9 +1130,17 @@ export default function StudentAttendancePage() {
                     onChange={(e) => setSelectedClass(e.target.value)}
                     className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    {classes.map((c) => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
+                    {isTeacher ? (
+                      // Teacher: Only show assigned classes
+                      teacherAssignedClasses.map((assignment, idx) => (
+                        <option key={idx} value={assignment.class}>{assignment.class}</option>
+                      ))
+                    ) : (
+                      // Admin: Show all classes
+                      classes.map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                      ))
+                    )}
                   </select>
                 </div>
 
@@ -1106,9 +1151,19 @@ export default function StudentAttendancePage() {
                     onChange={(e) => setSelectedSection(e.target.value)}
                     className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    {sections.map((s) => (
-                      <option key={s} value={s}>{s}</option>
-                    ))}
+                    {isTeacher ? (
+                      // Teacher: Only show sections for selected class
+                      teacherAssignedClasses
+                        .filter(a => a.class === selectedClass)
+                        .map((assignment, idx) => (
+                          <option key={idx} value={assignment.section}>{assignment.section}</option>
+                        ))
+                    ) : (
+                      // Admin: Show all sections
+                      sections.map((s) => (
+                        <option key={s} value={s}>{s}</option>
+                      ))
+                    )}
                   </select>
                 </div>
               </div>

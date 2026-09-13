@@ -64,6 +64,8 @@ export default function ClassListPage() {
   // Modals state
   const [showAddClassModal, setShowAddClassModal] = useState(false)
   const [showEditClassModal, setShowEditClassModal] = useState(false)
+  const [showDeleteClassModal, setShowDeleteClassModal] = useState(false)
+  const [classToDelete, setClassToDelete] = useState<ClassStats | null>(null)
   const [showAddStudentModal, setShowAddStudentModal] = useState(false)
   const [showStudentDetailModal, setShowStudentDetailModal] = useState(false)
   
@@ -72,6 +74,7 @@ export default function ClassListPage() {
   const [editClassName, setEditClassName] = useState('')
   const [editClassSection, setEditClassSection] = useState('A')
   const [editClassTeacherId, setEditClassTeacherId] = useState('')
+  const [editClassTeacherId2, setEditClassTeacherId2] = useState('')
   const [editClassSubmitting, setEditClassSubmitting] = useState(false)
 
   // Selected Student 360 View state
@@ -93,6 +96,7 @@ export default function ClassListPage() {
   const [newClassName, setNewClassName] = useState('')
   const [newClassSection, setNewClassSection] = useState('A')
   const [newClassTeacherId, setNewClassTeacherId] = useState('')
+  const [newClassTeacherId2, setNewClassTeacherId2] = useState('')
   const [addClassSubmitting, setAddClassSubmitting] = useState(false)
 
   // Comprehensive Add Student Form State
@@ -273,9 +277,52 @@ export default function ClassListPage() {
     setEditingClass(cls)
     setEditClassName(cls.name)
     setEditClassSection(cls.sections[0] || 'A')
-    const foundTeacher = teachersList.find(t => cls.teachers.includes(t.user?.full_name || t.full_name))
-    setEditClassTeacherId(foundTeacher?.user_id || foundTeacher?.id || '')
+    
+    // Find both teachers assigned to this class
+    const foundTeacher1 = teachersList.find(t => cls.teachers.includes(t.user?.full_name || t.full_name))
+    setEditClassTeacherId(foundTeacher1?.user_id || foundTeacher1?.id || '')
+    
+    // Find second teacher (if exists)
+    const foundTeacher2 = teachersList.find(t => 
+      cls.teachers.includes(t.user?.full_name || t.full_name) && 
+      (t.user_id || t.id) !== (foundTeacher1?.user_id || foundTeacher1?.id)
+    )
+    setEditClassTeacherId2(foundTeacher2?.user_id || foundTeacher2?.id || '')
+    
     setShowEditClassModal(true)
+  }
+
+  // Open Delete Class Confirmation
+  const handleOpenDeleteClass = (cls: ClassStats, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setClassToDelete(cls)
+    setShowDeleteClassModal(true)
+  }
+
+  // Confirm Delete Class
+  const handleDeleteClass = async () => {
+    if (!classToDelete) return
+
+    try {
+      // Call backend API to delete class from database
+      const response = await configApi.deleteClass(classToDelete.name)
+      
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to delete class')
+      }
+
+      // Remove class from local state
+      setClasses(prev => prev.filter(c => c.name !== classToDelete.name))
+      setShowDeleteClassModal(false)
+      setClassToDelete(null)
+      setActionMessage({ type: 'success', text: `Class ${classToDelete.name} deleted successfully!` })
+      setTimeout(() => setActionMessage(null), 4000)
+    } catch (err: any) {
+      console.error('Delete class error:', err)
+      setActionMessage({ type: 'error', text: err.message || 'Failed to delete class' })
+      setShowDeleteClassModal(false)
+      setClassToDelete(null)
+    }
   }
 
   // Form Submit: Edit Class
@@ -289,7 +336,8 @@ export default function ClassListPage() {
         oldClassName: editingClass.name,
         newClassName: editClassName.trim(),
         section: editClassSection,
-        teacherId: editClassTeacherId
+        teacherId: editClassTeacherId,
+        teacherId2: editClassTeacherId2
       })
 
       if (res.success) {
@@ -319,18 +367,24 @@ export default function ClassListPage() {
       if (!existing) {
         const teacherObj = teachersList.find(t => t.user_id === newClassTeacherId || t.id === newClassTeacherId)
         const teacherName = teacherObj?.user?.full_name || teacherObj?.full_name || ''
+        
+        const teacherObj2 = teachersList.find(t => t.user_id === newClassTeacherId2 || t.id === newClassTeacherId2)
+        const teacherName2 = teacherObj2?.user?.full_name || teacherObj2?.full_name || ''
+
+        const teacherNames = [teacherName, teacherName2].filter(Boolean)
 
         const newClassCard: ClassStats = {
           name: newClassName.trim(),
           studentCount: 0,
           sections: [newClassSection],
-          teachers: teacherName ? [teacherName] : []
+          teachers: teacherNames
         }
         setClasses(prev => [...prev, newClassCard])
       }
       setShowAddClassModal(false)
       setNewClassName('')
       setNewClassTeacherId('')
+      setNewClassTeacherId2('')
       setActionMessage({ type: 'success', text: `Class ${newClassName} added successfully!` })
       setTimeout(() => setActionMessage(null), 4000)
     } catch (err: any) {
@@ -595,9 +649,20 @@ export default function ClassListPage() {
                           <button
                             onClick={(e) => handleOpenEditClass(cls, e)}
                             title="Edit Class Details"
-                            className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-[#5e3a9e] transition text-sm"
+                            className="p-1.5 hover:bg-blue-50 rounded-lg text-gray-500 hover:text-blue-600 transition"
                           >
-                            ✏️
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={(e) => handleOpenDeleteClass(cls, e)}
+                            title="Delete Class"
+                            className="p-1.5 hover:bg-red-50 rounded-lg text-gray-500 hover:text-red-600 transition"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
                           </button>
                         </div>
                       </div>
@@ -612,10 +677,44 @@ export default function ClassListPage() {
                           </span>
                         </div>
                         <div className="flex items-center justify-between">
-                          <span className="text-gray-400">Class Teacher:</span>
-                          <span className="font-semibold text-gray-800 truncate max-w-[140px]">
-                            {cls.teachers.length > 0 ? cls.teachers.join(', ') : 'Not assigned'}
+                          <span className="text-gray-400">
+                            {cls.teachers.length === 0 && 'Class Teachers:'}
+                            {cls.teachers.length > 0 && 'Class Teachers:'}
                           </span>
+                          <div className="text-right max-w-[160px]">
+                            {cls.teachers.length === 0 && (
+                              <span className="font-semibold text-gray-500 text-xs">Not assigned</span>
+                            )}
+                            {cls.teachers.length === 1 && (
+                              <div>
+                                <div className="text-[10px] text-gray-400">Teacher 1:</div>
+                                <div className="font-semibold text-gray-800 text-xs truncate" title={cls.teachers[0]}>
+                                  {cls.teachers[0]}
+                                </div>
+                              </div>
+                            )}
+                            {cls.teachers.length === 2 && (
+                              <div className="space-y-1">
+                                <div>
+                                  <div className="text-[10px] text-gray-400">Teacher 1:</div>
+                                  <div className="font-semibold text-gray-800 text-xs truncate" title={cls.teachers[0]}>
+                                    {cls.teachers[0]}
+                                  </div>
+                                </div>
+                                <div>
+                                  <div className="text-[10px] text-gray-400">Teacher 2:</div>
+                                  <div className="font-semibold text-gray-800 text-xs truncate" title={cls.teachers[1]}>
+                                    {cls.teachers[1]}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                            {cls.teachers.length > 2 && (
+                              <span className="font-semibold text-gray-800 text-xs">
+                                {cls.teachers.length} teachers
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -839,20 +938,43 @@ export default function ClassListPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  Assign Class Teacher
+                  Assign Class Teacher 1
                 </label>
                 <select
                   value={newClassTeacherId}
                   onChange={e => setNewClassTeacherId(e.target.value)}
                   className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#5e3a9e]/30 focus:border-[#5e3a9e] outline-none bg-white text-xs"
                 >
-                  <option value="">-- Select Available Teacher --</option>
-                  {teachersList.map((t: any) => (
-                    <option key={t.id || t.user_id} value={t.user_id || t.id}>
-                      {t.user?.full_name || t.full_name} ({t.designation || 'Teacher'})
-                    </option>
-                  ))}
+                  <option value="">-- Select Teacher 1 (Optional) --</option>
+                  {teachersList
+                    .filter((t: any) => !newClassTeacherId2 || (t.user_id || t.id) !== newClassTeacherId2)
+                    .map((t: any) => (
+                      <option key={t.id || t.user_id} value={t.user_id || t.id}>
+                        {t.user?.full_name || t.full_name} ({t.designation || 'Teacher'})
+                      </option>
+                    ))}
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                  Assign Class Teacher 2
+                </label>
+                <select
+                  value={newClassTeacherId2}
+                  onChange={e => setNewClassTeacherId2(e.target.value)}
+                  className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#5e3a9e]/30 focus:border-[#5e3a9e] outline-none bg-white text-xs"
+                >
+                  <option value="">-- Select Teacher 2 (Optional) --</option>
+                  {teachersList
+                    .filter((t: any) => !newClassTeacherId || (t.user_id || t.id) !== newClassTeacherId)
+                    .map((t: any) => (
+                      <option key={t.id || t.user_id} value={t.user_id || t.id}>
+                        {t.user?.full_name || t.full_name} ({t.designation || 'Teacher'})
+                      </option>
+                    ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">You can assign up to 2 teachers per class</p>
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-4 border-t">
@@ -919,20 +1041,43 @@ export default function ClassListPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  Assigned Class Teacher
+                  Assigned Class Teacher 1
                 </label>
                 <select
                   value={editClassTeacherId}
                   onChange={e => setEditClassTeacherId(e.target.value)}
                   className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#5e3a9e]/30 focus:border-[#5e3a9e] outline-none bg-white text-xs"
                 >
-                  <option value="">-- Select Class Teacher --</option>
-                  {teachersList.map((t: any) => (
-                    <option key={t.id || t.user_id} value={t.user_id || t.id}>
-                      {t.user?.full_name || t.full_name} ({t.designation || 'Teacher'})
-                    </option>
-                  ))}
+                  <option value="">-- Select Teacher 1 (Optional) --</option>
+                  {teachersList
+                    .filter((t: any) => !editClassTeacherId2 || (t.user_id || t.id) !== editClassTeacherId2)
+                    .map((t: any) => (
+                      <option key={t.id || t.user_id} value={t.user_id || t.id}>
+                        {t.user?.full_name || t.full_name} ({t.designation || 'Teacher'})
+                      </option>
+                    ))}
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                  Assigned Class Teacher 2
+                </label>
+                <select
+                  value={editClassTeacherId2}
+                  onChange={e => setEditClassTeacherId2(e.target.value)}
+                  className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#5e3a9e]/30 focus:border-[#5e3a9e] outline-none bg-white text-xs"
+                >
+                  <option value="">-- Select Teacher 2 (Optional) --</option>
+                  {teachersList
+                    .filter((t: any) => !editClassTeacherId || (t.user_id || t.id) !== editClassTeacherId)
+                    .map((t: any) => (
+                      <option key={t.id || t.user_id} value={t.user_id || t.id}>
+                        {t.user?.full_name || t.full_name} ({t.designation || 'Teacher'})
+                      </option>
+                    ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">You can assign up to 2 teachers per class</p>
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-4 border-t">
@@ -952,6 +1097,62 @@ export default function ClassListPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: DELETE CLASS CONFIRMATION */}
+      {showDeleteClassModal && classToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-md overflow-hidden">
+            <div className="px-6 py-4 border-b bg-gradient-to-r from-red-50 to-white">
+              <h3 className="font-bold text-gray-900 text-lg flex items-center gap-2">
+                <span className="text-red-600">⚠️</span> Delete Class Confirmation
+              </h3>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0 w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h4 className="text-base font-semibold text-gray-900 mb-1">
+                    Delete Class "{classToDelete.name}"?
+                  </h4>
+                  <p className="text-sm text-gray-600 mb-2">
+                    Are you sure you want to delete this class? This action cannot be undone.
+                  </p>
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800 mt-3">
+                    <strong>Note:</strong> This will only remove the class from the list. Students and teachers will remain in the system.
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-4 border-t">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDeleteClassModal(false)
+                    setClassToDelete(null)
+                  }}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-100 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteClass}
+                  className="px-5 py-2 bg-red-600 text-white hover:bg-red-700 rounded-xl text-sm font-medium shadow-sm transition flex items-center gap-2"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  Delete Class
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
