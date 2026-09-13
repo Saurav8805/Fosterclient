@@ -251,7 +251,7 @@ export default function FeesPage() {
           </div>
         ) : (
           <>
-            {/* Fee Status Card */}
+            Fee Status Card
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden mb-4 sm:mb-6">
               <div className="bg-gradient-to-r from-[#5e3a9e] to-[#7c52c8] p-6 text-white">
                 <p className="text-sm opacity-80">Fee Status</p>
