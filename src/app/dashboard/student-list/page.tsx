@@ -22,9 +22,9 @@ export default function StudentListPage() {
   const [deleting, setDeleting] = useState(false)
   const [message, setMessage] = useState('')
   
-  // Teacher's assigned class/section
-  const [teacherAssignedClass, setTeacherAssignedClass] = useState<string | null>(null)
-  const [teacherAssignedSection, setTeacherAssignedSection] = useState<string | null>(null)
+  // Teacher's assigned classes (can be multiple)
+  const [teacherAssignedClasses, setTeacherAssignedClasses] = useState<Array<{class: string, section: string}>>([])
+  const [selectedTeacherClass, setSelectedTeacherClass] = useState<{class: string, section: string} | null>(null)
   const [formData, setFormData] = useState({
     fullName: '',
     mobile: '',
@@ -108,31 +108,32 @@ export default function StudentListPage() {
       if (res.success && res.data) {
         const myStaff = res.data.find((s: any) => s.user?.mobile === mobile)
         if (myStaff) {
-          const assignedClass = myStaff.assigned_class || null
-          const assignedSection = myStaff.assigned_section || null
+          // Get all class assignments for this teacher
+          const assignments = myStaff.class_assignments || []
           
-          console.log('👨‍🏫 Teacher assigned to:', { class: assignedClass, section: assignedSection })
+          console.log('👨‍🏫 Teacher assigned to classes:', assignments)
           
-          // Store teacher's assigned class/section
-          setTeacherAssignedClass(assignedClass)
-          setTeacherAssignedSection(assignedSection)
+          // Store all teacher's assigned classes
+          setTeacherAssignedClasses(assignments)
           
-          // Set filter to teacher's assigned class/section
-          if (assignedClass) {
-            setSelectedClass(assignedClass)
+          // Set the first assignment as default selected
+          if (assignments.length > 0) {
+            const firstAssignment = assignments[0]
+            setSelectedTeacherClass(firstAssignment)
+            setSelectedClass(firstAssignment.class)
+            setSelectedSection(firstAssignment.section)
+            
+            setAdmitFormData(prev => ({
+              ...prev,
+              studentClass: firstAssignment.class,
+              section: firstAssignment.section,
+              teacherId: myStaff.user_id || prev.teacherId
+            }))
+          } else {
+            console.warn('⚠️ Teacher has no class assignments')
           }
-          if (assignedSection) {
-            setSelectedSection(assignedSection)
-          }
-          
-          setAdmitFormData(prev => ({
-            ...prev,
-            studentClass: assignedClass || prev.studentClass,
-            section: assignedSection || prev.section,
-            teacherId: myStaff.user_id || prev.teacherId
-          }))
         } else {
-          console.warn('⚠️ Teacher profile not found - teacher cannot manage any students')
+          console.warn('⚠️ Teacher profile not found')
         }
       }
     } catch (err) {
@@ -474,16 +475,21 @@ export default function StudentListPage() {
   const filtered = students.filter(s => {
     // For teachers (role 7), strictly enforce their assigned class/section
     if (userRole === 7) {
-      // If teacher has no assigned class, they see nothing
-      if (!teacherAssignedClass) {
+      // If teacher has no assigned classes, they see nothing
+      if (teacherAssignedClasses.length === 0) {
         return false
       }
       
-      // Teacher must see only their assigned class and section
-      const classMatch = s.class === teacherAssignedClass
-      const sectionMatch = !teacherAssignedSection || s.section === teacherAssignedSection
+      // Teacher can see students from any of their assigned classes
+      // If they selected a specific class from dropdown, show only that class
+      if (selectedTeacherClass) {
+        return s.class === selectedTeacherClass.class && s.section === selectedTeacherClass.section
+      }
       
-      return classMatch && sectionMatch
+      // Otherwise show students from all assigned classes
+      return teacherAssignedClasses.some(assignment => 
+        s.class === assignment.class && s.section === assignment.section
+      )
     }
     
     // For admin/principal (role 6 or 8), apply selected filters
@@ -526,8 +532,30 @@ export default function StudentListPage() {
               {userRole === 7 && (
                 <div className="bg-blue-50 border border-blue-300 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg w-full sm:w-auto">
                   <p className="text-xs sm:text-sm font-semibold text-blue-900">
-                    {teacherAssignedClass ? (
-                      <>Your Class: {teacherAssignedClass} {teacherAssignedSection ? `- ${teacherAssignedSection}` : ''}</>
+                    {teacherAssignedClasses.length > 0 ? (
+                      teacherAssignedClasses.length === 1 ? (
+                        <>Your Class: {teacherAssignedClasses[0].class} - {teacherAssignedClasses[0].section}</>
+                      ) : (
+                        <select
+                          value={selectedTeacherClass ? `${selectedTeacherClass.class}-${selectedTeacherClass.section}` : ''}
+                          onChange={(e) => {
+                            const [cls, sec] = e.target.value.split('-')
+                            const assignment = teacherAssignedClasses.find(a => a.class === cls && a.section === sec)
+                            if (assignment) {
+                              setSelectedTeacherClass(assignment)
+                              setSelectedClass(assignment.class)
+                              setSelectedSection(assignment.section)
+                            }
+                          }}
+                          className="px-3 py-1.5 border border-blue-300 rounded-lg text-sm font-semibold text-blue-900 bg-white focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none"
+                        >
+                          {teacherAssignedClasses.map((assignment, idx) => (
+                            <option key={idx} value={`${assignment.class}-${assignment.section}`}>
+                              {assignment.class} - {assignment.section}
+                            </option>
+                          ))}
+                        </select>
+                      )
                     ) : (
                       <span className="text-red-600">⚠️ No class assigned</span>
                     )}
@@ -570,7 +598,7 @@ export default function StudentListPage() {
               )}
 
               {/* Admit button - only show if teacher has assigned class OR if admin */}
-              {(userRole === 6 || userRole === 8 || (userRole === 7 && teacherAssignedClass)) && (
+              {(userRole === 6 || userRole === 8 || (userRole === 7 && teacherAssignedClasses.length > 0)) && (
                 <button
                   onClick={() => {
                     setAdmitMessage(null)
@@ -604,7 +632,7 @@ export default function StudentListPage() {
                 {filtered.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-3 sm:px-4 md:px-6 py-8 sm:py-10 text-center text-xs sm:text-sm text-gray-500">
-                      {userRole === 7 && !teacherAssignedClass ? (
+                      {userRole === 7 && teacherAssignedClasses.length === 0 ? (
                         <div className="text-center">
                           <div className="text-3xl sm:text-4xl md:text-5xl mb-3 sm:mb-4">⚠️</div>
                           <p className="text-base sm:text-lg font-semibold text-gray-700">No Class Assigned</p>

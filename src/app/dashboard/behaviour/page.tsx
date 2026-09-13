@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { behaviourApi, studentsApi, staffApi } from '@/lib/api';
+import { behaviourApi, studentsApi, staffApi, configApi } from '@/lib/api';
 
 interface BehaviourRecord {
   id?: string;
@@ -38,9 +38,9 @@ export default function BehaviourManagementPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Teacher's assigned class/section
-  const [teacherAssignedClass, setTeacherAssignedClass] = useState<string | null>(null);
-  const [teacherAssignedSection, setTeacherAssignedSection] = useState<string | null>(null);
+  // All classes available for teachers
+  const [allClassesList, setAllClassesList] = useState<Array<{class: string, section: string}>>([])
+  const [selectedClass, setSelectedClass] = useState<{class: string, section: string} | null>(null)
 
   // States for Student View
   const [studentRecords, setStudentRecords] = useState<BehaviourRecord[]>([]);
@@ -77,34 +77,36 @@ export default function BehaviourManagementPage() {
     if (role) setUserRole(parseInt(role, 10));
     if (id) setUserId(id);
     
-    // Fetch teacher assignment if role is teacher
+    // Fetch all classes if role is teacher
     if (role && parseInt(role, 10) === 7) {
-      fetchTeacherAssignment();
+      fetchAllClasses();
     }
 
     setLoading(false);
   }, []);
   
-  const fetchTeacherAssignment = async () => {
+  const fetchAllClasses = async () => {
     try {
-      const mobile = localStorage.getItem('userMobile');
-      const res = await staffApi.list() as { success: boolean; data?: any[] };
-      if (res.success && res.data) {
-        const myStaff = res.data.find((s: any) => s.user?.mobile === mobile);
-        if (myStaff) {
-          const assignedClass = myStaff.assigned_class || null;
-          const assignedSection = myStaff.assigned_section || null;
-          
-          console.log('👨‍🏫 Teacher assigned to:', { class: assignedClass, section: assignedSection });
-          
-          setTeacherAssignedClass(assignedClass);
-          setTeacherAssignedSection(assignedSection);
+      const classStatsRes = await configApi.getClassStats()
+      if (classStatsRes.success && Array.isArray(classStatsRes.data)) {
+        const allClasses: Array<{class: string, section: string}> = []
+        classStatsRes.data.forEach((cls: any) => {
+          cls.sections.forEach((sec: string) => {
+            allClasses.push({class: cls.name, section: sec})
+          })
+        })
+        console.log('📚 All classes available for behaviour:', allClasses)
+        setAllClassesList(allClasses)
+        
+        // Set first class as default
+        if (allClasses.length > 0) {
+          setSelectedClass(allClasses[0])
         }
       }
     } catch (err) {
-      console.error('Error fetching teacher assignment:', err);
+      console.error('Error fetching all classes:', err)
     }
-  };
+  }
 
   useEffect(() => {
     if (userRole === 19 && userId) {
@@ -114,15 +116,11 @@ export default function BehaviourManagementPage() {
       console.log('👨‍🎓 Fetching student behaviour for ID:', studentRecordId);
       fetchStudentRecords(studentRecordId);
     } else if ((userRole === 7 || userRole === 6) && userId) {
-      if (userRole === 7 && teacherAssignedClass) {
-        fetchStudents();
-        fetchAllRecords();
-      } else if (userRole === 6) {
-        fetchStudents();
-        fetchAllRecords();
-      }
+      // Both teachers and principals can access all classes
+      fetchStudents();
+      fetchAllRecords();
     }
-  }, [userRole, userId, teacherAssignedClass, teacherAssignedSection]);
+  }, [userRole, userId, allClassesList, selectedClass]);
 
   // Filter records when filters change
   useEffect(() => {
@@ -159,20 +157,13 @@ export default function BehaviourManagementPage() {
       if (res.success) {
         let studentsList = res.data?.students || res.data || [];
         
-        // Filter students by teacher's assigned class/section
-        if (userRole === 7) {
-          if (!teacherAssignedClass) {
-            setStudents([]);
-            return;
-          }
-          
+        // Filter students by selected class for teachers
+        if (userRole === 7 && selectedClass) {
           studentsList = studentsList.filter((s: any) => {
-            const classMatch = s.class === teacherAssignedClass;
-            const sectionMatch = !teacherAssignedSection || s.section === teacherAssignedSection;
-            return classMatch && sectionMatch;
+            return s.class === selectedClass.class && s.section === selectedClass.section;
           });
           
-          console.log(`📚 Teacher can manage behaviour for ${studentsList.length} students`);
+          console.log(`📚 Teacher can manage behaviour for ${studentsList.length} students in ${selectedClass.class} ${selectedClass.section}`);
         }
         
         setStudents(studentsList);
@@ -204,13 +195,12 @@ export default function BehaviourManagementPage() {
           studentSection: r.student?.section,
         }));
         
-        // Filter records by teacher's assigned class
-        if (userRole === 7 && teacherAssignedClass) {
+        // Filter records by selected class for teachers
+        if (userRole === 7 && selectedClass) {
           records = records.filter((r: any) => {
-            return r.studentClass === teacherAssignedClass && 
-                   (!teacherAssignedSection || r.studentSection === teacherAssignedSection);
+            return r.studentClass === selectedClass.class && r.studentSection === selectedClass.section;
           });
-          console.log(`👨‍🏫 Teacher filtered records: ${records.length}`);
+          console.log(`👨‍🏫 Teacher filtered records for ${selectedClass.class} ${selectedClass.section}: ${records.length}`);
         } else if (userRole === 6) {
           console.log(`👔 Principal viewing all ${records.length} records`);
         }
@@ -532,32 +522,43 @@ export default function BehaviourManagementPage() {
     1: filteredRecords.filter(r => r.rating === 1).length,
   };
 
-  // Check if teacher has no assigned class
-  if (userRole === 7 && !teacherAssignedClass) {
-    return (
-      <div className="p-6 bg-white min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-6xl mb-4">👨‍🏫</div>
-          <h2 className="text-xl font-bold text-gray-800 mb-2">No Class Assigned</h2>
-          <p className="text-gray-500">You need to be assigned to a class to manage behaviour records.</p>
-          <p className="text-gray-400 text-sm mt-2">Please contact the principal.</p>
-        </div>
-      </div>
-    );
-  }
-
+  // Teachers now have access to all classes, no need for assignment check
+  
   return (
     <div className="p-6 bg-white min-h-screen">
       {/* Header */}
       <div className="mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-[#5e3a9e]">
-            {isPrincipal ? 'School Behaviour Management' : 'Class Behaviour Management'}
-          </h1>
-          {userRole === 7 && teacherAssignedClass && (
-            <p className="text-sm text-gray-500 mt-1">
-              Managing: <span className="font-medium text-[#5e3a9e]">{teacherAssignedClass} {teacherAssignedSection || ''}</span>
-            </p>
+        <div className="flex items-center gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-[#5e3a9e]">
+              {isPrincipal ? 'School Behaviour Management' : 'Class Behaviour Management'}
+            </h1>
+            {userRole === 7 && selectedClass && (
+              <p className="text-sm text-gray-500 mt-1">
+                Managing: <span className="font-medium text-[#5e3a9e]">{selectedClass.class} {selectedClass.section}</span>
+              </p>
+            )}
+          </div>
+          
+          {/* Teacher Class Dropdown - Shows ALL classes */}
+          {userRole === 7 && allClassesList.length > 0 && (
+            <select
+              value={selectedClass ? `${selectedClass.class}-${selectedClass.section}` : ''}
+              onChange={(e) => {
+                const [cls, sec] = e.target.value.split('-')
+                const classObj = allClassesList.find(a => a.class === cls && a.section === sec)
+                if (classObj) {
+                  setSelectedClass(classObj)
+                }
+              }}
+              className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-semibold text-gray-800 bg-white focus:ring-2 focus:ring-[#5e3a9e]/30 focus:border-[#5e3a9e] outline-none shadow-sm"
+            >
+              {allClassesList.map((classObj, idx) => (
+                <option key={idx} value={`${classObj.class}-${classObj.section}`}>
+                  {classObj.class} - {classObj.section}
+                </option>
+              ))}
+            </select>
           )}
         </div>
       </div>
