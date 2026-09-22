@@ -94,7 +94,7 @@ export default function ClassListPage() {
 
   // Add Class Form State
   const [newClassName, setNewClassName] = useState('')
-  const [newClassSection, setNewClassSection] = useState('A')
+  const [newClassSection, setNewClassSection] = useState('')
   const [newClassTeacherId, setNewClassTeacherId] = useState('')
   const [newClassTeacherId2, setNewClassTeacherId2] = useState('')
   const [addClassSubmitting, setAddClassSubmitting] = useState(false)
@@ -376,13 +376,14 @@ export default function ClassListPage() {
         const newClassCard: ClassStats = {
           name: newClassName.trim(),
           studentCount: 0,
-          sections: [newClassSection],
+          sections: newClassSection.trim() ? [newClassSection.trim()] : [],
           teachers: teacherNames
         }
         setClasses(prev => [...prev, newClassCard])
       }
       setShowAddClassModal(false)
       setNewClassName('')
+      setNewClassSection('')
       setNewClassTeacherId('')
       setNewClassTeacherId2('')
       setActionMessage({ type: 'success', text: `Class ${newClassName} added successfully!` })
@@ -923,17 +924,17 @@ export default function ClassListPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  Initial Section
+                  Initial Section <span className="text-gray-400">(Optional)</span>
                 </label>
-                <select
+                <input
+                  type="text"
+                  placeholder="e.g. A, B, C, Red, Blue, etc."
                   value={newClassSection}
                   onChange={e => setNewClassSection(e.target.value)}
-                  className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#5e3a9e]/30 focus:border-[#5e3a9e] outline-none bg-white"
-                >
-                  <option value="A">Section A</option>
-                  <option value="B">Section B</option>
-                  <option value="C">Section C</option>
-                </select>
+                  className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#5e3a9e]/30 focus:border-[#5e3a9e] outline-none"
+                  maxLength={20}
+                />
+                <p className="text-xs text-gray-500 mt-1">Leave blank if not using sections, or enter custom section name</p>
               </div>
 
               <div>
@@ -1026,17 +1027,17 @@ export default function ClassListPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  Section
+                  Section <span className="text-gray-400">(Optional)</span>
                 </label>
-                <select
+                <input
+                  type="text"
+                  placeholder="e.g. A, B, C, Red, Blue, etc."
                   value={editClassSection}
                   onChange={e => setEditClassSection(e.target.value)}
-                  className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#5e3a9e]/30 focus:border-[#5e3a9e] outline-none bg-white"
-                >
-                  <option value="A">Section A</option>
-                  <option value="B">Section B</option>
-                  <option value="C">Section C</option>
-                </select>
+                  className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#5e3a9e]/30 focus:border-[#5e3a9e] outline-none"
+                  maxLength={20}
+                />
+                <p className="text-xs text-gray-500 mt-1">Leave blank if not using sections, or enter custom section name</p>
               </div>
 
               <div>

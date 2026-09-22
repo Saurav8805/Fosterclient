@@ -42,6 +42,10 @@ export default function BehaviourManagementPage() {
   const [allClassesList, setAllClassesList] = useState<Array<{class: string, section: string}>>([])
   const [selectedClass, setSelectedClass] = useState<{class: string, section: string} | null>(null)
 
+  // Principal/Super Admin filter for class-section
+  const [principalClassFilter, setPrincipalClassFilter] = useState<{class: string, section: string} | null>(null)
+  const [principalClassesList, setPrincipalClassesList] = useState<Array<{class: string, section: string}>>([]);
+
   // States for Student View
   const [studentRecords, setStudentRecords] = useState<BehaviourRecord[]>([]);
   const [averageRating, setAverageRating] = useState<number>(0);
@@ -77,17 +81,20 @@ export default function BehaviourManagementPage() {
     if (role) setUserRole(parseInt(role, 10));
     if (id) setUserId(id);
     
-    // Fetch all classes if role is teacher
-    if (role && parseInt(role, 10) === 7) {
-      fetchAllClasses();
+    // Fetch all classes if role is teacher, principal, or super admin
+    if (role && (parseInt(role, 10) === 7 || parseInt(role, 10) === 6 || parseInt(role, 10) === 5)) {
+      fetchAllClasses(parseInt(role, 10));
     }
 
     setLoading(false);
   }, []);
   
-  const fetchAllClasses = async () => {
+  const fetchAllClasses = async (role: number) => {
     try {
+      console.log('🔍 fetchAllClasses called for role:', role);
       const classStatsRes = await configApi.getClassStats()
+      console.log('📊 Class stats response:', classStatsRes);
+      
       if (classStatsRes.success && Array.isArray(classStatsRes.data)) {
         const allClasses: Array<{class: string, section: string}> = []
         classStatsRes.data.forEach((cls: any) => {
@@ -96,15 +103,26 @@ export default function BehaviourManagementPage() {
           })
         })
         console.log('📚 All classes available for behaviour:', allClasses)
-        setAllClassesList(allClasses)
         
-        // Set first class as default
-        if (allClasses.length > 0) {
-          setSelectedClass(allClasses[0])
+        // Set for teachers
+        if (role === 7) {
+          setAllClassesList(allClasses)
+          // Set first class as default for teachers
+          if (allClasses.length > 0) {
+            setSelectedClass(allClasses[0])
+          }
         }
+        
+        // Set for Principal/Super Admin filter
+        if (role === 6 || role === 5) {
+          console.log('✅ Setting principalClassesList for role', role, 'with', allClasses.length, 'classes');
+          setPrincipalClassesList(allClasses)
+        }
+      } else {
+        console.warn('⚠️ Class stats response not successful or not an array:', classStatsRes);
       }
     } catch (err) {
-      console.error('Error fetching all classes:', err)
+      console.error('❌ Error fetching all classes:', err)
     }
   }
 
@@ -115,12 +133,12 @@ export default function BehaviourManagementPage() {
       
       console.log('👨‍🎓 Fetching student behaviour for ID:', studentRecordId);
       fetchStudentRecords(studentRecordId);
-    } else if ((userRole === 7 || userRole === 6) && userId) {
-      // Both teachers and principals can access all classes
+    } else if ((userRole === 7 || userRole === 6 || userRole === 5) && userId) {
+      // Teachers, principals, and super admins can access classes
       fetchStudents();
       fetchAllRecords();
     }
-  }, [userRole, userId, allClassesList, selectedClass]);
+  }, [userRole, userId, allClassesList, selectedClass, principalClassFilter]);
 
   // Filter records when filters change
   useEffect(() => {
@@ -166,6 +184,15 @@ export default function BehaviourManagementPage() {
           console.log(`📚 Teacher can manage behaviour for ${studentsList.length} students in ${selectedClass.class} ${selectedClass.section}`);
         }
         
+        // Filter students by selected class for Principal/Super Admin
+        if ((userRole === 6 || userRole === 5) && principalClassFilter) {
+          studentsList = studentsList.filter((s: any) => {
+            return s.class === principalClassFilter.class && s.section === principalClassFilter.section;
+          });
+          
+          console.log(`👔 Admin filtered ${studentsList.length} students in ${principalClassFilter.class} ${principalClassFilter.section}`);
+        }
+        
         setStudents(studentsList);
       }
     } catch (error) {
@@ -201,8 +228,16 @@ export default function BehaviourManagementPage() {
             return r.studentClass === selectedClass.class && r.studentSection === selectedClass.section;
           });
           console.log(`👨‍🏫 Teacher filtered records for ${selectedClass.class} ${selectedClass.section}: ${records.length}`);
-        } else if (userRole === 6) {
-          console.log(`👔 Principal viewing all ${records.length} records`);
+        }
+        
+        // Filter records by selected class for Principal/Super Admin
+        if ((userRole === 6 || userRole === 5) && principalClassFilter) {
+          records = records.filter((r: any) => {
+            return r.studentClass === principalClassFilter.class && r.studentSection === principalClassFilter.section;
+          });
+          console.log(`👔 Admin filtered records for ${principalClassFilter.class} ${principalClassFilter.section}: ${records.length}`);
+        } else if (userRole === 6 || userRole === 5) {
+          console.log(`👔 Admin viewing all ${records.length} records`);
         }
         
         setAllRecords(records);
@@ -531,11 +566,16 @@ export default function BehaviourManagementPage() {
         <div className="flex items-center gap-4">
           <div>
             <h1 className="text-2xl font-bold text-[#5e3a9e]">
-              {isPrincipal ? 'School Behaviour Management' : 'Class Behaviour Management'}
+              {isPrincipal || userRole === 5 ? 'School Behaviour Management' : 'Class Behaviour Management'}
             </h1>
             {userRole === 7 && selectedClass && (
               <p className="text-sm text-gray-500 mt-1">
                 Managing: <span className="font-medium text-[#5e3a9e]">{selectedClass.class} {selectedClass.section}</span>
+              </p>
+            )}
+            {(isPrincipal || userRole === 5) && principalClassFilter && (
+              <p className="text-sm text-gray-500 mt-1">
+                Filtered: <span className="font-medium text-[#5e3a9e]">{principalClassFilter.class} - Section {principalClassFilter.section}</span>
               </p>
             )}
           </div>
@@ -559,6 +599,40 @@ export default function BehaviourManagementPage() {
                 </option>
               ))}
             </select>
+          )}
+          
+          {/* Principal/Super Admin Class Filter Dropdown */}
+          {(userRole === 5 || userRole === 6) && (
+            <>
+              {principalClassesList.length > 0 ? (
+                <select
+                  value={principalClassFilter ? `${principalClassFilter.class}-${principalClassFilter.section}` : ''}
+                  onChange={(e) => {
+                    if (e.target.value === '') {
+                      setPrincipalClassFilter(null)
+                    } else {
+                      const [cls, sec] = e.target.value.split('-')
+                      const classObj = principalClassesList.find(a => a.class === cls && a.section === sec)
+                      if (classObj) {
+                        setPrincipalClassFilter(classObj)
+                      }
+                    }
+                  }}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-semibold text-gray-800 bg-white focus:ring-2 focus:ring-[#5e3a9e]/30 focus:border-[#5e3a9e] outline-none shadow-sm"
+                >
+                  <option value="">All Classes & Sections</option>
+                  {principalClassesList.map((classObj, idx) => (
+                    <option key={idx} value={`${classObj.class}-${classObj.section}`}>
+                      {classObj.class} - Section {classObj.section}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className="px-4 py-2 border border-amber-300 bg-amber-50 rounded-lg text-xs text-amber-700">
+                  ⚠️ No classes found. Please add classes in Class List page first.
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

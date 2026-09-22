@@ -286,6 +286,7 @@ export const syllabusApi = {
   getByClass: (className: string) => apiClient.get(`/syllabus/by-class?className=${encodeURIComponent(className)}`),
   create: (data: any) => apiClient.post('/syllabus', data),
   update: (id: string, data: any) => apiClient.put(`/syllabus/${id}`, data),
+  updateRemarks: (id: string, remarks: string) => apiClient.put(`/syllabus/${id}/remarks`, { remarks }),
   delete: (id: string) => apiClient.delete(`/syllabus/${id}`),
 };
 
