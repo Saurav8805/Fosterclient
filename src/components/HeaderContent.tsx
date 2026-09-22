@@ -45,7 +45,9 @@ export default function HeaderContent() {
       setUserDesignation(designation);
     } else if (role) {
       const roleNum = Number(role);
-      if (roleNum === 6) {
+      if (roleNum === 5) {
+        setUserDesignation('Super Admin');
+      } else if (roleNum === 6) {
         setUserDesignation('Administrator');
       } else if (roleNum === 7) {
         setUserDesignation('Faculty');

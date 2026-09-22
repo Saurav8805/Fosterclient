@@ -158,16 +158,16 @@ const DashboardSidebar = memo(function DashboardSidebar() {
     { name: 'Staff List', icon: Icons.staffList, path: '/dashboard/staff-list' },
     { name: 'Staff Attendance', icon: Icons.staffAttendance, path: '/dashboard/staff-attendance' },
     { name: 'Class List', icon: Icons.classList, path: '/dashboard/class-list' },
-    { name: 'Student List', icon: Icons.studentList, path: '/dashboard/student-list' },
-    { name: 'Student Attendance', icon: Icons.attendance, path: '/dashboard/student-attendance' },
+    // { name: 'Student List', icon: Icons.studentList, path: '/dashboard/student-list' },
+    // { name: 'Student Attendance', icon: Icons.attendance, path: '/dashboard/student-attendance' },
     { name: 'Fees Management', icon: Icons.fees, path: '/dashboard/fees' },
     { name: 'Calendar & Events', icon: Icons.calendar, path: '/dashboard/calendar' },
     { name: 'Salary', icon: Icons.salary, path: '/dashboard/salary' },
     { name: 'Syllabus', icon: Icons.syllabus, path: '/dashboard/syllabus' },
-    { name: 'Homework', icon: Icons.homework, path: '/dashboard/homework' },
+    // { name: 'Homework', icon: Icons.homework, path: '/dashboard/homework' },
     { name: 'Student Behaviour', icon: Icons.behaviour, path: '/dashboard/behaviour' },
     { name: 'Progress & Reports', icon: Icons.reports, path: '/dashboard/reports' },
-    { name: 'Admit Student', icon: Icons.admitStudent, path: '/dashboard/admit-student' },
+    // { name: 'Admit Student', icon: Icons.admitStudent, path: '/dashboard/admit-student' },
     { name: 'Gallery', icon: Icons.gallery, path: '/dashboard/gallery' },
   ]
 
@@ -204,9 +204,10 @@ const DashboardSidebar = memo(function DashboardSidebar() {
     '/dashboard/behaviour',
     '/dashboard/homework'
   ]
+
   const principalMenuItems = adminMenuItems.filter(item => !removedPathsForPrincipal.includes(item.path))
 
-  const menuItems = userRole === 6 ? principalMenuItems : userRole === 8 ? adminMenuItems : userRole === 7 ? facultyMenuItems : studentMenuItems
+  const menuItems = userRole === 5 ? adminMenuItems : userRole === 6 ? principalMenuItems : userRole === 8 ? adminMenuItems : userRole === 7 ? facultyMenuItems : studentMenuItems
 
   return (
     <aside className={`${isOpen ? 'w-64 sm:w-56' : 'w-0 overflow-hidden'} bg-white border-r border-gray-100 transition-all duration-300 flex flex-col flex-shrink-0 h-full shadow-sm lg:relative fixed left-0 top-0 z-[60] lg:z-auto`}>

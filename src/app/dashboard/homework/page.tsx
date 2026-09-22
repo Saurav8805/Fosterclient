@@ -25,9 +25,12 @@ export default function HomeworkPage() {
   const [allClassesList, setAllClassesList] = useState<Array<{class: string, section: string}>>([])
   const [selectedClass, setSelectedClass] = useState<{class: string, section: string} | null>(null)
   
-  // Principal filter states
+  // Principal/Super Admin filter states
   const [filterClass, setFilterClass] = useState<string>('');
   const [filterSection, setFilterSection] = useState<string>('');
+  
+  // Classes for Principal/Super Admin filter dropdown
+  const [principalClassesList, setPrincipalClassesList] = useState<Array<{class: string, section: string}>>([]);
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -96,10 +99,44 @@ export default function HomeworkPage() {
             }
           }
         } else if (storedUserRole === '6') {
-          // Principal - fetch all
+          // Principal - fetch all homework and load classes for filter
           console.log('👔 Fetching all homework (Principal)...');
+          
+          // Fetch all classes for filter dropdown
+          const classStatsRes = await configApi.getClassStats()
+          if (classStatsRes.success && Array.isArray(classStatsRes.data)) {
+            const allClasses: Array<{class: string, section: string}> = []
+            classStatsRes.data.forEach((cls: any) => {
+              cls.sections.forEach((sec: string) => {
+                allClasses.push({class: cls.name, section: sec})
+              })
+            })
+            console.log('📚 All classes for Principal filter:', allClasses)
+            setPrincipalClassesList(allClasses)
+          }
+          
           const hwRes = await homeworkApi.list('', '');
           console.log('✅ Fetched principal homework:', hwRes);
+          setHomeworkList(sortHomeworkByDate(hwRes.success && Array.isArray(hwRes.data) ? hwRes.data : []));
+        } else if (storedUserRole === '5') {
+          // Super Admin - fetch all homework and load classes for filter
+          console.log('👑 Fetching all homework (Super Admin)...');
+          
+          // Fetch all classes for filter dropdown
+          const classStatsRes = await configApi.getClassStats()
+          if (classStatsRes.success && Array.isArray(classStatsRes.data)) {
+            const allClasses: Array<{class: string, section: string}> = []
+            classStatsRes.data.forEach((cls: any) => {
+              cls.sections.forEach((sec: string) => {
+                allClasses.push({class: cls.name, section: sec})
+              })
+            })
+            console.log('📚 All classes for Super Admin filter:', allClasses)
+            setPrincipalClassesList(allClasses)
+          }
+          
+          const hwRes = await homeworkApi.list('', '');
+          console.log('✅ Fetched super admin homework:', hwRes);
           setHomeworkList(sortHomeworkByDate(hwRes.success && Array.isArray(hwRes.data) ? hwRes.data : []));
         } else if (storedUserRole === '19' && storedUserId) {
           // Student - fetch by class/section
@@ -130,9 +167,9 @@ export default function HomeworkPage() {
     init();
   }, []);
 
-  // Principal re-fetch on filter change
+  // Principal/Super Admin re-fetch on filter change
   useEffect(() => {
-    if (userRole === 6 && !loading) {
+    if ((userRole === 5 || userRole === 6) && !loading) {
       const fetchFiltered = async () => {
         try {
           const hwRes = await homeworkApi.list(filterClass, filterSection);
@@ -249,7 +286,9 @@ export default function HomeworkPage() {
 
   const isTeacher = userRole === 7;
   const isPrincipal = userRole === 6;
+  const isSuperAdmin = userRole === 5;
   const isStudent = userRole === 19;
+  const isAdmin = isPrincipal || isSuperAdmin;
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
@@ -310,26 +349,43 @@ export default function HomeworkPage() {
           </div>
         </div>
 
-        {/* Filters for Principal */}
-        {isPrincipal && (
+        {/* Filters for Principal & Super Admin */}
+        {isAdmin && (
           <div className="bg-white p-4 rounded-lg shadow-sm mb-6 flex flex-wrap gap-4 items-center">
             <span className="font-medium text-gray-700">Filters:</span>
             <select 
-              value={filterClass} 
-              onChange={e => setFilterClass(e.target.value)}
-              className="border border-gray-300 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#5e3a9e]"
+              value={filterClass && filterSection ? `${filterClass}-${filterSection}` : ''} 
+              onChange={e => {
+                if (e.target.value === '') {
+                  setFilterClass('')
+                  setFilterSection('')
+                } else {
+                  const [cls, sec] = e.target.value.split('-')
+                  setFilterClass(cls)
+                  setFilterSection(sec)
+                }
+              }}
+              className="border border-gray-300 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#5e3a9e] text-sm font-medium"
             >
-              <option value="">All Classes</option>
-              {CLASSES.map(c => <option key={c} value={c}>{c}</option>)}
+              <option value="">All Classes & Sections</option>
+              {principalClassesList.map((classObj, idx) => (
+                <option key={idx} value={`${classObj.class}-${classObj.section}`}>
+                  {classObj.class} - Section {classObj.section}
+                </option>
+              ))}
             </select>
-            <select 
-              value={filterSection} 
-              onChange={e => setFilterSection(e.target.value)}
-              className="border border-gray-300 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#5e3a9e]"
-            >
-              <option value="">All Sections</option>
-              {SECTIONS.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
+            
+            {(filterClass || filterSection) && (
+              <button
+                onClick={() => {
+                  setFilterClass('')
+                  setFilterSection('')
+                }}
+                className="text-xs px-3 py-1.5 bg-gray-200 hover:bg-gray-300 rounded-md text-gray-700 font-medium transition"
+              >
+                ✕ Clear Filter
+              </button>
+            )}
           </div>
         )}
 

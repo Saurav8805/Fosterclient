@@ -224,7 +224,7 @@ export default function NotificationsPage() {
     });
   };
 
-  const isAdmin = userRole === 6 || userRole === 8;
+  const isAdmin = userRole === 5 || userRole === 6 || userRole === 8;
 
   return (
     <div className="min-h-screen bg-gray-50 p-3 sm:p-4 md:p-6">

@@ -49,12 +49,20 @@ export default function ReportsPage() {
   const [progressFilters, setProgressFilters] = useState({ class: '', section: '', term: '' });
   const [salaryFilters, setSalaryFilters] = useState({ month: '', year: String(new Date().getFullYear()) });
   const [staffAttFilters, setStaffAttFilters] = useState({ startDate: '', endDate: '' });
+  
+  // Classes list from database for Principal/Super Admin
+  const [principalClassesList, setPrincipalClassesList] = useState<Array<{class: string, section: string}>>([]);
 
   // Preview data
   const [attPreview, setAttPreview] = useState<any[]>([]);
   const [feesPreview, setFeesPreview] = useState<any[]>([]);
   const [progressPreview, setProgressPreview] = useState<any[]>([]);
   const [loadingPreviews, setLoadingPreviews] = useState<Record<string, boolean>>({});
+  
+  // Progress Report Student List
+  const [progressStudents, setProgressStudents] = useState<any[]>([]);
+  const [selectedProgressStudent, setSelectedProgressStudent] = useState<string>(''); // 'all' or studentId
+  const [loadingProgressStudents, setLoadingProgressStudents] = useState(false);
 
   const [generalError, setGeneralError] = useState('');
 
@@ -67,7 +75,31 @@ export default function ReportsPage() {
     setUserId(uid);
     setStudentId(sid);
     setUserClass(cls);
+    
+    // Fetch classes for Principal/Super Admin
+    if (role === 5 || role === 6) {
+      fetchPrincipalClasses();
+    }
   }, []);
+  
+  const fetchPrincipalClasses = async () => {
+    try {
+      const { configApi } = await import('@/lib/api');
+      const classStatsRes = await configApi.getClassStats();
+      if (classStatsRes.success && Array.isArray(classStatsRes.data)) {
+        const allClasses: Array<{class: string, section: string}> = [];
+        classStatsRes.data.forEach((cls: any) => {
+          cls.sections.forEach((sec: string) => {
+            allClasses.push({class: cls.name, section: sec});
+          });
+        });
+        console.log('📚 All classes for reports:', allClasses);
+        setPrincipalClassesList(allClasses);
+      }
+    } catch (err) {
+      console.error('Error fetching classes:', err);
+    }
+  };
 
   useEffect(() => {
     if (!userId) return;
@@ -117,6 +149,13 @@ export default function ReportsPage() {
   };
 
   useEffect(() => { if (userRole === 19 && userId) loadMyProgress(); }, [progressTerm]);
+  
+  // Load students for progress report when class/section changes
+  useEffect(() => {
+    if ((userRole === 5 || userRole === 6) && progressFilters.class && progressFilters.section) {
+      loadProgressStudents();
+    }
+  }, [progressFilters.class, progressFilters.section, userRole]);
 
   const loadTeacherStudents = async () => {
     // Filter students by teacher's assigned class/section
@@ -224,9 +263,49 @@ export default function ReportsPage() {
 
   const loadProgressPreview = async () => {
     setLoadingPreviews(p => ({ ...p, progress: true }));
-    const res = await reportsApi.progressSummary({ class: progressFilters.class, section: progressFilters.section, term: progressFilters.term });
+    
+    // Filter params based on selected student
+    const params: any = { 
+      class: progressFilters.class, 
+      section: progressFilters.section, 
+      term: progressFilters.term 
+    };
+    
+    // If specific student selected, add studentId to params
+    if (selectedProgressStudent && selectedProgressStudent !== 'all') {
+      params.studentId = selectedProgressStudent;
+    }
+    
+    const res = await reportsApi.progressSummary(params);
     if (res.success) setProgressPreview((res.data || []).slice(0, 5));
     setLoadingPreviews(p => ({ ...p, progress: false }));
+  };
+  
+  // Load students when class is selected for progress report
+  const loadProgressStudents = async () => {
+    if (!progressFilters.class || !progressFilters.section) {
+      setProgressStudents([]);
+      setSelectedProgressStudent('');
+      return;
+    }
+    
+    setLoadingProgressStudents(true);
+    try {
+      const res = await studentsApi.list();
+      if (res.success) {
+        const allStudents = res.data?.students || res.data || [];
+        const filtered = allStudents.filter((s: any) => 
+          s.class === progressFilters.class && s.section === progressFilters.section
+        );
+        setProgressStudents(filtered);
+        setSelectedProgressStudent('all'); // Default to all students
+        console.log(`📚 Loaded ${filtered.length} students for progress report`);
+      }
+    } catch (err) {
+      console.error('Error loading progress students:', err);
+    } finally {
+      setLoadingProgressStudents(false);
+    }
   };
 
   // ─── STUDENT VIEW ────────────────────────────────────────────────────────────
@@ -576,12 +655,27 @@ export default function ReportsPage() {
             </div>
           </div>
           <div className="flex flex-wrap gap-3 mb-4">
-            <select value={attFilters.class} onChange={e => setAttFilters(f => ({ ...f, class: e.target.value }))} className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#5e3a9e]">
-              <option value="">All Classes</option>{CLASSES.map(c => <option key={c}>{c}</option>)}
+            {/* Combined Class-Section Dropdown */}
+            <select 
+              value={attFilters.class && attFilters.section ? `${attFilters.class}-${attFilters.section}` : ''}
+              onChange={e => {
+                if (e.target.value === '') {
+                  setAttFilters(f => ({ ...f, class: '', section: '' }));
+                } else {
+                  const [cls, sec] = e.target.value.split('-');
+                  setAttFilters(f => ({ ...f, class: cls, section: sec }));
+                }
+              }}
+              className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#5e3a9e]"
+            >
+              <option value="">All Classes & Sections</option>
+              {principalClassesList.map((classObj, idx) => (
+                <option key={idx} value={`${classObj.class}-${classObj.section}`}>
+                  {classObj.class} - Section {classObj.section}
+                </option>
+              ))}
             </select>
-            <select value={attFilters.section} onChange={e => setAttFilters(f => ({ ...f, section: e.target.value }))} className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#5e3a9e]">
-              <option value="">All Sections</option>{SECTIONS.map(s => <option key={s}>{s}</option>)}
-            </select>
+            
             <input type="date" value={attFilters.startDate} onChange={e => setAttFilters(f => ({ ...f, startDate: e.target.value }))} className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#5e3a9e]" />
             <input type="date" value={attFilters.endDate} onChange={e => setAttFilters(f => ({ ...f, endDate: e.target.value }))} className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#5e3a9e]" />
             <button onClick={loadAttPreview} className="px-4 py-2 bg-[#5e3a9e]/10 text-[#5e3a9e] rounded-lg text-sm font-medium hover:bg-[#5e3a9e]/20 transition">Preview</button>
@@ -625,12 +719,27 @@ export default function ReportsPage() {
             </div>
           </div>
           <div className="flex flex-wrap gap-3 mb-4">
-            <select value={feesFilters.class} onChange={e => setFeesFilters(f => ({ ...f, class: e.target.value }))} className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#5e3a9e]">
-              <option value="">All Classes</option>{CLASSES.map(c => <option key={c}>{c}</option>)}
+            {/* Combined Class-Section Dropdown */}
+            <select 
+              value={feesFilters.class && feesFilters.section ? `${feesFilters.class}-${feesFilters.section}` : ''}
+              onChange={e => {
+                if (e.target.value === '') {
+                  setFeesFilters(f => ({ ...f, class: '', section: '' }));
+                } else {
+                  const [cls, sec] = e.target.value.split('-');
+                  setFeesFilters(f => ({ ...f, class: cls, section: sec }));
+                }
+              }}
+              className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#5e3a9e]"
+            >
+              <option value="">All Classes & Sections</option>
+              {principalClassesList.map((classObj, idx) => (
+                <option key={idx} value={`${classObj.class}-${classObj.section}`}>
+                  {classObj.class} - Section {classObj.section}
+                </option>
+              ))}
             </select>
-            <select value={feesFilters.section} onChange={e => setFeesFilters(f => ({ ...f, section: e.target.value }))} className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#5e3a9e]">
-              <option value="">All Sections</option>{SECTIONS.map(s => <option key={s}>{s}</option>)}
-            </select>
+            
             <button onClick={loadFeesPreview} className="px-4 py-2 bg-[#5e3a9e]/10 text-[#5e3a9e] rounded-lg text-sm font-medium hover:bg-[#5e3a9e]/20 transition">Preview</button>
             <button onClick={() => downloadCSV(reportsApi.exportUrl('fees', { class: feesFilters.class, section: feesFilters.section }))}
               className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition">⬇ Export CSV</button>
@@ -655,19 +764,95 @@ export default function ReportsPage() {
             </div>
           </div>
           <div className="flex flex-wrap gap-3 mb-4">
-            <select value={progressFilters.class} onChange={e => setProgressFilters(f => ({ ...f, class: e.target.value }))} className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#5e3a9e]">
-              <option value="">All Classes</option>{CLASSES.map(c => <option key={c}>{c}</option>)}
+            {/* Combined Class-Section Dropdown */}
+            <select 
+              value={progressFilters.class && progressFilters.section ? `${progressFilters.class}-${progressFilters.section}` : ''}
+              onChange={e => {
+                if (e.target.value === '') {
+                  setProgressFilters(f => ({ ...f, class: '', section: '' }));
+                } else {
+                  const [cls, sec] = e.target.value.split('-');
+                  setProgressFilters(f => ({ ...f, class: cls, section: sec }));
+                }
+              }}
+              className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#5e3a9e]"
+            >
+              <option value="">All Classes & Sections</option>
+              {principalClassesList.map((classObj, idx) => (
+                <option key={idx} value={`${classObj.class}-${classObj.section}`}>
+                  {classObj.class} - Section {classObj.section}
+                </option>
+              ))}
             </select>
-            <select value={progressFilters.section} onChange={e => setProgressFilters(f => ({ ...f, section: e.target.value }))} className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#5e3a9e]">
-              <option value="">All Sections</option>{SECTIONS.map(s => <option key={s}>{s}</option>)}
-            </select>
+            
             <select value={progressFilters.term} onChange={e => setProgressFilters(f => ({ ...f, term: e.target.value }))} className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#5e3a9e]">
               <option value="">All Terms</option>{TERMS.map(t => <option key={t}>{t}</option>)}
             </select>
             <button onClick={loadProgressPreview} className="px-4 py-2 bg-[#5e3a9e]/10 text-[#5e3a9e] rounded-lg text-sm font-medium hover:bg-[#5e3a9e]/20 transition">Preview</button>
-            <button onClick={() => downloadCSV(reportsApi.exportUrl('progress', { class: progressFilters.class, section: progressFilters.section, term: progressFilters.term }))}
+            <button onClick={() => {
+              const params: any = { class: progressFilters.class, section: progressFilters.section, term: progressFilters.term };
+              if (selectedProgressStudent && selectedProgressStudent !== 'all') {
+                params.studentId = selectedProgressStudent;
+              }
+              downloadCSV(reportsApi.exportUrl('progress', params));
+            }}
               className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition">⬇ Export CSV</button>
           </div>
+          
+          {/* Student List Selection (shows when class is selected) */}
+          {(userRole === 5 || userRole === 6) && progressStudents.length > 0 && (
+            <div className="mb-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-gray-700">👥 Select Student(s) for Report:</h3>
+                <span className="text-xs text-gray-500">{progressStudents.length} student{progressStudents.length !== 1 ? 's' : ''} in {progressFilters.class} {progressFilters.section}</span>
+              </div>
+              
+              <div className="flex flex-wrap gap-2">
+                {/* All Students Button */}
+                <button
+                  onClick={() => setSelectedProgressStudent('all')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+                    selectedProgressStudent === 'all'
+                      ? 'bg-[#5e3a9e] text-white shadow-sm'
+                      : 'bg-white border border-gray-300 text-gray-700 hover:border-[#5e3a9e]'
+                  }`}
+                >
+                  ✓ All Students ({progressStudents.length})
+                </button>
+                
+                {/* Individual Student Buttons */}
+                {progressStudents.map((student: any) => (
+                  <button
+                    key={student.id}
+                    onClick={() => setSelectedProgressStudent(student.id)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+                      selectedProgressStudent === student.id
+                        ? 'bg-[#5e3a9e] text-white shadow-sm'
+                        : 'bg-white border border-gray-300 text-gray-700 hover:border-[#5e3a9e]'
+                    }`}
+                  >
+                    {student.student_name || student.user?.full_name || 'Unknown'}
+                    {student.roll_no && <span className="ml-1 text-[10px] opacity-70">(#{student.roll_no})</span>}
+                  </button>
+                ))}
+              </div>
+              
+              <p className="text-xs text-gray-600 mt-3">
+                {selectedProgressStudent === 'all' 
+                  ? '📊 Showing progress report for all students in this class'
+                  : `📊 Showing progress report for ${progressStudents.find((s: any) => s.id === selectedProgressStudent)?.student_name || 'selected student'} only`
+                }
+              </p>
+            </div>
+          )}
+          
+          {loadingProgressStudents && (
+            <div className="mb-4 p-4 bg-gray-50 border border-gray-200 rounded-lg text-center">
+              <div className="inline-block w-5 h-5 border-2 border-[#5e3a9e] border-t-transparent rounded-full animate-spin mr-2"></div>
+              <span className="text-sm text-gray-600">Loading students...</span>
+            </div>
+          )}
+          
           {progressPreview.length > 0 && (
             <div className="overflow-x-auto rounded-lg border border-gray-100">
               <table className="w-full text-xs">

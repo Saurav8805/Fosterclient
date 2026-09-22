@@ -1,8 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: false, // Disabled to prevent double API calls in development
+  // Disable web vitals to prevent startTime errors
+  onDemandEntries: {
+    maxInactiveAge: 25 * 1000,
+    pagesBufferLength: 2,
+  },
   experimental: {
     serverComponentsExternalPackages: ['@supabase/supabase-js'],
+    instrumentationHook: true, // Enable instrumentation to suppress errors
   },
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || '',
@@ -24,7 +30,7 @@ const nextConfig = {
     imageSizes: [16, 32, 48, 64, 96],
     minimumCacheTTL: 60,
   },
-  // Optimize webpack for CSS handling
+  // Optimize webpack for CSS handling and disable web vitals
   webpack: (config, { dev, isServer }) => {
     // Suppress preload warnings in development
     if (dev && !isServer) {
@@ -34,6 +40,13 @@ const nextConfig = {
         return entries;
       };
     }
+
+    // Disable web vitals by aliasing to an empty module
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      'next/dist/client/web-vitals': false,
+      'next/dist/shared/lib/utils': false,
+    };
     
     return config;
   },

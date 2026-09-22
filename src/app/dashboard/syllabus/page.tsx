@@ -10,6 +10,7 @@ interface SyllabusRecord {
   subject?: string;
   topics?: string;
   description?: string;
+  remarks?: string;
   status?: string;
   created_at?: string;
   updated_at?: string;
@@ -33,6 +34,11 @@ export default function SyllabusPage() {
   const [rawContent, setRawContent] = useState<string>('');
   const [saving, setSaving] = useState<boolean>(false);
 
+  // Remarks State
+  const [isEditingRemarks, setIsEditingRemarks] = useState<boolean>(false);
+  const [remarksContent, setRemarksContent] = useState<string>('');
+  const [savingRemarks, setSavingRemarks] = useState<boolean>(false);
+
   // Active syllabus text dynamically computed from classSyllabusMap
   const activeSyllabusText = useMemo(() => {
     if (!selectedClass) return '';
@@ -42,6 +48,25 @@ export default function SyllabusPage() {
       return records.map(r => r.topics || r.description || '').filter(Boolean).join('\n\n');
     }
     return '';
+  }, [selectedClass, classSyllabusMap]);
+
+  // Active syllabus remarks dynamically computed from classSyllabusMap
+  const activeSyllabusRemarks = useMemo(() => {
+    if (!selectedClass) return '';
+    const normKey = String(selectedClass).trim().toLowerCase();
+    const records = classSyllabusMap[normKey] || classSyllabusMap[selectedClass] || [];
+    if (records.length > 0 && records[0].remarks) {
+      return records[0].remarks;
+    }
+    return '';
+  }, [selectedClass, classSyllabusMap]);
+
+  // Active syllabus ID
+  const activeSyllabusId = useMemo(() => {
+    if (!selectedClass) return null;
+    const normKey = String(selectedClass).trim().toLowerCase();
+    const records = classSyllabusMap[normKey] || classSyllabusMap[selectedClass] || [];
+    return records.length > 0 ? records[0].id : null;
   }, [selectedClass, classSyllabusMap]);
 
   useEffect(() => {
@@ -151,14 +176,17 @@ export default function SyllabusPage() {
     setSelectedClass(className);
     setViewMode('syllabusDetail');
     setIsEditing(false);
+    setIsEditingRemarks(false);
 
     const normKey = String(className).trim().toLowerCase();
     const records = classSyllabusMap[normKey] || classSyllabusMap[className] || [];
     if (records.length > 0) {
       const combined = records.map(r => r.topics || r.description || '').filter(Boolean).join('\n\n');
       setRawContent(combined);
+      setRemarksContent(records[0].remarks || '');
     } else {
       setRawContent('');
+      setRemarksContent('');
     }
   };
 
@@ -205,6 +233,7 @@ export default function SyllabusPage() {
             subject: 'General',
             topics: rawContent,
             description: rawContent,
+            remarks: existingRecords[0]?.remarks || '',
             status: 'Active'
           };
           return {
@@ -224,6 +253,39 @@ export default function SyllabusPage() {
       console.error('Failed to save syllabus:', err);
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Save / Update Remarks for selected class syllabus
+  const handleSaveRemarks = async () => {
+    if (!selectedClass || !activeSyllabusId) return;
+
+    setSavingRemarks(true);
+    try {
+      const res = await syllabusApi.updateRemarks(activeSyllabusId, remarksContent);
+      
+      if (res.success) {
+        // Update local state immediately
+        setClassSyllabusMap(prev => {
+          const normKey = String(selectedClass).trim().toLowerCase();
+          const existingRecords = prev[normKey] || [];
+          return {
+            ...prev,
+            [normKey]: existingRecords.map((r, i) => 
+              i === 0 ? { ...r, remarks: remarksContent } : r
+            )
+          };
+        });
+
+        setIsEditingRemarks(false);
+
+        // Background refresh to sync with DB
+        fetchClassesAndSyllabus();
+      }
+    } catch (err) {
+      console.error('Failed to save remarks:', err);
+    } finally {
+      setSavingRemarks(false);
     }
   };
 
@@ -292,7 +354,8 @@ export default function SyllabusPage() {
                   </button>
                 )}
 
-                {role !== 19 && !isEditing && (
+                {/* Edit/Update Syllabus Button - For Teachers, Principal, and Super Admin */}
+                {(role === 5 || role === 6 || role === 7) && !isEditing && (
                   <button
                     onClick={() => setIsEditing(true)}
                     className="bg-[#5e3a9e] text-white px-5 py-2.5 rounded-xl hover:bg-[#4a2d7e] transition text-xs font-bold shadow-sm"
@@ -437,6 +500,83 @@ export default function SyllabusPage() {
               /* Display Syllabus Content */
               <div>
                 {renderFormattedSyllabus(activeSyllabusText || rawContent)}
+
+                {/* Remarks Section - Only visible if syllabus exists */}
+                {activeSyllabusId && (
+                  <div className="mt-8 pt-6 border-t-2 border-gray-200 print:border-gray-300">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <span className="text-2xl">💬</span>
+                        <h3 className="text-lg font-bold text-gray-900">
+                          {role === 5 || role === 6 ? 'Admin Remarks' : 'Remarks from Administration'}
+                        </h3>
+                      </div>
+                      
+                      {/* Edit Remarks Button - Only for Role 5 (Super Admin) and Role 6 (Principal) */}
+                      {(role === 5 || role === 6) && !isEditingRemarks && !isEditing && (
+                        <button
+                          onClick={() => setIsEditingRemarks(true)}
+                          className="bg-amber-600 text-white px-4 py-2 rounded-xl hover:bg-amber-700 transition text-xs font-bold shadow-sm print:hidden"
+                        >
+                          ✏️ {activeSyllabusRemarks ? 'Edit Remarks' : 'Add Remarks'}
+                        </button>
+                      )}
+                    </div>
+
+                    {isEditingRemarks ? (
+                      /* Remarks Editor */
+                      <div className="space-y-4 print:hidden">
+                        <div className="p-4 bg-amber-50 rounded-xl border border-amber-100">
+                          <p className="text-xs text-gray-600">
+                            Add your comments or feedback on the syllabus content. These remarks will be visible to teachers and students.
+                          </p>
+                        </div>
+
+                        <textarea
+                          rows={6}
+                          value={remarksContent}
+                          onChange={(e) => setRemarksContent(e.target.value)}
+                          placeholder="Enter your remarks or comments here..."
+                          className="w-full p-4 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-amber-600 outline-none"
+                        ></textarea>
+
+                        <div className="flex items-center justify-end gap-3 pt-2">
+                          <button
+                            onClick={() => {
+                              setIsEditingRemarks(false);
+                              setRemarksContent(activeSyllabusRemarks);
+                            }}
+                            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-100 transition"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={handleSaveRemarks}
+                            disabled={savingRemarks}
+                            className="px-6 py-2 bg-amber-600 text-white hover:bg-amber-700 rounded-xl text-sm font-semibold shadow-sm transition disabled:opacity-50"
+                          >
+                            {savingRemarks ? 'Saving...' : 'Save Remarks'}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Display Remarks */
+                      <div className="bg-amber-50 rounded-xl p-5 border border-amber-100">
+                        {activeSyllabusRemarks ? (
+                          <div className="whitespace-pre-wrap text-gray-800 leading-relaxed text-sm">
+                            {activeSyllabusRemarks}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-gray-500 italic">
+                            {role === 5 || role === 6 
+                              ? 'No remarks added yet. Click "Add Remarks" to provide feedback on this syllabus.'
+                              : 'No remarks from administration yet.'}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
