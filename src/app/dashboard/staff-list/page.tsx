@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { staffApi } from '@/lib/api'
+import { validateMobile, validateEmail, validateJoiningDate } from '@/utils/validation'
 
 export default function StaffListPage() {
   const router = useRouter()
@@ -48,6 +49,8 @@ export default function StaffListPage() {
 
   const classList = ['Playgroup', 'Nursery', 'LKG', 'UKG', 'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5']
   const sectionList = ['A', 'B', 'C', 'D']
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [addErrors, setAddErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
     const role = localStorage.getItem('userRole')
@@ -132,8 +135,50 @@ export default function StaffListPage() {
 
   const handleAddStaffSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setAddLoading(true)
+    
+    // Clear previous errors
+    setAddErrors({})
     setAddCredentials(null)
+    
+    // Validate all fields
+    const validationErrors: Record<string, string> = {}
+    
+    // Validate mobile number (required)
+    const mobileResult = validateMobile(addFormData.mobile)
+    if (!mobileResult.valid) {
+      validationErrors.mobile = mobileResult.error!
+    }
+    
+    // Validate email (optional, but if provided must be valid)
+    if (addFormData.email) {
+      const emailResult = validateEmail(addFormData.email, false)
+      if (!emailResult.valid) {
+        validationErrors.email = emailResult.error!
+      }
+    }
+    
+    // Validate joining date (optional, but if provided must be valid)
+    if (addFormData.joiningDate) {
+      const joiningResult = validateJoiningDate(addFormData.joiningDate)
+      if (!joiningResult.valid) {
+        validationErrors.joiningDate = joiningResult.error!
+      }
+    }
+    
+    // If there are validation errors, show them and stop
+    if (Object.keys(validationErrors).length > 0) {
+      setAddErrors(validationErrors)
+      setMessage({ 
+        type: 'error', 
+        text: 'Please fix the validation errors before submitting.' 
+      })
+      // Scroll to first error
+      const firstErrorField = Object.keys(validationErrors)[0]
+      document.getElementById(`add-${firstErrorField}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      return
+    }
+    
+    setAddLoading(true)
 
     try {
       let role = 7
@@ -191,8 +236,49 @@ export default function StaffListPage() {
     e.preventDefault()
     if (!selectedStaff) return
 
-    setSaving(true)
+    // Clear previous errors
+    setErrors({})
     setMessage(null)
+    
+    // Validate all fields
+    const validationErrors: Record<string, string> = {}
+    
+    // Validate mobile number (required)
+    const mobileResult = validateMobile(formData.mobile)
+    if (!mobileResult.valid) {
+      validationErrors.mobile = mobileResult.error!
+    }
+    
+    // Validate email (optional, but if provided must be valid)
+    if (formData.email) {
+      const emailResult = validateEmail(formData.email, false)
+      if (!emailResult.valid) {
+        validationErrors.email = emailResult.error!
+      }
+    }
+    
+    // Validate joining date (optional, but if provided must be valid)
+    if (formData.joiningDate) {
+      const joiningResult = validateJoiningDate(formData.joiningDate)
+      if (!joiningResult.valid) {
+        validationErrors.joiningDate = joiningResult.error!
+      }
+    }
+    
+    // If there are validation errors, show them and stop
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors)
+      setMessage({ 
+        type: 'error', 
+        text: 'Please fix the validation errors before submitting.' 
+      })
+      // Scroll to first error
+      const firstErrorField = Object.keys(validationErrors)[0]
+      document.getElementById(`edit-${firstErrorField}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      return
+    }
+
+    setSaving(true)
 
     try {
       console.log('🔄 Updating staff member:', formData)

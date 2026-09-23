@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { eventsApi } from '@/lib/api'
 import { Card, CardHeader, CardContent } from '@/components/ui/Card'
+import { validateDate, getTodayDate } from '@/utils/validation'
 
 interface Event {
   id: string
@@ -36,6 +37,7 @@ export default function CalendarPage() {
     scheduled_at: ''
   })
   const [saving, setSaving] = useState(false)
+  const [dateErrors, setDateErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
     const role = localStorage.getItem('userRole')
@@ -102,6 +104,35 @@ export default function CalendarPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setDateErrors({})
+
+    // Validate event date (must be today or in future)
+    const today = getTodayDate();
+    const dateResult = validateDate(eventForm.date, {
+      required: true,
+      minDate: today,
+      label: 'Event date'
+    });
+    
+    if (!dateResult.valid) {
+      setDateErrors(prev => ({ ...prev, date: dateResult.error! }));
+      return;
+    }
+
+    // Validate scheduled_at if notify_type is scheduled
+    if (eventForm.notify_type === 'scheduled' && eventForm.scheduled_at) {
+      const scheduledResult = validateDate(eventForm.scheduled_at, {
+        required: true,
+        minDate: today,
+        label: 'Notification schedule'
+      });
+      
+      if (!scheduledResult.valid) {
+        setDateErrors(prev => ({ ...prev, scheduled_at: scheduledResult.error! }));
+        return;
+      }
+    }
+
     setSaving(true)
     setMessage(null)
 
@@ -326,10 +357,16 @@ export default function CalendarPage() {
                   <input
                     type="date"
                     value={eventForm.date}
-                    onChange={(e) => setEventForm({...eventForm, date: e.target.value})}
+                    onChange={(e) => {
+                      setEventForm({...eventForm, date: e.target.value})
+                      if (dateErrors.date) setDateErrors(prev => ({ ...prev, date: '' }))
+                    }}
                     required
-                    className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#5e3a9e] outline-none"
+                    className={`w-full px-3.5 py-2 border rounded-xl text-sm focus:ring-2 outline-none ${
+                      dateErrors.date ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-[#5e3a9e]'
+                    }`}
                   />
+                  {dateErrors.date && <p className="text-xs text-red-600 mt-1">❌ {dateErrors.date}</p>}
                 </div>
 
                 <div>

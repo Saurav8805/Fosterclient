@@ -394,6 +394,45 @@ export default function ReportsPage() {
           <h2 className="text-lg font-semibold text-gray-800 mb-4">Add Student Marks</h2>
           {marksSuccess && <div className="mb-4 p-3 bg-green-50 text-green-700 rounded-lg text-sm border border-green-200">{marksSuccess}</div>}
           {marksError && <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg text-sm border border-red-200">{marksError}</div>}
+          
+          {/* Grade Reference Card */}
+          <div className="mb-4">
+            <div className="bg-gradient-to-r from-indigo-50 via-purple-50 to-pink-50 rounded-lg p-4 border border-purple-200">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-bold text-gray-800 flex items-center gap-2">
+                  <span>📊</span> Grading System
+                </h3>
+                <span className="text-xs text-gray-500 bg-white px-2 py-1 rounded-full">Live grade preview below</span>
+              </div>
+              <div className="grid grid-cols-3 md:grid-cols-6 gap-2 text-xs">
+                <div className="bg-green-100 border-2 border-green-300 rounded-lg p-2 text-center">
+                  <div className="font-bold text-green-700 text-lg">A+</div>
+                  <div className="text-green-600 font-medium">90-100%</div>
+                </div>
+                <div className="bg-blue-100 border-2 border-blue-300 rounded-lg p-2 text-center">
+                  <div className="font-bold text-blue-700 text-lg">A</div>
+                  <div className="text-blue-600 font-medium">80-89%</div>
+                </div>
+                <div className="bg-cyan-100 border-2 border-cyan-300 rounded-lg p-2 text-center">
+                  <div className="font-bold text-cyan-700 text-lg">B</div>
+                  <div className="text-cyan-600 font-medium">70-79%</div>
+                </div>
+                <div className="bg-yellow-100 border-2 border-yellow-300 rounded-lg p-2 text-center">
+                  <div className="font-bold text-yellow-700 text-lg">C</div>
+                  <div className="text-yellow-600 font-medium">60-69%</div>
+                </div>
+                <div className="bg-orange-100 border-2 border-orange-300 rounded-lg p-2 text-center">
+                  <div className="font-bold text-orange-700 text-lg">D</div>
+                  <div className="text-orange-600 font-medium">50-59%</div>
+                </div>
+                <div className="bg-red-100 border-2 border-red-300 rounded-lg p-2 text-center">
+                  <div className="font-bold text-red-700 text-lg">F</div>
+                  <div className="text-red-600 font-medium">&lt; 50%</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
           <form onSubmit={handleAddMarks} className="grid grid-cols-2 md:grid-cols-3 gap-4">
             <div className="col-span-2 md:col-span-1">
               <label className="block text-xs font-medium text-gray-500 mb-1">Student *</label>
@@ -417,12 +456,73 @@ export default function ReportsPage() {
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Marks Obtained *</label>
-              <input type="number" value={marksForm.marksObtained} onChange={e => setMarksForm(f => ({ ...f, marksObtained: e.target.value }))} min="0" max={marksForm.maxMarks} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#5e3a9e] focus:ring-1 focus:ring-[#5e3a9e]" placeholder="e.g. 85" />
+              <input 
+                type="number" 
+                value={marksForm.marksObtained} 
+                onChange={e => setMarksForm(f => ({ ...f, marksObtained: e.target.value }))} 
+                min="0" 
+                max={marksForm.maxMarks} 
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#5e3a9e] focus:ring-1 focus:ring-[#5e3a9e]" 
+                placeholder="e.g. 85" 
+              />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Max Marks</label>
-              <input type="number" value={marksForm.maxMarks} onChange={e => setMarksForm(f => ({ ...f, maxMarks: e.target.value }))} min="1" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#5e3a9e] focus:ring-1 focus:ring-[#5e3a9e]" />
+              <input 
+                type="number" 
+                value={marksForm.maxMarks} 
+                onChange={e => setMarksForm(f => ({ ...f, maxMarks: e.target.value }))} 
+                min="1" 
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#5e3a9e] focus:ring-1 focus:ring-[#5e3a9e]" 
+              />
             </div>
+            
+            {/* Live Grade Preview */}
+            {marksForm.marksObtained && marksForm.maxMarks && (
+              <div className="col-span-2 mt-2">
+                <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg p-4 border-2 border-purple-200">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-medium text-gray-600 mb-1">Calculated Grade</p>
+                      <div className="flex items-center gap-3">
+                        <span className={`inline-flex items-center px-4 py-2 rounded-full text-lg font-bold ${
+                          (() => {
+                            const pct = (Number(marksForm.marksObtained) / Number(marksForm.maxMarks)) * 100;
+                            if (pct >= 90) return 'bg-green-100 text-green-700 border-2 border-green-300';
+                            if (pct >= 80) return 'bg-blue-100 text-blue-700 border-2 border-blue-300';
+                            if (pct >= 70) return 'bg-cyan-100 text-cyan-700 border-2 border-cyan-300';
+                            if (pct >= 60) return 'bg-yellow-100 text-yellow-700 border-2 border-yellow-300';
+                            if (pct >= 50) return 'bg-orange-100 text-orange-700 border-2 border-orange-300';
+                            return 'bg-red-100 text-red-700 border-2 border-red-300';
+                          })()
+                        }`}>
+                          {getGrade(Number(marksForm.marksObtained), Number(marksForm.maxMarks))}
+                        </span>
+                        <div className="text-sm">
+                          <div className="font-bold text-gray-800">
+                            {((Number(marksForm.marksObtained) / Number(marksForm.maxMarks)) * 100).toFixed(1)}%
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {marksForm.marksObtained}/{marksForm.maxMarks} marks
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-4xl">
+                      {(() => {
+                        const pct = (Number(marksForm.marksObtained) / Number(marksForm.maxMarks)) * 100;
+                        if (pct >= 90) return '🏆';
+                        if (pct >= 80) return '⭐';
+                        if (pct >= 70) return '✨';
+                        if (pct >= 60) return '👍';
+                        if (pct >= 50) return '📚';
+                        return '📖';
+                      })()}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Remarks</label>
               <input type="text" value={marksForm.remarks} onChange={e => setMarksForm(f => ({ ...f, remarks: e.target.value }))} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#5e3a9e]" placeholder="Optional" />

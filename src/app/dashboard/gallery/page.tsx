@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { galleryApi } from '@/lib/api'
+import { validateDate, getTodayDate } from '@/utils/validation'
 
 interface GalleryItem {
   id: string
@@ -37,6 +38,7 @@ export default function GalleryPage() {
   const [formCategory, setFormCategory] = useState('Events')
   const [formEventDate, setFormEventDate] = useState('')
   const [formDescription, setFormDescription] = useState('')
+  const [dateErrors, setDateErrors] = useState<Record<string, string>>({})
 
   const categories = ['All', 'Events', 'Sports', 'Activities', 'Celebrations', 'Excursions', 'General']
 
@@ -134,6 +136,23 @@ export default function GalleryPage() {
     if (!formTitle.trim() || !formDriveUrl.trim()) {
       setMessage({ type: 'error', text: 'Please fill in both the Title and Google Drive Link' })
       return
+    }
+
+    setDateErrors({})
+
+    // Validate event date if provided (cannot be in future)
+    if (formEventDate) {
+      const today = getTodayDate();
+      const dateResult = validateDate(formEventDate, {
+        required: false,
+        maxDate: today,
+        label: 'Event date'
+      });
+      
+      if (!dateResult.valid) {
+        setDateErrors(prev => ({ ...prev, eventDate: dateResult.error! }));
+        return;
+      }
     }
 
     try {
@@ -511,9 +530,15 @@ export default function GalleryPage() {
                   <input
                     type="date"
                     value={formEventDate}
-                    onChange={e => setFormEventDate(e.target.value)}
-                    className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#5e3a9e]/30 focus:border-[#5e3a9e] outline-none"
+                    onChange={e => {
+                      setFormEventDate(e.target.value)
+                      if (dateErrors.eventDate) setDateErrors(prev => ({ ...prev, eventDate: '' }))
+                    }}
+                    className={`w-full px-3.5 py-2 border rounded-xl text-sm focus:ring-2 outline-none ${
+                      dateErrors.eventDate ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-[#5e3a9e]/30 focus:border-[#5e3a9e]'
+                    }`}
                   />
+                  {dateErrors.eventDate && <p className="text-xs text-red-600 mt-1">❌ {dateErrors.eventDate}</p>}
                 </div>
               </div>
 

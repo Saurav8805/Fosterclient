@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { homeworkApi, staffApi, usersApi, configApi } from '@/lib/api';
+import { validateDate, getTodayDate } from '@/utils/validation';
 
 const CLASSES = ['Playgroup', 'Nursery', 'LKG', 'UKG', 'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5'];
 const SECTIONS = ['A', 'B', 'C', 'D'];
@@ -48,6 +49,9 @@ export default function HomeworkPage() {
 
   // Expanded descriptions for students
   const [expandedDesc, setExpandedDesc] = useState<Record<string, boolean>>({});
+  
+  // Date validation errors
+  const [dateErrors, setDateErrors] = useState<Record<string, string>>({});
 
   // Helper function to sort homework by date (most recent first)
   const sortHomeworkByDate = (homeworkArray: any[]) => {
@@ -231,6 +235,39 @@ export default function HomeworkPage() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    setDateErrors({});
+    
+    // Validate assigned date (cannot be in future)
+    const today = getTodayDate();
+    const assignedResult = validateDate(formData.assignedDate, {
+      required: true,
+      maxDate: today,
+      label: 'Assigned date'
+    });
+    
+    if (!assignedResult.valid) {
+      setDateErrors(prev => ({ ...prev, assignedDate: assignedResult.error! }));
+      return;
+    }
+    
+    // Validate due date (must be today or in future)
+    const dueResult = validateDate(formData.dueDate, {
+      required: true,
+      minDate: today,
+      label: 'Due date'
+    });
+    
+    if (!dueResult.valid) {
+      setDateErrors(prev => ({ ...prev, dueDate: dueResult.error! }));
+      return;
+    }
+    
+    // Due date must be after or equal to assigned date
+    if (new Date(formData.dueDate) < new Date(formData.assignedDate)) {
+      setDateErrors(prev => ({ ...prev, dueDate: 'Due date must be after or equal to assigned date' }));
+      return;
+    }
+    
     try {
       setLoading(true);
       
@@ -642,9 +679,15 @@ export default function HomeworkPage() {
                       type="date" 
                       required
                       value={formData.assignedDate}
-                      onChange={e => setFormData({...formData, assignedDate: e.target.value})}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-[#5e3a9e] focus:border-[#5e3a9e]"
+                      onChange={e => {
+                        setFormData({...formData, assignedDate: e.target.value})
+                        if (dateErrors.assignedDate) setDateErrors(prev => ({ ...prev, assignedDate: '' }))
+                      }}
+                      className={`w-full border rounded-md px-3 py-2 focus:ring-[#5e3a9e] ${
+                        dateErrors.assignedDate ? 'border-red-500' : 'border-gray-300 focus:border-[#5e3a9e]'
+                      }`}
                     />
+                    {dateErrors.assignedDate && <p className="text-xs text-red-600 mt-1">❌ {dateErrors.assignedDate}</p>}
                   </div>
                   <div className="flex-1">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
@@ -652,9 +695,17 @@ export default function HomeworkPage() {
                       type="date" 
                       required
                       value={formData.dueDate}
-                      onChange={e => setFormData({...formData, dueDate: e.target.value})}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-[#5e3a9e] focus:border-[#5e3a9e]"
+                      onChange={e => {
+                        setFormData({...formData, dueDate: e.target.value})
+                        if (dateErrors.dueDate) setDateErrors(prev => ({ ...prev, dueDate: '' }))
+                      }}
+                      className={`w-full border rounded-md px-3 py-2 focus:ring-[#5e3a9e] ${
+                        dateErrors.dueDate ? 'border-red-500' : 'border-gray-300 focus:border-[#5e3a9e]'
+                      }`}
                     />
+                    {dateErrors.dueDate && <p className="text-xs text-red-600 mt-1">❌ {dateErrors.dueDate}</p>}
+                  </div>
+                </div>
                   </div>
                 </div>
 

@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardHeader, CardContent } from '@/components/ui/Card'
 import { usersApi } from '@/lib/api'
+import { validateMobile, validateEmail } from '@/utils/validation'
 
 // Import only needed icons to reduce bundle size
 import {
@@ -55,6 +56,7 @@ export default function ProfilePage() {
     designation: ''
   })
   const [editProfileLoading, setEditProfileLoading] = useState(false)
+  const [errors, setErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
     const role = localStorage.getItem('userRole')
@@ -195,6 +197,40 @@ export default function ProfilePage() {
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!userId) return
+
+    // Clear previous errors
+    setErrors({})
+    setMessage(null)
+    
+    // Validate all fields
+    const validationErrors: Record<string, string> = {}
+    
+    // Validate mobile number (required)
+    const mobileResult = validateMobile(editProfileData.mobile)
+    if (!mobileResult.valid) {
+      validationErrors.mobile = mobileResult.error!
+    }
+    
+    // Validate email (optional, but if provided must be valid)
+    if (editProfileData.email) {
+      const emailResult = validateEmail(editProfileData.email, false)
+      if (!emailResult.valid) {
+        validationErrors.email = emailResult.error!
+      }
+    }
+    
+    // If there are validation errors, show them and stop
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors)
+      setMessage({ 
+        type: 'error', 
+        text: 'Please fix the validation errors before submitting.' 
+      })
+      // Scroll to first error
+      const firstErrorField = Object.keys(validationErrors)[0]
+      document.getElementById(`edit-${firstErrorField}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      return
+    }
 
     setEditProfileLoading(true)
     try {

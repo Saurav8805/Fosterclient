@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { configApi, studentsApi, staffApi, attendanceApi, behaviourApi, progressApi } from '@/lib/api'
+import { validateMobile, validateEmail, validateDOB, cleanMobile } from '@/utils/validation'
 
 interface ClassStats {
   name: string
@@ -91,6 +92,7 @@ export default function ClassListPage() {
   const [editStudentForm, setEditStudentForm] = useState<any>({})
   const [editStudentSubmitting, setEditStudentSubmitting] = useState(false)
   const [editStudentMessage, setEditStudentMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [editStudentErrors, setEditStudentErrors] = useState<Record<string, string>>({})
 
   // Add Class Form State
   const [newClassName, setNewClassName] = useState('')
@@ -124,6 +126,7 @@ export default function ClassListPage() {
   })
   const [admitSubmitting, setAdmitSubmitting] = useState(false)
   const [actionMessage, setActionMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [admitErrors, setAdmitErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
     const role = localStorage.getItem('userRole')
@@ -400,6 +403,42 @@ export default function ClassListPage() {
     e.preventDefault()
     if (!admitFormData.studentName.trim() || !selectedClass) return
 
+    setAdmitErrors({})
+
+    // Validate mobile number
+    const mobileResult = validateMobile(admitFormData.mobile)
+    if (!mobileResult.valid) {
+      setAdmitErrors(prev => ({ ...prev, mobile: mobileResult.error! }))
+      return
+    }
+
+    // Validate email if provided
+    if (admitFormData.email) {
+      const emailResult = validateEmail(admitFormData.email, false)
+      if (!emailResult.valid) {
+        setAdmitErrors(prev => ({ ...prev, email: emailResult.error! }))
+        return
+      }
+    }
+
+    // Validate Date of Birth (age 2-18 years for students)
+    if (admitFormData.dob) {
+      const dobResult = validateDOB(admitFormData.dob, 2, 18)
+      if (!dobResult.valid) {
+        setAdmitErrors(prev => ({ ...prev, dob: dobResult.error! }))
+        return
+      }
+    }
+
+    // Validate emergency contact if provided
+    if (admitFormData.emergencyContact) {
+      const emergencyResult = validateMobile(admitFormData.emergencyContact)
+      if (!emergencyResult.valid) {
+        setAdmitErrors(prev => ({ ...prev, emergencyContact: emergencyResult.error! }))
+        return
+      }
+    }
+
     try {
       setAdmitSubmitting(true)
       setActionMessage(null)
@@ -407,6 +446,8 @@ export default function ClassListPage() {
       const targetSection = admitFormData.section || 'A'
       const payload = {
         ...admitFormData,
+        mobile: cleanMobile(admitFormData.mobile),
+        emergencyContact: admitFormData.emergencyContact ? cleanMobile(admitFormData.emergencyContact) : '',
         studentClass: selectedClass,
         section: targetSection
       }
@@ -450,6 +491,37 @@ export default function ClassListPage() {
 
     setEditStudentSubmitting(true)
     setEditStudentMessage(null)
+    setEditStudentErrors({})
+
+    // Validate mobile if provided
+    if (editStudentForm.mobile) {
+      const mobileResult = validateMobile(editStudentForm.mobile)
+      if (!mobileResult.valid) {
+        setEditStudentErrors(prev => ({ ...prev, mobile: mobileResult.error! }))
+        setEditStudentSubmitting(false)
+        return
+      }
+    }
+
+    // Validate email if provided
+    if (editStudentForm.email) {
+      const emailResult = validateEmail(editStudentForm.email, false)
+      if (!emailResult.valid) {
+        setEditStudentErrors(prev => ({ ...prev, email: emailResult.error! }))
+        setEditStudentSubmitting(false)
+        return
+      }
+    }
+
+    // Validate DOB if provided
+    if (editStudentForm.dob) {
+      const dobResult = validateDOB(editStudentForm.dob, 2, 18)
+      if (!dobResult.valid) {
+        setEditStudentErrors(prev => ({ ...prev, dob: dobResult.error! }))
+        setEditStudentSubmitting(false)
+        return
+      }
+    }
 
     try {
       const payload = {
@@ -460,7 +532,7 @@ export default function ClassListPage() {
         gender: editStudentForm.gender,
         parentName: editStudentForm.parentName,
         motherName: editStudentForm.motherName,
-        mobile: editStudentForm.mobile,
+        mobile: editStudentForm.mobile ? cleanMobile(editStudentForm.mobile) : '',
         email: editStudentForm.email,
         address: editStudentForm.address,
         city: editStudentForm.city,
@@ -1256,9 +1328,15 @@ export default function ClassListPage() {
                     <input
                       type="date"
                       value={admitFormData.dob}
-                      onChange={e => setAdmitFormData(prev => ({ ...prev, dob: e.target.value }))}
-                      className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#5e3a9e]/30 outline-none"
+                      onChange={e => {
+                        setAdmitFormData(prev => ({ ...prev, dob: e.target.value }))
+                        if (admitErrors.dob) setAdmitErrors(prev => ({ ...prev, dob: '' }))
+                      }}
+                      className={`w-full px-3.5 py-2 border rounded-xl text-sm focus:ring-2 outline-none ${
+                        admitErrors.dob ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-[#5e3a9e]/30'
+                      }`}
                     />
+                    {admitErrors.dob && <p className="text-xs text-red-600 mt-1">❌ {admitErrors.dob}</p>}
                   </div>
 
                   <div>
@@ -1350,11 +1428,19 @@ export default function ClassListPage() {
                     <input
                       type="tel"
                       required
+                      maxLength={10}
                       placeholder="10-digit mobile"
                       value={admitFormData.mobile}
-                      onChange={e => setAdmitFormData(prev => ({ ...prev, mobile: e.target.value }))}
-                      className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#5e3a9e]/30 outline-none"
+                      onChange={e => {
+                        const value = e.target.value.replace(/\D/g, '')
+                        setAdmitFormData(prev => ({ ...prev, mobile: value }))
+                        if (admitErrors.mobile) setAdmitErrors(prev => ({ ...prev, mobile: '' }))
+                      }}
+                      className={`w-full px-3.5 py-2 border rounded-xl text-sm focus:ring-2 outline-none ${
+                        admitErrors.mobile ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-[#5e3a9e]/30'
+                      }`}
                     />
+                    {admitErrors.mobile && <p className="text-xs text-red-600 mt-1">❌ {admitErrors.mobile}</p>}
                   </div>
 
                   <div>
@@ -1363,20 +1449,34 @@ export default function ClassListPage() {
                       type="email"
                       placeholder="parent@example.com"
                       value={admitFormData.email}
-                      onChange={e => setAdmitFormData(prev => ({ ...prev, email: e.target.value }))}
-                      className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#5e3a9e]/30 outline-none"
+                      onChange={e => {
+                        setAdmitFormData(prev => ({ ...prev, email: e.target.value }))
+                        if (admitErrors.email) setAdmitErrors(prev => ({ ...prev, email: '' }))
+                      }}
+                      className={`w-full px-3.5 py-2 border rounded-xl text-sm focus:ring-2 outline-none ${
+                        admitErrors.email ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-[#5e3a9e]/30'
+                      }`}
                     />
+                    {admitErrors.email && <p className="text-xs text-red-600 mt-1">❌ {admitErrors.email}</p>}
                   </div>
 
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 mb-1">Emergency Contact</label>
                     <input
                       type="tel"
+                      maxLength={10}
                       placeholder="Emergency contact mobile"
                       value={admitFormData.emergencyContact}
-                      onChange={e => setAdmitFormData(prev => ({ ...prev, emergencyContact: e.target.value }))}
-                      className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#5e3a9e]/30 outline-none"
+                      onChange={e => {
+                        const value = e.target.value.replace(/\D/g, '')
+                        setAdmitFormData(prev => ({ ...prev, emergencyContact: value }))
+                        if (admitErrors.emergencyContact) setAdmitErrors(prev => ({ ...prev, emergencyContact: '' }))
+                      }}
+                      className={`w-full px-3.5 py-2 border rounded-xl text-sm focus:ring-2 outline-none ${
+                        admitErrors.emergencyContact ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-[#5e3a9e]/30'
+                      }`}
                     />
+                    {admitErrors.emergencyContact && <p className="text-xs text-red-600 mt-1">❌ {admitErrors.emergencyContact}</p>}
                   </div>
 
                   <div>
@@ -1759,7 +1859,18 @@ export default function ClassListPage() {
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 mb-1">Date of Birth</label>
-                    <input type="date" value={editStudentForm.dob || ''} onChange={e => setEditStudentForm((p: any) => ({ ...p, dob: e.target.value }))} className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#5e3a9e]/30 outline-none" />
+                    <input 
+                      type="date" 
+                      value={editStudentForm.dob || ''} 
+                      onChange={e => {
+                        setEditStudentForm((p: any) => ({ ...p, dob: e.target.value }))
+                        if (editStudentErrors.dob) setEditStudentErrors(prev => ({ ...prev, dob: '' }))
+                      }} 
+                      className={`w-full px-3.5 py-2 border rounded-xl text-sm focus:ring-2 outline-none ${
+                        editStudentErrors.dob ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-[#5e3a9e]/30'
+                      }`}
+                    />
+                    {editStudentErrors.dob && <p className="text-xs text-red-600 mt-1">❌ {editStudentErrors.dob}</p>}
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 mb-1">Age</label>
@@ -1812,11 +1923,36 @@ export default function ClassListPage() {
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 mb-1">Mobile</label>
-                    <input value={editStudentForm.mobile || ''} onChange={e => setEditStudentForm((p: any) => ({ ...p, mobile: e.target.value }))} className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#5e3a9e]/30 outline-none" placeholder="10-digit mobile" />
+                    <input 
+                      maxLength={10}
+                      value={editStudentForm.mobile || ''} 
+                      onChange={e => {
+                        const value = e.target.value.replace(/\D/g, '')
+                        setEditStudentForm((p: any) => ({ ...p, mobile: value }))
+                        if (editStudentErrors.mobile) setEditStudentErrors(prev => ({ ...prev, mobile: '' }))
+                      }} 
+                      className={`w-full px-3.5 py-2 border rounded-xl text-sm focus:ring-2 outline-none ${
+                        editStudentErrors.mobile ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-[#5e3a9e]/30'
+                      }`}
+                      placeholder="10-digit mobile" 
+                    />
+                    {editStudentErrors.mobile && <p className="text-xs text-red-600 mt-1">❌ {editStudentErrors.mobile}</p>}
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 mb-1">Email</label>
-                    <input type="email" value={editStudentForm.email || ''} onChange={e => setEditStudentForm((p: any) => ({ ...p, email: e.target.value }))} className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#5e3a9e]/30 outline-none" placeholder="parent@email.com" />
+                    <input 
+                      type="email" 
+                      value={editStudentForm.email || ''} 
+                      onChange={e => {
+                        setEditStudentForm((p: any) => ({ ...p, email: e.target.value }))
+                        if (editStudentErrors.email) setEditStudentErrors(prev => ({ ...prev, email: '' }))
+                      }} 
+                      className={`w-full px-3.5 py-2 border rounded-xl text-sm focus:ring-2 outline-none ${
+                        editStudentErrors.email ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-[#5e3a9e]/30'
+                      }`}
+                      placeholder="parent@email.com" 
+                    />
+                    {editStudentErrors.email && <p className="text-xs text-red-600 mt-1">❌ {editStudentErrors.email}</p>}
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 mb-1">Emergency Contact</label>
