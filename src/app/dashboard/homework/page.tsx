@@ -706,8 +706,6 @@ export default function HomeworkPage() {
                     {dateErrors.dueDate && <p className="text-xs text-red-600 mt-1">❌ {dateErrors.dueDate}</p>}
                   </div>
                 </div>
-                  </div>
-                </div>
 
                 <div className="flex justify-end gap-3 mt-6">
                   <button 
