@@ -20,12 +20,20 @@ const languages: Language[] = [
   { code: 'bn', name: 'বাংলা', flag: '🇮🇳' },
 ];
 
+declare global {
+  interface Window {
+    google: any;
+    googleTranslateElementInit: () => void;
+  }
+}
+
 export default function LanguageSwitcher() {
   const [isOpen, setIsOpen] = useState(false);
   const [currentLanguage, setCurrentLanguage] = useState<Language>(languages[0]);
   const [isTranslating, setIsTranslating] = useState(false);
+  const [isScriptLoaded, setIsScriptLoaded] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const googleTranslateRef = useRef<HTMLDivElement>(null);
+  const scriptLoadedRef = useRef(false);
 
   useEffect(() => {
     // Load saved language preference
@@ -33,24 +41,50 @@ export default function LanguageSwitcher() {
     const lang = languages.find(l => l.code === savedLang) || languages[0];
     setCurrentLanguage(lang);
 
+    // Check if script already exists
+    const existingScript = document.querySelector('script[src*="translate.google.com"]');
+    if (existingScript || scriptLoadedRef.current) {
+      setIsScriptLoaded(true);
+      return;
+    }
+
     // Load Google Translate script
+    scriptLoadedRef.current = true;
+    
+    // Initialize Google Translate callback
+    window.googleTranslateElementInit = () => {
+      try {
+        new window.google.translate.TranslateElement(
+          {
+            pageLanguage: 'en',
+            includedLanguages: 'en,hi,mr,gu,ta,te,kn,bn',
+            layout: window.google.translate.TranslateElement.InlineLayout.SIMPLE,
+            autoDisplay: false,
+          },
+          'google_translate_element'
+        );
+        setIsScriptLoaded(true);
+        console.log('✅ Google Translate initialized successfully');
+        
+        // Apply saved language after initialization
+        setTimeout(() => {
+          if (savedLang !== 'en') {
+            triggerTranslation(savedLang);
+          }
+        }, 1000);
+      } catch (error) {
+        console.error('❌ Google Translate initialization error:', error);
+      }
+    };
+
     const script = document.createElement('script');
     script.src = '//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
     script.async = true;
-    document.body.appendChild(script);
-
-    // Initialize Google Translate
-    (window as any).googleTranslateElementInit = () => {
-      new (window as any).google.translate.TranslateElement(
-        {
-          pageLanguage: 'en',
-          includedLanguages: 'en,hi,mr,gu,ta,te,kn,bn',
-          layout: (window as any).google.translate.TranslateElement.InlineLayout.SIMPLE,
-          autoDisplay: false,
-        },
-        'google_translate_element'
-      );
+    script.onerror = () => {
+      console.error('❌ Failed to load Google Translate script');
+      scriptLoadedRef.current = false;
     };
+    document.body.appendChild(script);
 
     // Close dropdown when clicking outside
     const handleClickOutside = (e: MouseEvent) => {
@@ -62,30 +96,76 @@ export default function LanguageSwitcher() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
-      document.body.removeChild(script);
     };
   }, []);
 
+  const triggerTranslation = (langCode: string) => {
+    // Method 1: Try using the select element
+    const select = document.querySelector('.goog-te-combo') as HTMLSelectElement;
+    if (select) {
+      console.log('🔄 Triggering translation via select element to:', langCode);
+      select.value = langCode;
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+      return true;
+    }
+
+    // Method 2: Try using iframe approach
+    const iframe = document.querySelector('iframe.goog-te-menu-frame') as HTMLIFrameElement;
+    if (iframe) {
+      try {
+        const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+        if (iframeDoc) {
+          const langLink = iframeDoc.querySelector(`a[data-language-code="${langCode}"]`) as HTMLElement;
+          if (langLink) {
+            console.log('🔄 Triggering translation via iframe link to:', langCode);
+            langLink.click();
+            return true;
+          }
+        }
+      } catch (error) {
+        console.error('Cannot access iframe:', error);
+      }
+    }
+
+    // Method 3: Direct cookie manipulation
+    console.log('🔄 Triggering translation via cookie to:', langCode);
+    const cookieValue = langCode === 'en' ? '' : `/en/${langCode}`;
+    document.cookie = `googtrans=${cookieValue}; path=/; domain=${window.location.hostname}`;
+    document.cookie = `googtrans=${cookieValue}; path=/`;
+    
+    // Reload to apply translation
+    setTimeout(() => {
+      window.location.reload();
+    }, 100);
+    
+    return true;
+  };
+
   const changeLanguage = (lang: Language) => {
+    console.log('🌐 Changing language to:', lang.name, '(' + lang.code + ')');
     setIsTranslating(true);
     setCurrentLanguage(lang);
     localStorage.setItem('preferredLanguage', lang.code);
 
-    // Trigger Google Translate
-    const select = document.querySelector('.goog-te-combo') as HTMLSelectElement;
-    if (select) {
-      select.value = lang.code;
-      select.dispatchEvent(new Event('change'));
-      
-      // Wait for translation to complete
-      setTimeout(() => {
-        setIsTranslating(false);
-        setIsOpen(false);
-      }, 1000);
-    } else {
+    if (!isScriptLoaded) {
+      console.warn('⚠️ Google Translate not loaded yet');
+      alert('Translation service is loading. Please try again in a moment.');
+      setIsTranslating(false);
+      return;
+    }
+
+    // Try to trigger translation
+    const success = triggerTranslation(lang.code);
+    
+    if (!success) {
+      console.error('❌ Failed to trigger translation');
+    }
+    
+    // Wait for translation to complete
+    setTimeout(() => {
       setIsTranslating(false);
       setIsOpen(false);
-    }
+    }, 1000);
   };
 
   return (
@@ -93,7 +173,6 @@ export default function LanguageSwitcher() {
       {/* Hidden Google Translate Element */}
       <div 
         id="google_translate_element" 
-        ref={googleTranslateRef}
         style={{ display: 'none' }}
       />
 
@@ -136,11 +215,12 @@ export default function LanguageSwitcher() {
                 <button
                   key={lang.code}
                   onClick={() => changeLanguage(lang)}
+                  disabled={isTranslating}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-left ${
                     currentLanguage.code === lang.code
                       ? 'bg-purple-100 text-purple-900 font-semibold'
                       : 'text-gray-700 hover:bg-gray-50'
-                  }`}
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                   <span className="text-2xl">{lang.flag}</span>
                   <span className="text-sm flex-1">{lang.name}</span>
@@ -162,13 +242,17 @@ export default function LanguageSwitcher() {
         )}
       </div>
 
-      {/* Hide Google Translate toolbar */}
+      {/* Hide Google Translate toolbar and elements */}
       <style jsx global>{`
         .goog-te-banner-frame {
           display: none !important;
         }
+        .goog-te-banner-frame.skiptranslate {
+          display: none !important;
+        }
         body {
           top: 0 !important;
+          position: static !important;
         }
         .skiptranslate {
           display: none !important;
@@ -178,6 +262,30 @@ export default function LanguageSwitcher() {
         }
         .goog-te-gadget {
           color: transparent !important;
+          font-size: 0 !important;
+        }
+        .goog-te-gadget > span {
+          display: none !important;
+        }
+        .goog-te-combo {
+          display: none !important;
+        }
+        #google_translate_element {
+          display: none !important;
+        }
+        .goog-te-spinner-pos {
+          display: none !important;
+        }
+        /* Hide the translation menu frame */
+        iframe.goog-te-menu-frame {
+          display: none !important;
+        }
+        /* Force body to stay in place */
+        body.translated-ltr {
+          top: 0 !important;
+        }
+        body.translated-rtl {
+          top: 0 !important;
         }
       `}</style>
     </>
