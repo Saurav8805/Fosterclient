@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardHeader, CardContent } from '@/components/ui/Card'
 import { studentsApi, configApi, staffApi } from '@/lib/api'
+import { validateMobile, validateEmail, validateDate, validateDOB } from '@/utils/validation'
 
 export default function StudentListPage() {
   const router = useRouter()
@@ -75,6 +76,8 @@ export default function StudentListPage() {
     teacherId: ''
   })
   const [bloodGroups] = useState(['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'])
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [admitErrors, setAdmitErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
     const role = localStorage.getItem('userRole')
@@ -367,8 +370,78 @@ export default function StudentListPage() {
 
   const handleAdmitSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setAdmitLoading(true)
+    
+    // Clear previous errors
+    setAdmitErrors({})
     setAdmitMessage(null)
+    
+    // Validate all fields
+    const validationErrors: Record<string, string> = {}
+    
+    // Validate mobile number (required)
+    const mobileResult = validateMobile(admitFormData.mobile)
+    if (!mobileResult.valid) {
+      validationErrors.mobile = mobileResult.error!
+    }
+    
+    // Validate emergency contact (optional, but if provided must be valid)
+    if (admitFormData.emergencyContact) {
+      const emergencyResult = validateMobile(admitFormData.emergencyContact)
+      if (!emergencyResult.valid) {
+        validationErrors.emergencyContact = emergencyResult.error!
+      }
+    }
+    
+    // Validate email (optional, but if provided must be valid)
+    if (admitFormData.email) {
+      const emailResult = validateEmail(admitFormData.email, false)
+      if (!emailResult.valid) {
+        validationErrors.email = emailResult.error!
+      }
+    }
+    
+    // Validate DOB (required, must be in past, reasonable age range)
+    const dobResult = validateDOB(admitFormData.dob, 1, 18)
+    if (!dobResult.valid) {
+      validationErrors.dob = dobResult.error!
+    }
+    
+    // Validate admission date (required, can't be in future)
+    const admissionResult = validateDate(admitFormData.admissionDate, {
+      required: true,
+      maxDate: new Date(),
+      label: 'Admission date'
+    })
+    if (!admissionResult.valid) {
+      validationErrors.admissionDate = admissionResult.error!
+    }
+    
+    // Validate aadhar (if provided, must be 12 digits)
+    if (admitFormData.aadharNumber && !/^\d{12}$/.test(admitFormData.aadharNumber)) {
+      validationErrors.aadharNumber = 'Aadhar must be exactly 12 digits'
+    }
+    
+    // Validate pincode (required, must be 6 digits)
+    if (!admitFormData.pincode) {
+      validationErrors.pincode = 'Pincode is required'
+    } else if (!/^\d{6}$/.test(admitFormData.pincode)) {
+      validationErrors.pincode = 'Pincode must be exactly 6 digits'
+    }
+    
+    // If there are validation errors, show them and stop
+    if (Object.keys(validationErrors).length > 0) {
+      setAdmitErrors(validationErrors)
+      setAdmitMessage({ 
+        type: 'error', 
+        text: 'Please fix the validation errors before submitting.' 
+      })
+      // Scroll to first error
+      const firstErrorField = Object.keys(validationErrors)[0]
+      document.getElementById(`admit-${firstErrorField}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      return
+    }
+    
+    setAdmitLoading(true)
 
     try {
       const result = await studentsApi.admit(admitFormData)
@@ -394,8 +467,76 @@ export default function StudentListPage() {
     e.preventDefault()
     if (!selectedStudent) return
 
-    setSaving(true)
+    // Clear previous errors
+    setErrors({})
     setMessage('')
+    
+    // Validate all fields
+    const validationErrors: Record<string, string> = {}
+    
+    // Validate mobile number (required)
+    const mobileResult = validateMobile(formData.mobile)
+    if (!mobileResult.valid) {
+      validationErrors.mobile = mobileResult.error!
+    }
+    
+    // Validate emergency contact (optional, but if provided must be valid)
+    if (formData.emergencyContact) {
+      const emergencyResult = validateMobile(formData.emergencyContact)
+      if (!emergencyResult.valid) {
+        validationErrors.emergencyContact = emergencyResult.error!
+      }
+    }
+    
+    // Validate email (optional, but if provided must be valid)
+    if (formData.email) {
+      const emailResult = validateEmail(formData.email, false)
+      if (!emailResult.valid) {
+        validationErrors.email = emailResult.error!
+      }
+    }
+    
+    // Validate DOB (required, must be in past, reasonable age range)
+    if (formData.dob) {
+      const dobResult = validateDOB(formData.dob, 1, 18)
+      if (!dobResult.valid) {
+        validationErrors.dob = dobResult.error!
+      }
+    }
+    
+    // Validate admission date (required, can't be in future)
+    if (formData.admissionDate) {
+      const admissionResult = validateDate(formData.admissionDate, {
+        required: false,
+        maxDate: new Date(),
+        label: 'Admission date'
+      })
+      if (!admissionResult.valid) {
+        validationErrors.admissionDate = admissionResult.error!
+      }
+    }
+    
+    // Validate aadhar (if provided, must be 12 digits)
+    if (formData.aadharNumber && !/^\d{12}$/.test(formData.aadharNumber)) {
+      validationErrors.aadharNumber = 'Aadhar must be exactly 12 digits'
+    }
+    
+    // Validate pincode (if provided, must be 6 digits)
+    if (formData.pincode && !/^\d{6}$/.test(formData.pincode)) {
+      validationErrors.pincode = 'Pincode must be exactly 6 digits'
+    }
+    
+    // If there are validation errors, show them and stop
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors)
+      setMessage('❌ Please fix the validation errors before submitting.')
+      // Scroll to first error
+      const firstErrorField = Object.keys(validationErrors)[0]
+      document.getElementById(`edit-${firstErrorField}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      return
+    }
+
+    setSaving(true)
 
     try {
       console.log('🔄 Updating student with data:', formData)

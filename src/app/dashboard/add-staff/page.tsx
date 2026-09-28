@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { staffApi } from '@/lib/api'
+import { validateMobile, validateEmail, validateJoiningDate, cleanMobile } from '@/utils/validation'
 
 interface StaffCredentials {
   mobile: string;
@@ -35,6 +36,7 @@ export default function AddStaffPage() {
 
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string, credentials?: StaffCredentials } | null>(null)
+  const [errors, setErrors] = useState<Record<string, string>>({})
 
   const classList = ['Playgroup', 'Nursery', 'LKG', 'UKG', 'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5']
   const sectionList = ['A', 'B', 'C', 'D']
@@ -81,6 +83,45 @@ export default function AddStaffPage() {
     e.preventDefault()
     setLoading(true)
     setMessage(null)
+    setErrors({})
+
+    // Validate mobile number
+    const mobileResult = validateMobile(formData.mobile)
+    if (!mobileResult.valid) {
+      setErrors(prev => ({ ...prev, mobile: mobileResult.error! }))
+      setLoading(false)
+      return
+    }
+
+    // Validate email if provided
+    if (formData.email) {
+      const emailResult = validateEmail(formData.email, false)
+      if (!emailResult.valid) {
+        setErrors(prev => ({ ...prev, email: emailResult.error! }))
+        setLoading(false)
+        return
+      }
+    }
+
+    // Validate joining date if provided
+    if (formData.joiningDate) {
+      const dateResult = validateJoiningDate(formData.joiningDate)
+      if (!dateResult.valid) {
+        setErrors(prev => ({ ...prev, joiningDate: dateResult.error! }))
+        setLoading(false)
+        return
+      }
+    }
+
+    // Validate emergency contact if provided
+    if (formData.emergencyContact) {
+      const emergencyResult = validateMobile(formData.emergencyContact)
+      if (!emergencyResult.valid) {
+        setErrors(prev => ({ ...prev, emergencyContact: emergencyResult.error! }))
+        setLoading(false)
+        return
+      }
+    }
 
     try {
       console.log('🔄 Adding staff member:', formData.fullName)
@@ -92,7 +133,7 @@ export default function AddStaffPage() {
       
       const staffData = {
         fullName: formData.fullName,
-        mobile: formData.mobile,
+        mobile: cleanMobile(formData.mobile),
         email: formData.email,
         designation: formData.designation,
         department: formData.department,
@@ -203,13 +244,20 @@ export default function AddStaffPage() {
                 <input 
                   type="tel" 
                   required
-                  pattern="[0-9]{10}"
-                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  maxLength={10}
+                  className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                    errors.mobile ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500'
+                  }`}
                   value={formData.mobile}
-                  onChange={(e) => setFormData({...formData, mobile: e.target.value})}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, '');
+                    setFormData({...formData, mobile: value});
+                    if (errors.mobile) setErrors(prev => ({ ...prev, mobile: '' }));
+                  }}
                   placeholder="10-digit mobile number"
                 />
-                <p className="text-xs text-gray-500 mt-1">This will be used as login ID</p>
+                {errors.mobile && <p className="text-xs text-red-600 mt-1">❌ {errors.mobile}</p>}
+                {!errors.mobile && <p className="text-xs text-gray-500 mt-1">This will be used as login ID</p>}
               </div>
 
               {/* Email */}
@@ -217,11 +265,17 @@ export default function AddStaffPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
                 <input 
                   type="email" 
-                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                    errors.email ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500'
+                  }`}
                   value={formData.email}
-                  onChange={(e) => setFormData({...formData, email: e.target.value})}
+                  onChange={(e) => {
+                    setFormData({...formData, email: e.target.value});
+                    if (errors.email) setErrors(prev => ({ ...prev, email: '' }));
+                  }}
                   placeholder="staff@example.com"
                 />
+                {errors.email && <p className="text-xs text-red-600 mt-1">❌ {errors.email}</p>}
               </div>
 
               {/* Designation */}

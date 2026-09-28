@@ -57,7 +57,7 @@ const nextConfig = {
         headers: [
           {
             key: 'Content-Security-Policy',
-            value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' http://localhost:5000 https://*.supabase.co wss://*.supabase.co https://*.railway.app https://*.onrender.com;"
+            value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://translate.google.com https://translate.googleapis.com https://translate-pa.googleapis.com https://www.gstatic.com https://*.gstatic.com; style-src 'self' 'unsafe-inline' https://translate.googleapis.com https://www.gstatic.com https://*.gstatic.com; img-src 'self' data: https: http: blob:; font-src 'self' data: https://translate.googleapis.com https://www.gstatic.com https://*.gstatic.com; connect-src 'self' http://localhost:5000 https://*.supabase.co wss://*.supabase.co https://*.railway.app https://*.onrender.com https://translate.googleapis.com https://translate-pa.googleapis.com; frame-src https://translate.google.com https://translate.googleapis.com 'self';"
           },
           {
             key: 'X-DNS-Prefetch-Control',

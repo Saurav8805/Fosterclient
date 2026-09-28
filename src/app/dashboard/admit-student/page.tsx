@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { studentsApi, configApi, staffApi } from '@/lib/api'
+import { validateMobile, validateEmail, validateDate, validateDOB } from '@/utils/validation'
 
 export default function AdmitStudentPage() {
   const router = useRouter()
@@ -39,6 +40,7 @@ export default function AdmitStudentPage() {
   const [bloodGroups, setBloodGroups] = useState<string[]>([])
   const [loadingTeachers, setLoadingTeachers] = useState(true)
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string, credentials?: any } | null>(null)
+  const [errors, setErrors] = useState<Record<string, string>>({})
 
   // Check role-based access
   useEffect(() => {
@@ -184,8 +186,78 @@ export default function AdmitStudentPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
+    
+    // Clear previous errors
+    setErrors({})
     setMessage(null)
+    
+    // Validate all fields
+    const validationErrors: Record<string, string> = {}
+    
+    // Validate mobile number (required)
+    const mobileResult = validateMobile(formData.mobile)
+    if (!mobileResult.valid) {
+      validationErrors.mobile = mobileResult.error!
+    }
+    
+    // Validate emergency contact (optional, but if provided must be valid)
+    if (formData.emergencyContact) {
+      const emergencyResult = validateMobile(formData.emergencyContact)
+      if (!emergencyResult.valid) {
+        validationErrors.emergencyContact = emergencyResult.error!
+      }
+    }
+    
+    // Validate email (optional, but if provided must be valid)
+    if (formData.email) {
+      const emailResult = validateEmail(formData.email, false)
+      if (!emailResult.valid) {
+        validationErrors.email = emailResult.error!
+      }
+    }
+    
+    // Validate DOB (required, must be in past, reasonable age range)
+    const dobResult = validateDOB(formData.dob, 1, 18)
+    if (!dobResult.valid) {
+      validationErrors.dob = dobResult.error!
+    }
+    
+    // Validate admission date (required, can't be in future)
+    const admissionResult = validateDate(formData.admissionDate, {
+      required: true,
+      maxDate: new Date(),
+      label: 'Admission date'
+    })
+    if (!admissionResult.valid) {
+      validationErrors.admissionDate = admissionResult.error!
+    }
+    
+    // Validate aadhar (if provided, must be 12 digits)
+    if (formData.aadharNumber && !/^\d{12}$/.test(formData.aadharNumber)) {
+      validationErrors.aadharNumber = 'Aadhar must be exactly 12 digits'
+    }
+    
+    // Validate pincode (required, must be 6 digits)
+    if (!formData.pincode) {
+      validationErrors.pincode = 'Pincode is required'
+    } else if (!/^\d{6}$/.test(formData.pincode)) {
+      validationErrors.pincode = 'Pincode must be exactly 6 digits'
+    }
+    
+    // If there are validation errors, show them and stop
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors)
+      setMessage({ 
+        type: 'error', 
+        text: 'Please fix the validation errors before submitting.' 
+      })
+      // Scroll to first error
+      const firstErrorField = Object.keys(validationErrors)[0]
+      document.getElementById(firstErrorField)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      return
+    }
+    
+    setLoading(true)
 
     try {
       console.log('ðŸ”„ Admitting student:', formData.studentName)
@@ -298,6 +370,7 @@ export default function AdmitStudentPage() {
       teacherId: ''
     })
     setMessage(null)
+    setErrors({})
   }
 
   return (
@@ -350,12 +423,26 @@ export default function AdmitStudentPage() {
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Date of Birth *</label>
                 <input 
+                  id="dob"
                   type="date" 
                   required
-                  className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base touch-manipulation"
+                  className={`w-full px-3 sm:px-4 py-2 sm:py-2.5 border rounded-lg focus:outline-none focus:ring-2 text-sm sm:text-base touch-manipulation ${
+                    errors.dob ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500'
+                  }`}
                   value={formData.dob}
-                  onChange={(e) => handleDobChange(e.target.value)}
+                  onChange={(e) => {
+                    handleDobChange(e.target.value)
+                    if (errors.dob) {
+                      setErrors({...errors, dob: ''})
+                    }
+                  }}
                 />
+                {errors.dob && (
+                  <p className="mt-1 text-xs sm:text-sm text-red-600 flex items-center gap-1">
+                    <span>❌</span>
+                    <span>{errors.dob}</span>
+                  </p>
+                )}
               </div>
 
               {/* Age (Auto-calculated) */}
@@ -374,26 +461,54 @@ export default function AdmitStudentPage() {
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Admission Date *</label>
                 <input 
+                  id="admissionDate"
                   type="date" 
                   required
-                  className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base touch-manipulation"
+                  className={`w-full px-3 sm:px-4 py-2 sm:py-2.5 border rounded-lg focus:outline-none focus:ring-2 text-sm sm:text-base touch-manipulation ${
+                    errors.admissionDate ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500'
+                  }`}
                   value={formData.admissionDate}
-                  onChange={(e) => setFormData({...formData, admissionDate: e.target.value})}
+                  onChange={(e) => {
+                    setFormData({...formData, admissionDate: e.target.value})
+                    if (errors.admissionDate) {
+                      setErrors({...errors, admissionDate: ''})
+                    }
+                  }}
                 />
+                {errors.admissionDate && (
+                  <p className="mt-1 text-xs sm:text-sm text-red-600 flex items-center gap-1">
+                    <span>❌</span>
+                    <span>{errors.admissionDate}</span>
+                  </p>
+                )}
               </div>
 
               {/* Aadhar Number */}
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Aadhar Number</label>
                 <input 
+                  id="aadharNumber"
                   type="text" 
-                  pattern="[0-9]{12}"
                   maxLength={12}
-                  className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base touch-manipulation"
+                  className={`w-full px-3 sm:px-4 py-2 sm:py-2.5 border rounded-lg focus:outline-none focus:ring-2 text-sm sm:text-base touch-manipulation ${
+                    errors.aadharNumber ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500'
+                  }`}
                   value={formData.aadharNumber}
-                  onChange={(e) => setFormData({...formData, aadharNumber: e.target.value})}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, '')
+                    setFormData({...formData, aadharNumber: value})
+                    if (errors.aadharNumber) {
+                      setErrors({...errors, aadharNumber: ''})
+                    }
+                  }}
                   placeholder="12-digit Aadhar (optional)"
                 />
+                {errors.aadharNumber && (
+                  <p className="mt-1 text-xs sm:text-sm text-red-600 flex items-center gap-1">
+                    <span>❌</span>
+                    <span>{errors.aadharNumber}</span>
+                  </p>
+                )}
               </div>
 
               {/* Gender */}
@@ -544,14 +659,29 @@ export default function AdmitStudentPage() {
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Mobile Number * (Login ID)</label>
                 <input 
+                  id="mobile"
                   type="tel" 
                   required
-                  pattern="[0-9]{10}"
-                  className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base touch-manipulation"
+                  maxLength={10}
+                  className={`w-full px-3 sm:px-4 py-2 sm:py-2.5 border rounded-lg focus:outline-none focus:ring-2 text-sm sm:text-base touch-manipulation ${
+                    errors.mobile ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500'
+                  }`}
                   value={formData.mobile}
-                  onChange={(e) => setFormData({...formData, mobile: e.target.value})}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, '')
+                    setFormData({...formData, mobile: value})
+                    if (errors.mobile) {
+                      setErrors({...errors, mobile: ''})
+                    }
+                  }}
                   placeholder="10-digit mobile"
                 />
+                {errors.mobile && (
+                  <p className="mt-1 text-xs sm:text-sm text-red-600 flex items-center gap-1">
+                    <span>❌</span>
+                    <span>{errors.mobile}</span>
+                  </p>
+                )}
                 <p className="text-[10px] sm:text-xs text-gray-500 mt-1">This will be used as login ID</p>
               </div>
 
@@ -559,25 +689,54 @@ export default function AdmitStudentPage() {
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Emergency Contact</label>
                 <input 
+                  id="emergencyContact"
                   type="tel" 
-                  pattern="[0-9]{10}"
-                  className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base touch-manipulation"
+                  maxLength={10}
+                  className={`w-full px-3 sm:px-4 py-2 sm:py-2.5 border rounded-lg focus:outline-none focus:ring-2 text-sm sm:text-base touch-manipulation ${
+                    errors.emergencyContact ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500'
+                  }`}
                   value={formData.emergencyContact}
-                  onChange={(e) => setFormData({...formData, emergencyContact: e.target.value})}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, '')
+                    setFormData({...formData, emergencyContact: value})
+                    if (errors.emergencyContact) {
+                      setErrors({...errors, emergencyContact: ''})
+                    }
+                  }}
                   placeholder="Alternate contact"
                 />
+                {errors.emergencyContact && (
+                  <p className="mt-1 text-xs sm:text-sm text-red-600 flex items-center gap-1">
+                    <span>❌</span>
+                    <span>{errors.emergencyContact}</span>
+                  </p>
+                )}
               </div>
 
               {/* Email */}
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Email</label>
                 <input 
+                  id="email"
                   type="email" 
-                  className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base touch-manipulation"
+                  className={`w-full px-3 sm:px-4 py-2 sm:py-2.5 border rounded-lg focus:outline-none focus:ring-2 text-sm sm:text-base touch-manipulation ${
+                    errors.email ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500'
+                  }`}
                   value={formData.email}
-                  onChange={(e) => setFormData({...formData, email: e.target.value})}
+                  onChange={(e) => {
+                    setFormData({...formData, email: e.target.value})
+                    if (errors.email) {
+                      setErrors({...errors, email: ''})
+                    }
+                  }}
                   placeholder="student@example.com"
                 />
+                {errors.email && (
+                  <p className="mt-1 text-xs sm:text-sm text-red-600 flex items-center gap-1">
+                    <span>❌</span>
+                    <span>{errors.email}</span>
+                  </p>
+                )}
               </div>
 
               {/* Address */}
@@ -623,14 +782,29 @@ export default function AdmitStudentPage() {
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Pincode *</label>
                 <input 
+                  id="pincode"
                   type="text" 
                   required
-                  pattern="[0-9]{6}"
-                  className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base touch-manipulation"
+                  maxLength={6}
+                  className={`w-full px-3 sm:px-4 py-2 sm:py-2.5 border rounded-lg focus:outline-none focus:ring-2 text-sm sm:text-base touch-manipulation ${
+                    errors.pincode ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500'
+                  }`}
                   value={formData.pincode}
-                  onChange={(e) => setFormData({...formData, pincode: e.target.value})}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, '')
+                    setFormData({...formData, pincode: value})
+                    if (errors.pincode) {
+                      setErrors({...errors, pincode: ''})
+                    }
+                  }}
                   placeholder="6-digit pincode"
                 />
+                {errors.pincode && (
+                  <p className="mt-1 text-xs sm:text-sm text-red-600 flex items-center gap-1">
+                    <span>❌</span>
+                    <span>{errors.pincode}</span>
+                  </p>
+                )}
               </div>
             </div>
 

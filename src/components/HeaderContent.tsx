@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Bell } from 'lucide-react';
 import { notificationsApi } from '@/lib/api';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
+import LanguageSwitcher from './LanguageSwitcher';
 
 export default function HeaderContent() {
   const [userName, setUserName] = useState('');
@@ -259,6 +260,9 @@ export default function HeaderContent() {
           )}
         </div>
         <div className="flex items-center gap-2.5">
+          {/* Language Switcher */}
+          <LanguageSwitcher />
+          
           {/* Notification Bell */}
           <div className="relative notification-dropdown">
             <button 
