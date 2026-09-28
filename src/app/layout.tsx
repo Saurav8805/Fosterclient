@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Script from "next/script";
+import GoogleTranslateLoader from "@/components/GoogleTranslateLoader";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -61,6 +62,7 @@ export default function RootLayout({
         </Script>
       </head>
       <body>
+        <GoogleTranslateLoader />
         {children}
         {/* Additional runtime error suppression */}
         <Script id="suppress-warnings" strategy="afterInteractive">
