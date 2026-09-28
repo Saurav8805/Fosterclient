@@ -20,10 +20,18 @@ const languages: Language[] = [
   { code: 'bn', name: 'বাংলা', flag: '🇮🇳' },
 ];
 
+declare global {
+  interface Window {
+    googleTranslateElementInit?: () => void;
+    google?: any;
+  }
+}
+
 export default function LanguageSwitcher() {
   const [isOpen, setIsOpen] = useState(false);
   const [currentLanguage, setCurrentLanguage] = useState<Language>(languages[0]);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
     // Get current language from cookie
@@ -41,6 +49,31 @@ export default function LanguageSwitcher() {
       if (lang) setCurrentLanguage(lang);
     }
 
+    // Load Google Translate
+    if (!window.google?.translate && !document.getElementById('google-translate-script')) {
+      const script = document.createElement('script');
+      script.id = 'google-translate-script';
+      script.src = 'https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
+      script.async = true;
+      
+      window.googleTranslateElementInit = () => {
+        if (window.google?.translate) {
+          new window.google.translate.TranslateElement({
+            pageLanguage: 'en',
+            includedLanguages: 'en,hi,mr,gu,ta,te,kn,bn',
+            layout: window.google.translate.TranslateElement.InlineLayout.SIMPLE,
+            autoDisplay: false,
+          }, 'google_translate_element');
+          setIsLoaded(true);
+          console.log('✅ Google Translate loaded');
+        }
+      };
+      
+      document.body.appendChild(script);
+    } else {
+      setIsLoaded(true);
+    }
+
     // Close dropdown when clicking outside
     const handleClickOutside = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
@@ -53,35 +86,42 @@ export default function LanguageSwitcher() {
   }, []);
 
   const changeLanguage = (lang: Language) => {
-    // Set Google Translate cookies
-    const domain = window.location.hostname;
+    console.log('🌐 Changing language to:', lang.code);
+    
+    // Set cookies for Google Translate
     const cookieValue = lang.code === 'en' ? '' : `/en/${lang.code}`;
     
-    // Clear existing cookies
-    document.cookie = `googtrans=; path=/; domain=${domain}; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
-    document.cookie = `googtrans=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+    // Clear old cookies
+    document.cookie = 'googtrans=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; domain=' + window.location.hostname;
+    document.cookie = 'googtrans=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
     
-    // Set new cookies
+    // Set new language cookie
     if (cookieValue) {
-      document.cookie = `googtrans=${cookieValue}; path=/; domain=${domain}`;
+      document.cookie = `googtrans=${cookieValue}; path=/; domain=${window.location.hostname}`;
       document.cookie = `googtrans=${cookieValue}; path=/`;
     }
     
     setCurrentLanguage(lang);
     setIsOpen(false);
     
-    // Reload page to apply translation
-    window.location.reload();
+    // Force reload to apply translation
+    setTimeout(() => {
+      window.location.reload();
+    }, 100);
   };
 
   return (
     <>
+      {/* Google Translate Element (hidden) */}
+      <div id="google_translate_element" style={{ display: 'none', visibility: 'hidden', position: 'absolute', zIndex: -9999 }} />
+
       {/* Language Switcher Button */}
       <div className="relative" ref={dropdownRef}>
         <button
           onClick={() => setIsOpen(!isOpen)}
           className="relative p-2.5 text-gray-700 hover:bg-purple-50 rounded-full transition-all duration-200 flex items-center justify-center border-2 border-transparent hover:border-purple-200 active:scale-95"
           aria-label="Change language"
+          title="Change Language"
         >
           <Languages className="w-6 h-6" strokeWidth={2} />
           
@@ -93,13 +133,13 @@ export default function LanguageSwitcher() {
 
         {/* Language Dropdown */}
         {isOpen && (
-          <div className="fixed top-20 right-4 w-64 bg-white rounded-2xl shadow-lg border border-gray-200 z-[99999] overflow-hidden animate-scale-in">
+          <div className="fixed top-20 right-4 w-64 bg-white rounded-2xl shadow-xl border-2 border-gray-200 z-[99999] overflow-hidden animate-scale-in">
             <div className="p-3 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-blue-50">
               <h4 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
                 <Languages className="w-4 h-4 text-purple-600" />
                 Select Language
               </h4>
-              <p className="text-[10px] text-gray-600 mt-0.5">Page will reload to apply translation</p>
+              <p className="text-[10px] text-gray-600 mt-0.5">Click to translate entire website</p>
             </div>
             
             <div className="max-h-80 overflow-y-auto p-2">
@@ -110,7 +150,7 @@ export default function LanguageSwitcher() {
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-left ${
                     currentLanguage.code === lang.code
                       ? 'bg-purple-100 text-purple-900 font-semibold'
-                      : 'text-gray-700 hover:bg-gray-50'
+                      : 'text-gray-700 hover:bg-gray-50 hover:shadow-sm'
                   }`}
                 >
                   <span className="text-2xl">{lang.flag}</span>
@@ -124,84 +164,105 @@ export default function LanguageSwitcher() {
               ))}
             </div>
 
-            <div className="p-2 border-t border-gray-200 bg-gray-50">
-              <p className="text-[10px] text-gray-500 text-center">
-                Powered by Google Translate
+            <div className="p-2 border-t border-gray-200 bg-gradient-to-r from-gray-50 to-purple-50">
+              <p className="text-[10px] text-gray-500 text-center flex items-center justify-center gap-1">
+                <span>Powered by</span>
+                <span className="font-semibold text-purple-600">Google Translate</span>
               </p>
             </div>
           </div>
         )}
       </div>
 
-      {/* Google Translate Script Loader */}
-      <script
-        dangerouslySetInnerHTML={{
-          __html: `
-            function loadGoogleTranslate() {
-              if (window.google && window.google.translate) return;
-              
-              var script = document.createElement('script');
-              script.src = '//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
-              document.body.appendChild(script);
-              
-              window.googleTranslateElementInit = function() {
-                new google.translate.TranslateElement({
-                  pageLanguage: 'en',
-                  includedLanguages: 'en,hi,mr,gu,ta,te,kn,bn',
-                  layout: google.translate.TranslateElement.InlineLayout.SIMPLE,
-                  autoDisplay: false
-                }, 'google_translate_element');
-              };
-            }
-            
-            if (document.readyState === 'loading') {
-              document.addEventListener('DOMContentLoaded', loadGoogleTranslate);
-            } else {
-              loadGoogleTranslate();
-            }
-          `,
-        }}
-      />
-
-      {/* Hidden Google Translate Element */}
-      <div id="google_translate_element" style={{ display: 'none' }} />
-
-      {/* Hide Google Translate UI */}
+      {/* Comprehensive Google Translate UI Hiding */}
       <style jsx global>{`
-        /* Hide Google Translate toolbar */
+        /* Hide Google Translate banner and toolbar */
         .goog-te-banner-frame.skiptranslate {
           display: none !important;
         }
+        
+        .goog-te-banner-frame {
+          display: none !important;
+          visibility: hidden !important;
+        }
+        
+        /* Prevent body shift */
         body {
-          top: 0 !important;
+          top: 0px !important;
           position: static !important;
         }
+        
+        body.translated-ltr,
+        body.translated-rtl {
+          top: 0px !important;
+          position: static !important;
+          margin-top: 0px !important;
+        }
+        
+        /* Hide all Google Translate elements */
         .skiptranslate {
           display: none !important;
         }
+        
         iframe.skiptranslate {
           display: none !important;
         }
-        body > .skiptranslate {
-          display: none !important;
-        }
-        /* Hide the widget */
-        #google_translate_element {
-          display: none !important;
-        }
+        
         .goog-te-gadget {
           display: none !important;
         }
+        
         .goog-te-combo {
           display: none !important;
         }
-        /* Prevent body shift */
-        body.translated-ltr,
-        body.translated-rtl {
-          top: 0 !important;
-          margin-top: 0 !important;
+        
+        .goog-logo-link {
+          display: none !important;
         }
+        
         .goog-te-spinner-pos {
+          display: none !important;
+        }
+        
+        iframe.goog-te-menu-frame {
+          display: none !important;
+        }
+        
+        iframe.goog-te-banner-frame {
+          display: none !important;
+        }
+        
+        #goog-gt-tt {
+          display: none !important;
+        }
+        
+        .goog-te-balloon-frame {
+          display: none !important;
+        }
+        
+        /* Hide the translate element container */
+        #google_translate_element {
+          display: none !important;
+          visibility: hidden !important;
+          position: absolute !important;
+          z-index: -9999 !important;
+        }
+        
+        /* Ensure no Google branding shows */
+        .goog-te-gadget span {
+          display: none !important;
+        }
+        
+        .goog-te-gadget img {
+          display: none !important;
+        }
+        
+        /* Hide menu value */
+        .goog-te-menu-value {
+          display: none !important;
+        }
+        
+        .goog-te-menu-value span {
           display: none !important;
         }
       `}</style>
