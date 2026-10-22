@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardHeader, CardContent } from '@/components/ui/Card'
+import ProfileImageUpload from '@/components/ProfileImageUpload'
 import { usersApi } from '@/lib/api'
 import { validateMobile, validateEmail } from '@/utils/validation'
 
@@ -19,8 +20,7 @@ export default function ProfilePage() {
   const [userId, setUserId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
-  const [profileImage, setProfileImage] = useState<string | null>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null)
 
   const [studentData, setStudentData] = useState({
     fullName: '', mobile: '', email: '', studentName: '', class: '', section: '',
@@ -68,8 +68,6 @@ export default function ProfilePage() {
     setUserRole(Number(role))
     setUserId(id)
     fetchProfileData(id, Number(role))
-    const savedImage = localStorage.getItem(`profileImage_${id}`)
-    if (savedImage) setProfileImage(savedImage)
   }, [])
 
   const fetchProfileData = async (id: string, role: number) => {
@@ -79,6 +77,12 @@ export default function ProfilePage() {
       if (result.success) {
         const userData = result.data.user
         const additional = result.data.additionalData
+        
+        // Set profile image URL from database
+        if (userData.profile_image_url) {
+          setProfileImageUrl(userData.profile_image_url)
+        }
+        
         if (role === 19) {
           setStudentData({
             fullName: userData.full_name || '', mobile: userData.mobile || '', email: userData.email || '',
@@ -109,21 +113,15 @@ export default function ProfilePage() {
     }
   }
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) { setMessage({ type: 'error', text: 'Image size must be less than 5MB' }); return }
-      if (!file.type.startsWith('image/')) { setMessage({ type: 'error', text: 'Please upload an image file' }); return }
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        const result = reader.result as string
-        setProfileImage(result)
-        localStorage.setItem(`profileImage_${userId}`, result)
-        setMessage({ type: 'success', text: 'Profile photo updated!' })
-        setTimeout(() => setMessage(null), 3000)
-      }
-      reader.readAsDataURL(file)
-    }
+  const handleImageUploadSuccess = (imageUrl: string) => {
+    setProfileImageUrl(imageUrl)
+    setMessage({ type: 'success', text: 'Profile photo updated successfully!' })
+    setTimeout(() => setMessage(null), 3000)
+  }
+
+  const handleImageUploadError = (error: string) => {
+    setMessage({ type: 'error', text: error })
+    setTimeout(() => setMessage(null), 5000)
   }
 
   if (loading) {
@@ -281,18 +279,14 @@ export default function ProfilePage() {
         <CardContent className="p-8">
           <div className="flex flex-col md:flex-row items-center md:items-start gap-8">
             <div className="flex flex-col items-center gap-3">
-              <div className="relative group">
-                {profileImage ? (
-                  <img src={profileImage} alt="Profile" className="w-32 h-32 rounded-full object-cover border-4 border-neutral-200 shadow-lg"/>
-                ) : (
-                  <div className="w-32 h-32 bg-gradient-to-br from-blue-500 to-blue-700 rounded-full flex items-center justify-center text-white text-4xl font-bold border-4 border-neutral-200 shadow-lg">{initials}</div>
-                )}
-                <button type="button" onClick={() => fileInputRef.current?.click()} className="absolute bottom-0 right-0 bg-white text-blue-600 border-2 border-blue-500 p-2.5 rounded-full hover:bg-blue-50 transition shadow-lg">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                </button>
-                <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
-              </div>
-              <p className="text-xs text-neutral-500">Click to change</p>
+              {userId && (
+                <ProfileImageUpload
+                  userId={userId}
+                  currentImageUrl={profileImageUrl}
+                  onUploadSuccess={handleImageUploadSuccess}
+                  onUploadError={handleImageUploadError}
+                />
+              )}
             </div>
             <div className="flex-1 text-center md:text-left">
               <h2 className="text-3xl font-bold text-neutral-900">{displayName || 'User'}</h2>
