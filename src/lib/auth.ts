@@ -226,3 +226,45 @@ export function refreshSession(): void {
 export function getSessionToken(): string | null {
   return localStorage.getItem(SESSION_TOKEN_KEY) || getCookie(SESSION_TOKEN_KEY);
 }
+
+// Verify session with backend
+export async function verifySession(): Promise<boolean> {
+  try {
+    const userId = localStorage.getItem('userId');
+    
+    if (!userId) {
+      console.log('[verifySession] No userId found in localStorage');
+      return false;
+    }
+
+    console.log('[verifySession] Checking session for userId:', userId);
+
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+    const response = await fetch(`${apiUrl}/api/auth/verify/${userId}`);
+    
+    console.log('[verifySession] Response status:', response.status);
+
+    if (!response.ok) {
+      // User doesn't exist or session invalid
+      console.warn('[verifySession] User not found or invalid (status:', response.status, ')');
+      clearAuthData();
+      return false;
+    }
+
+    const data = await response.json();
+    console.log('[verifySession] Response data:', data);
+    
+    if (!data.success || !data.data?.valid) {
+      console.warn('[verifySession] Invalid session data');
+      clearAuthData();
+      return false;
+    }
+
+    console.log('[verifySession] ✅ Session valid');
+    return true;
+  } catch (error) {
+    console.error('[verifySession] Network or parsing error:', error);
+    // On network error, keep session (don't clear) - backend might be down
+    return true;
+  }
+}

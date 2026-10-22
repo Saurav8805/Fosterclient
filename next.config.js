@@ -29,6 +29,13 @@ const nextConfig = {
     deviceSizes: [640, 750, 828, 1080, 1200],
     imageSizes: [16, 32, 48, 64, 96],
     minimumCacheTTL: 60,
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'res.cloudinary.com',
+        pathname: '/**',
+      },
+    ],
   },
   // Optimize webpack for CSS handling and disable web vitals
   webpack: (config, { dev, isServer }) => {

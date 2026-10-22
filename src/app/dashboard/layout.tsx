@@ -7,7 +7,7 @@ import Image from 'next/image'
 import { SidebarProvider, useSidebar } from '@/components/ui/sidebar'
 import HeaderContent from '@/components/HeaderContent'
 import PushNotificationManager from '@/components/PushNotificationManager'
-import { isAuthenticated, refreshSession, clearAuthData } from '@/lib/auth'
+import { isAuthenticated, refreshSession, clearAuthData, verifySession } from '@/lib/auth'
 
 // Monochrome SVG icons
 const Icons = {
@@ -117,25 +117,9 @@ const DashboardSidebar = memo(function DashboardSidebar() {
       return
     }
 
-    // Refresh session to extend expiry
-    refreshSession()
-
     // Get user role from localStorage
     const role = localStorage.getItem('userRole')
     if (role) setUserRole(Number(role))
-
-    // Set up session refresh interval (every 5 minutes)
-    const intervalId = setInterval(() => {
-      if (isAuthenticated()) {
-        refreshSession()
-      } else {
-        // Session expired, redirect to login
-        clearAuthData()
-        router.replace('/login')
-      }
-    }, 5 * 60 * 1000) // 5 minutes
-
-    return () => clearInterval(intervalId)
   }, [router])
 
   const handleLogout = () => {
