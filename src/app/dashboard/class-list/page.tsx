@@ -689,7 +689,7 @@ export default function ClassListPage() {
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
-                Add Student
+                + Admit New Student
               </button>
             )}
           </div>
@@ -875,7 +875,7 @@ export default function ClassListPage() {
                   onClick={() => setShowAddStudentModal(true)}
                   className="bg-[#5e3a9e] text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-[#4a2d7e] transition"
                 >
-                  Add Student Now
+                  + Admit New Student
                 </button>
               </div>
             ) : (
