@@ -691,7 +691,7 @@ export default function StaffListPage() {
                       } else if (designation === 'Teacher') {
                         department = 'Faculty';
                       } else if (designation === 'Support Staff') {
-                        department = 'Administration';
+                        department = 'Support Department';
                       }
                       
                       setFormData({ ...formData, designation, department });
@@ -947,7 +947,7 @@ export default function StaffListPage() {
                       } else if (designation === 'Teacher') {
                         department = 'Faculty';
                       } else if (designation === 'Support Staff') {
-                        department = 'Administration';
+                        department = 'Support Department';
                       }
                       
                       setAddFormData({ ...addFormData, designation, department });

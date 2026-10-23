@@ -435,7 +435,7 @@ export default function AddStaffPage() {
                     } else if (newDesignation === 'Teacher') {
                       setFormData({...formData, designation: newDesignation, department: 'Faculty'});
                     } else if (newDesignation === 'Support Staff') {
-                      setFormData({...formData, designation: newDesignation, department: 'Administration'});
+                      setFormData({...formData, designation: newDesignation, department: 'Support Department'});
                     } else {
                       setFormData({...formData, designation: newDesignation, department: ''});
                     }
@@ -465,6 +465,7 @@ export default function AddStaffPage() {
                   <option value="Deputy Head of School">Deputy Head of School</option>
                   <option value="Faculty">Faculty</option>
                   <option value="Administration">Administration</option>
+                  <option value="Support Department">Support Department</option>
                 </select>
                 <p className="text-xs text-gray-500 mt-1">Auto-assigned based on designation</p>
               </div>
