@@ -159,6 +159,72 @@ export default function ClassListPage() {
     return age.toString()
   }
 
+  // Helper function: Validate age for specific class based on Indian education standards
+  const validateAgeForClass = (className: string, age: number): { valid: boolean; error?: string; minAge: number; maxAge: number } => {
+    // Indian education age standards (as per RTE Act and common practices)
+    const ageRanges: { [key: string]: { min: number; max: number } } = {
+      'Playgroup': { min: 2, max: 4 },
+      'Nursery': { min: 3, max: 5 },
+      'LKG': { min: 4, max: 6 },
+      'UKG': { min: 5, max: 7 },
+      'Class 1': { min: 6, max: 8 },
+      '1': { min: 6, max: 8 },
+      'Class 2': { min: 7, max: 9 },
+      '2': { min: 7, max: 9 },
+      'Class 3': { min: 8, max: 10 },
+      '3': { min: 8, max: 10 },
+      'Class 4': { min: 9, max: 11 },
+      '4': { min: 9, max: 11 },
+      'Class 5': { min: 10, max: 12 },
+      '5': { min: 10, max: 12 },
+      'Class 6': { min: 11, max: 14 },
+      '6': { min: 11, max: 14 },
+      'Class 7': { min: 12, max: 15 },
+      '7': { min: 12, max: 15 },
+      'Class 8': { min: 13, max: 16 },
+      '8': { min: 13, max: 16 },
+      'Class 9': { min: 14, max: 18 },
+      '9': { min: 14, max: 18 },
+      'Class 10': { min: 15, max: 20 },
+      '10': { min: 15, max: 20 },
+      'Class 11': { min: 16, max: 22 },
+      '11': { min: 16, max: 22 },
+      'Class 12': { min: 17, max: 25 },
+      '12': { min: 17, max: 25 },
+    }
+
+    const range = ageRanges[className]
+    if (!range) {
+      // If class not found in ranges, use general validation (2-18 years)
+      return { 
+        valid: age >= 2 && age <= 25, 
+        error: age < 2 ? 'Student must be at least 2 years old' : 'Student cannot be older than 18 years',
+        minAge: 2,
+        maxAge: 25
+      }
+    }
+
+    if (age < range.min) {
+      return { 
+        valid: false, 
+        error: `Student must be at least ${range.min} years old for ${className}`,
+        minAge: range.min,
+        maxAge: range.max
+      }
+    }
+
+    if (age > range.max) {
+      return { 
+        valid: false, 
+        error: `Student cannot be older than ${range.max} years for ${className}`,
+        minAge: range.min,
+        maxAge: range.max
+      }
+    }
+
+    return { valid: true, minAge: range.min, maxAge: range.max }
+  }
+
   const fetchClassStats = async () => {
     try {
       setLoadingClasses(true)
@@ -432,6 +498,48 @@ export default function ClassListPage() {
 
     setAdmitErrors({})
 
+    // Validate required fields
+    if (!admitFormData.dob) {
+      setAdmitErrors(prev => ({ ...prev, dob: 'Date of Birth is required' }))
+      return
+    }
+
+    if (!admitFormData.parentName.trim()) {
+      setAdmitErrors(prev => ({ ...prev, parentName: 'Father Name is required' }))
+      return
+    }
+
+    if (!admitFormData.motherName.trim()) {
+      setAdmitErrors(prev => ({ ...prev, motherName: 'Mother Name is required' }))
+      return
+    }
+
+    if (!admitFormData.address.trim()) {
+      setAdmitErrors(prev => ({ ...prev, address: 'Address is required' }))
+      return
+    }
+
+    if (!admitFormData.city.trim()) {
+      setAdmitErrors(prev => ({ ...prev, city: 'City is required' }))
+      return
+    }
+
+    if (!admitFormData.state.trim()) {
+      setAdmitErrors(prev => ({ ...prev, state: 'State is required' }))
+      return
+    }
+
+    if (!admitFormData.pincode.trim()) {
+      setAdmitErrors(prev => ({ ...prev, pincode: 'Pincode is required' }))
+      return
+    }
+
+    // Validate pincode format
+    if (!/^\d{6}$/.test(admitFormData.pincode)) {
+      setAdmitErrors(prev => ({ ...prev, pincode: 'Pincode must be exactly 6 digits' }))
+      return
+    }
+
     // Validate mobile number
     const mobileResult = validateMobile(admitFormData.mobile)
     if (!mobileResult.valid) {
@@ -448,11 +556,20 @@ export default function ClassListPage() {
       }
     }
 
-    // Validate Date of Birth (age 2-18 years for students)
-    if (admitFormData.dob) {
-      const dobResult = validateDOB(admitFormData.dob, 2, 18)
-      if (!dobResult.valid) {
-        setAdmitErrors(prev => ({ ...prev, dob: dobResult.error! }))
+    // Validate Date of Birth
+    const dobResult = validateDOB(admitFormData.dob, 2, 18)
+    if (!dobResult.valid) {
+      setAdmitErrors(prev => ({ ...prev, dob: dobResult.error! }))
+      return
+    }
+
+    // Validate age for specific class (Indian education standards)
+    const age = parseInt(admitFormData.age)
+    if (age && selectedClass) {
+      const ageValidation = validateAgeForClass(selectedClass, age)
+      if (!ageValidation.valid) {
+        setAdmitErrors(prev => ({ ...prev, dob: ageValidation.error! }))
+        setActionMessage({ type: 'error', text: ageValidation.error! })
         return
       }
     }
@@ -464,6 +581,12 @@ export default function ClassListPage() {
         setAdmitErrors(prev => ({ ...prev, emergencyContact: emergencyResult.error! }))
         return
       }
+    }
+
+    // Validate aadhar if provided
+    if (admitFormData.aadharNumber && !/^\d{12}$/.test(admitFormData.aadharNumber)) {
+      setAdmitErrors(prev => ({ ...prev, aadharNumber: 'Aadhar must be exactly 12 digits' }))
+      return
     }
 
     try {
@@ -1363,8 +1486,9 @@ export default function ClassListPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">Gender</label>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Gender <span className="text-rose-500">*</span></label>
                     <select
+                      required
                       value={admitFormData.gender}
                       onChange={e => setAdmitFormData(prev => ({ ...prev, gender: e.target.value }))}
                       className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-[#5e3a9e]/30 outline-none"
@@ -1376,9 +1500,10 @@ export default function ClassListPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">Date of Birth</label>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Date of Birth <span className="text-rose-500">*</span></label>
                     <input
                       type="date"
+                      required
                       value={admitFormData.dob}
                       onChange={e => {
                         const dob = e.target.value
@@ -1411,6 +1536,7 @@ export default function ClassListPage() {
                       onChange={e => setAdmitFormData(prev => ({ ...prev, bloodGroup: e.target.value }))}
                       className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-[#5e3a9e]/30 outline-none"
                     >
+                      <option value="">Select Blood Group</option>
                       {['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'].map(bg => (
                         <option key={bg} value={bg}>{bg}</option>
                       ))}
@@ -1421,24 +1547,30 @@ export default function ClassListPage() {
                     <label className="block text-xs font-semibold text-gray-700 mb-1">Aadhar Number</label>
                     <input
                       type="text"
+                      pattern="[0-9]{12}"
+                      maxLength={12}
                       placeholder="12-digit Aadhar number"
                       value={admitFormData.aadharNumber}
-                      onChange={e => setAdmitFormData(prev => ({ ...prev, aadharNumber: e.target.value }))}
-                      className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#5e3a9e]/30 outline-none"
+                      onChange={e => {
+                        const value = e.target.value.replace(/\D/g, '')
+                        setAdmitFormData(prev => ({ ...prev, aadharNumber: value }))
+                        if (admitErrors.aadharNumber) setAdmitErrors(prev => ({ ...prev, aadharNumber: '' }))
+                      }}
+                      className={`w-full px-3.5 py-2 border rounded-xl text-sm focus:ring-2 outline-none ${
+                        admitErrors.aadharNumber ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-[#5e3a9e]/30'
+                      }`}
                     />
+                    {admitErrors.aadharNumber && <p className="text-xs text-red-600 mt-1">❌ {admitErrors.aadharNumber}</p>}
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">
-                      Total Annual Fees (₹)
-                    </label>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Admission Date <span className="text-rose-500">*</span></label>
                     <input
-                      type="number"
-                      min="0"
-                      placeholder="e.g. 25000"
-                      value={admitFormData.totalFees}
-                      onChange={e => setAdmitFormData(prev => ({ ...prev, totalFees: e.target.value }))}
-                      className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#5e3a9e]/30 outline-none font-bold text-[#5e3a9e]"
+                      type="date"
+                      required
+                      value={admitFormData.admissionDate}
+                      onChange={e => setAdmitFormData(prev => ({ ...prev, admissionDate: e.target.value }))}
+                      className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#5e3a9e]/30 outline-none"
                     />
                   </div>
                 </div>
@@ -1452,32 +1584,45 @@ export default function ClassListPage() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 mb-1">
-                      Parent / Father Name <span className="text-rose-500">*</span>
+                      Father Name <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="text"
                       required
                       placeholder="Father's full name"
                       value={admitFormData.parentName}
-                      onChange={e => setAdmitFormData(prev => ({ ...prev, parentName: e.target.value }))}
-                      className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#5e3a9e]/30 outline-none"
+                      onChange={e => {
+                        setAdmitFormData(prev => ({ ...prev, parentName: e.target.value }))
+                        if (admitErrors.parentName) setAdmitErrors(prev => ({ ...prev, parentName: '' }))
+                      }}
+                      className={`w-full px-3.5 py-2 border rounded-xl text-sm focus:ring-2 outline-none ${
+                        admitErrors.parentName ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-[#5e3a9e]/30'
+                      }`}
                     />
+                    {admitErrors.parentName && <p className="text-xs text-red-600 mt-1">❌ {admitErrors.parentName}</p>}
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">Mother Name</label>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Mother Name <span className="text-rose-500">*</span></label>
                     <input
                       type="text"
+                      required
                       placeholder="Mother's full name"
                       value={admitFormData.motherName}
-                      onChange={e => setAdmitFormData(prev => ({ ...prev, motherName: e.target.value }))}
-                      className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#5e3a9e]/30 outline-none"
+                      onChange={e => {
+                        setAdmitFormData(prev => ({ ...prev, motherName: e.target.value }))
+                        if (admitErrors.motherName) setAdmitErrors(prev => ({ ...prev, motherName: '' }))
+                      }}
+                      className={`w-full px-3.5 py-2 border rounded-xl text-sm focus:ring-2 outline-none ${
+                        admitErrors.motherName ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-[#5e3a9e]/30'
+                      }`}
                     />
+                    {admitErrors.motherName && <p className="text-xs text-red-600 mt-1">❌ {admitErrors.motherName}</p>}
                   </div>
 
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 mb-1">
-                      Primary Mobile <span className="text-rose-500">*</span>
+                      Mobile Number <span className="text-rose-500">*</span> (Login ID)
                     </label>
                     <input
                       type="tel"
@@ -1495,6 +1640,7 @@ export default function ClassListPage() {
                       }`}
                     />
                     {admitErrors.mobile && <p className="text-xs text-red-600 mt-1">❌ {admitErrors.mobile}</p>}
+                    <p className="text-xs text-gray-500 mt-1">Used as login ID for parent portal</p>
                   </div>
 
                   <div>
@@ -1532,16 +1678,6 @@ export default function ClassListPage() {
                     />
                     {admitErrors.emergencyContact && <p className="text-xs text-red-600 mt-1">❌ {admitErrors.emergencyContact}</p>}
                   </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">Admission Date</label>
-                    <input
-                      type="date"
-                      value={admitFormData.admissionDate}
-                      onChange={e => setAdmitFormData(prev => ({ ...prev, admissionDate: e.target.value }))}
-                      className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#5e3a9e]/30 outline-none"
-                    />
-                  </div>
                 </div>
               </div>
 
@@ -1552,49 +1688,87 @@ export default function ClassListPage() {
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="md:col-span-3">
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">Street Address</label>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Address <span className="text-rose-500">*</span></label>
                     <input
                       type="text"
+                      required
                       placeholder="House No, Colony, Landmark"
                       value={admitFormData.address}
-                      onChange={e => setAdmitFormData(prev => ({ ...prev, address: e.target.value }))}
-                      className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#5e3a9e]/30 outline-none"
+                      onChange={e => {
+                        setAdmitFormData(prev => ({ ...prev, address: e.target.value }))
+                        if (admitErrors.address) setAdmitErrors(prev => ({ ...prev, address: '' }))
+                      }}
+                      className={`w-full px-3.5 py-2 border rounded-xl text-sm focus:ring-2 outline-none ${
+                        admitErrors.address ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-[#5e3a9e]/30'
+                      }`}
                     />
+                    {admitErrors.address && <p className="text-xs text-red-600 mt-1">❌ {admitErrors.address}</p>}
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">City</label>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">City <span className="text-rose-500">*</span></label>
                     <input
                       type="text"
+                      required
                       placeholder="City"
                       value={admitFormData.city}
-                      onChange={e => setAdmitFormData(prev => ({ ...prev, city: e.target.value }))}
-                      className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#5e3a9e]/30 outline-none"
+                      onChange={e => {
+                        setAdmitFormData(prev => ({ ...prev, city: e.target.value }))
+                        if (admitErrors.city) setAdmitErrors(prev => ({ ...prev, city: '' }))
+                      }}
+                      className={`w-full px-3.5 py-2 border rounded-xl text-sm focus:ring-2 outline-none ${
+                        admitErrors.city ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-[#5e3a9e]/30'
+                      }`}
                     />
+                    {admitErrors.city && <p className="text-xs text-red-600 mt-1">❌ {admitErrors.city}</p>}
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">State</label>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">State <span className="text-rose-500">*</span></label>
                     <input
                       type="text"
+                      required
                       placeholder="State"
                       value={admitFormData.state}
-                      onChange={e => setAdmitFormData(prev => ({ ...prev, state: e.target.value }))}
-                      className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#5e3a9e]/30 outline-none"
+                      onChange={e => {
+                        setAdmitFormData(prev => ({ ...prev, state: e.target.value }))
+                        if (admitErrors.state) setAdmitErrors(prev => ({ ...prev, state: '' }))
+                      }}
+                      className={`w-full px-3.5 py-2 border rounded-xl text-sm focus:ring-2 outline-none ${
+                        admitErrors.state ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-[#5e3a9e]/30'
+                      }`}
                     />
+                    {admitErrors.state && <p className="text-xs text-red-600 mt-1">❌ {admitErrors.state}</p>}
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">Pincode</label>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Pincode <span className="text-rose-500">*</span></label>
                     <input
                       type="text"
+                      required
+                      pattern="[0-9]{6}"
+                      maxLength={6}
                       placeholder="6-digit pincode"
                       value={admitFormData.pincode}
-                      onChange={e => setAdmitFormData(prev => ({ ...prev, pincode: e.target.value }))}
-                      className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#5e3a9e]/30 outline-none"
+                      onChange={e => {
+                        const value = e.target.value.replace(/\D/g, '')
+                        setAdmitFormData(prev => ({ ...prev, pincode: value }))
+                        if (admitErrors.pincode) setAdmitErrors(prev => ({ ...prev, pincode: '' }))
+                      }}
+                      className={`w-full px-3.5 py-2 border rounded-xl text-sm focus:ring-2 outline-none ${
+                        admitErrors.pincode ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-[#5e3a9e]/30'
+                      }`}
                     />
+                    {admitErrors.pincode && <p className="text-xs text-red-600 mt-1">❌ {admitErrors.pincode}</p>}
                   </div>
                 </div>
+              </div>
+
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                <p className="text-sm text-blue-800">
+                  <span className="font-semibold">📌 Note:</span> Default password will be <span className="font-mono font-bold">default123</span>. 
+                  The mobile number will be used as the login ID for parent portal.
+                </p>
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-4 border-t">
