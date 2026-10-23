@@ -70,13 +70,19 @@ export default function AddStaffPage() {
 
   const fetchClassList = async () => {
     try {
-      const configApi = await import('@/lib/api').then(m => m.configApi)
+      console.log('🔄 Fetching class list from database...')
+      const { configApi } = await import('@/lib/api')
       const res = await configApi.getClasses() as { success: boolean; data?: string[] }
+      console.log('📊 Class list response:', res)
       if (res.success && res.data) {
+        console.log('✅ Setting class list:', res.data)
         setClassList(res.data)
+      } else {
+        console.warn('⚠️ No class data received')
+        setClassList([])
       }
     } catch (e) {
-      console.error('Failed to fetch class list:', e)
+      console.error('❌ Failed to fetch class list:', e)
       // Fallback to empty array if fetch fails
       setClassList([])
     }
@@ -487,17 +493,26 @@ export default function AddStaffPage() {
 
               {/* Assigned Class */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Assign Class (Optional for Teachers)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Assign Class (Optional for Teachers) {classList.length > 0 && `(${classList.length} classes available)`}
+                </label>
                 <select 
                   className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={formData.assignedClass}
                   onChange={(e) => setFormData({...formData, assignedClass: e.target.value})}
                 >
                   <option value="">Select Class to Assign</option>
-                  {classList.map(cls => (
-                    <option key={cls} value={cls}>{cls}</option>
-                  ))}
+                  {classList.length === 0 ? (
+                    <option disabled>Loading classes...</option>
+                  ) : (
+                    classList.map(cls => (
+                      <option key={cls} value={cls}>{cls}</option>
+                    ))
+                  )}
                 </select>
+                {classList.length === 0 && (
+                  <p className="text-xs text-gray-500 mt-1">No classes found. Please add classes first.</p>
+                )}
               </div>
 
               {/* Assigned Section */}
