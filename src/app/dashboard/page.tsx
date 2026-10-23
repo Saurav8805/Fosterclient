@@ -234,7 +234,7 @@ export default function DashboardPage() {
     return null
   }
 
-  const roleName = userRole === 6 ? 'Principal' : userRole === 7 ? 'Teacher' : userRole === 8 ? 'Admin' : 'Student'
+  const roleName = userRole === 6 ? 'Principal' : userRole === 8 ? 'Vice Principal' : userRole === 7 ? 'Teacher' : userRole === 5 ? 'Admin' : 'Student'
 
   // Admin/Principal Dashboard
   if (userRole === 6 || userRole === 8) {

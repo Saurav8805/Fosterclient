@@ -243,7 +243,7 @@ export default function ClassListPage() {
     console.log('🖼️ Profile image URL:', student.user?.profile_image_url)
     console.log('🔑 Password (password_hash):', student.user?.password_hash)
     console.log('👔 Current user role:', userRole)
-    console.log('🔒 Should show password:', (userRole === 5 || userRole === 6) && student.user?.password_hash)
+    console.log('🔒 Should show password:', (userRole === 5 || userRole === 6 || userRole === 8) && student.user?.password_hash)
     
     setSelectedStudent(student)
     setDetailTab('profile')
@@ -949,7 +949,7 @@ export default function ClassListPage() {
                           </td>
                           <td className="px-6 py-4 text-right">
                             <div className="flex items-center justify-end gap-1.5">
-                              {userRole === 6 && (
+                              {(userRole === 6 || userRole === 8) && (
                                 <>
                                   <button
                                     onClick={(e) => {
@@ -1694,7 +1694,7 @@ export default function ClassListPage() {
                               <span>📱</span>
                               {selectedStudent.mobile || selectedStudent.user?.mobile || 'N/A'}
                             </div>
-                            {(userRole === 5 || userRole === 6) && selectedStudent.user?.password_hash && (
+                            {(userRole === 5 || userRole === 6 || userRole === 8) && selectedStudent.user?.password_hash && (
                               <div className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 rounded-full text-xs font-semibold text-purple-700">
                                 <span>🔑</span>
                                 Password: {selectedStudent.user.password_hash}

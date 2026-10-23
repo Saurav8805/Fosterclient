@@ -299,7 +299,7 @@ export default function StudentListPage() {
     console.log('🖼️ Profile image URL:', student.user?.profile_image_url)
     console.log('🔑 Password (password_hash):', student.user?.password_hash)
     console.log('👔 Current user role:', userRole)
-    console.log('🔒 Should show password:', (userRole === 5 || userRole === 6) && student.user?.password_hash)
+    console.log('🔒 Should show password:', (userRole === 5 || userRole === 6 || userRole === 8) && student.user?.password_hash)
     
     setSelectedStudent(student)
     setDetailTab('profile')
@@ -927,7 +927,7 @@ export default function StudentListPage() {
                           >
                             Edit
                           </button>
-                          {userRole === 6 && ( // Only admin (role 6) can delete
+                          {(userRole === 6 || userRole === 8) && ( // Only principal/vice principal (role 6/8) can delete
                             <button 
                               onClick={() => handleDelete(student)}
                               className="text-red-600 hover:text-red-800 font-medium px-2 py-1 rounded hover:bg-red-50 transition-colors touch-manipulation"
@@ -1694,7 +1694,7 @@ export default function StudentListPage() {
                             <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 rounded-full text-xs font-semibold text-blue-700">
                               <span>📱</span>{selectedStudent.user?.mobile || 'N/A'}
                             </div>
-                            {(userRole === 5 || userRole === 6) && selectedStudent.user?.password_hash && (
+                            {(userRole === 5 || userRole === 6 || userRole === 8) && selectedStudent.user?.password_hash && (
                               <div className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 rounded-full text-xs font-semibold text-purple-700">
                                 <span>🔑</span>Password: {selectedStudent.user.password_hash}
                               </div>

@@ -417,7 +417,7 @@ export default function StaffListPage() {
   const filteredStaff = staffMembers.filter(staff => {
     const roleNum = staff.user?.role
     const desig = (staff.designation || '').toLowerCase()
-    const isPrincipalOrAdmin = roleNum === 6 || desig.includes('principal') || desig.includes('admin')
+    const isPrincipalOrAdmin = roleNum === 6 || roleNum === 8 || desig.includes('principal') || desig.includes('admin')
     if (isPrincipalOrAdmin) return false
     
     if (filterDesignation !== 'All') {

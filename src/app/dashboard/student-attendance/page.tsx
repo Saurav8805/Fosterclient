@@ -78,13 +78,13 @@ export default function StudentAttendancePage() {
       return
     }
     
-    // Only admin and faculty can mark/view all attendance
-    if (roleNum !== 6 && roleNum !== 7) {
+    // Only admin, principal, vice principal, and faculty can mark/view all attendance
+    if (roleNum !== 6 && roleNum !== 8 && roleNum !== 7) {
       router.push('/dashboard')
       return
     }
 
-    if (roleNum === 6) {
+    if (roleNum === 6 || roleNum === 8) {
       setActiveTab('view')
     }
     

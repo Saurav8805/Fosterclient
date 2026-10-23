@@ -513,7 +513,7 @@ export default function SyllabusPage() {
                       </div>
                       
                       {/* Edit Remarks Button - Only for Role 5 (Super Admin) and Role 6 (Principal) */}
-                      {(role === 5 || role === 6) && !isEditingRemarks && !isEditing && (
+                      {(role === 5 || role === 6 || role === 8) && !isEditingRemarks && !isEditing && (
                         <button
                           onClick={() => setIsEditingRemarks(true)}
                           className="bg-amber-600 text-white px-4 py-2 rounded-xl hover:bg-amber-700 transition text-xs font-bold shadow-sm print:hidden"
