@@ -36,6 +36,8 @@ interface StudentItem {
   user?: {
     full_name?: string
     mobile?: string
+    profile_image_url?: string
+    password_hash?: string
   }
   teacher?: {
     id?: string
