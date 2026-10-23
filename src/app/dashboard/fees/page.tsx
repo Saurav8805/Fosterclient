@@ -28,7 +28,7 @@ export default function FeesPage() {
   const [filterClass, setFilterClass] = useState('');
   const [filterSection, setFilterSection] = useState('');
   const [filterStatus, setFilterStatus] = useState('All');
-  const [filterYear, setFilterYear] = useState(String(new Date().getFullYear()));
+  const [filterYear, setFilterYear] = useState(`${new Date().getFullYear()}-${(new Date().getFullYear() + 1).toString().slice(-2)}`);
   const [summary, setSummary] = useState({ totalFees: 0, totalCollected: 0, totalPending: 0, paidCount: 0, pendingCount: 0 });
 
   // Edit modal
@@ -429,7 +429,11 @@ export default function FeesPage() {
         <div>
           <label className="block text-xs font-medium text-gray-500 mb-1">Academic Year</label>
           <select value={filterYear} onChange={e => setFilterYear(e.target.value)} className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:border-[#5e3a9e] focus:ring-1 focus:ring-[#5e3a9e] font-semibold">
-            {['2022-23','2023-24','2024-25','2025-26','2026-27'].map(y => <option key={y}>{y}</option>)}
+            <option value="2022-23">2022-23 (Jun 2022 - May 2023)</option>
+            <option value="2023-24">2023-24 (Jun 2023 - May 2024)</option>
+            <option value="2024-25">2024-25 (Jun 2024 - May 2025)</option>
+            <option value="2025-26">2025-26 (Jun 2025 - May 2026)</option>
+            <option value="2026-27">2026-27 (Jun 2026 - May 2027)</option>
           </select>
         </div>
         <div>
@@ -452,7 +456,7 @@ export default function FeesPage() {
             {['All', 'Paid', 'Pending', 'Not Set'].map(s => <option key={s}>{s}</option>)}
           </select>
         </div>
-        <button onClick={() => { setFilterClass(''); setFilterSection(''); setFilterStatus('All'); setFilterYear(String(new Date().getFullYear())); }} className="px-3 py-2 text-sm text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+        <button onClick={() => { setFilterClass(''); setFilterSection(''); setFilterStatus('All'); setFilterYear(`${new Date().getFullYear()}-${(new Date().getFullYear() + 1).toString().slice(-2)}`); }} className="px-3 py-2 text-sm text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
           Reset
         </button>
         <div className="ml-auto flex items-center gap-2 text-xs font-semibold text-[#5e3a9e] bg-purple-50 border border-purple-200 px-3 py-2 rounded-lg">

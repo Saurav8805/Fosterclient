@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardHeader, CardContent } from '@/components/ui/Card'
-import { studentsApi, configApi, staffApi } from '@/lib/api'
+import { studentsApi, configApi, staffApi, attendanceApi, behaviourApi, progressApi } from '@/lib/api'
 import { validateMobile, validateEmail, validateDate, validateDOB } from '@/utils/validation'
 
 export default function StudentListPage() {
@@ -78,6 +78,15 @@ export default function StudentListPage() {
   const [bloodGroups] = useState(['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'])
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [admitErrors, setAdmitErrors] = useState<Record<string, string>>({})
+
+  // Student Detail Modal (360° Profile) states
+  const [showStudentDetailModal, setShowStudentDetailModal] = useState(false)
+  const [detailTab, setDetailTab] = useState<'profile' | 'attendance' | 'behaviour' | 'personal' | 'academics'>('profile')
+  const [studentAttendanceLogs, setStudentAttendanceLogs] = useState<any[]>([])
+  const [studentBehaviourLogs, setStudentBehaviourLogs] = useState<any[]>([])
+  const [studentProgressLogs, setStudentProgressLogs] = useState<any[]>([])
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [attendanceSummaryMap, setAttendanceSummaryMap] = useState<{ [studentId: string]: { todayStatus: string; overallPercentage: number; present: number; absent: number; leave: number } }>({})
 
   useEffect(() => {
     const role = localStorage.getItem('userRole')
@@ -266,6 +275,93 @@ export default function StudentListPage() {
     } catch (err) {
       console.error('Error fetching sections:', err)
       setSections(['All', 'A', 'B', 'C']) // Fallback with "All"
+    }
+  }
+
+  // Helper function for attendance badge styling
+  const getAttendanceBadgeClass = (status: string) => {
+    switch (status) {
+      case 'Present':
+        return 'bg-emerald-100 text-emerald-700 border-emerald-300'
+      case 'Absent':
+        return 'bg-rose-100 text-rose-700 border-rose-300'
+      case 'Leave':
+        return 'bg-amber-100 text-amber-700 border-amber-300'
+      default:
+        return 'bg-gray-100 text-gray-600 border-gray-300'
+    }
+  }
+
+  // Handle opening student detail modal with full profile
+  const handleOpenStudentDetail = async (student: any) => {
+    console.log('📋 Opening student profile:', student)
+    console.log('👤 Student user data:', student.user)
+    console.log('🖼️ Profile image URL:', student.user?.profile_image_url)
+    console.log('🔑 Password (password_hash):', student.user?.password_hash)
+    console.log('👔 Current user role:', userRole)
+    console.log('🔒 Should show password:', (userRole === 5 || userRole === 6) && student.user?.password_hash)
+    
+    setSelectedStudent(student)
+    setDetailTab('profile')
+    setShowStudentDetailModal(true)
+    setDetailLoading(true)
+
+    try {
+      const [attRes, behRes, progRes] = await Promise.all([
+        attendanceApi.getStudentAttendance({ studentId: student.id }),
+        behaviourApi.list(),
+        progressApi.getStudentProgress(student.id)
+      ])
+
+      if (attRes.success) {
+        const logs = attRes.data?.attendance || []
+        setStudentAttendanceLogs(logs)
+        
+        // Calculate attendance summary
+        const totalDays = logs.length
+        const present = logs.filter((l: any) => l.status === 'Present').length
+        const absent = logs.filter((l: any) => l.status === 'Absent').length
+        const leave = logs.filter((l: any) => l.status === 'Leave').length
+        const overallPercentage = totalDays > 0 ? Math.round((present / totalDays) * 100) : 0
+        
+        // Find today's attendance
+        const today = new Date().toISOString().split('T')[0]
+        const todayLog = logs.find((l: any) => l.date?.startsWith(today))
+        const todayStatus = todayLog?.status || 'Not Marked'
+        
+        setAttendanceSummaryMap({
+          [student.id]: {
+            todayStatus,
+            overallPercentage,
+            present,
+            absent,
+            leave
+          }
+        })
+      } else {
+        setStudentAttendanceLogs([])
+      }
+
+      if (behRes.success && Array.isArray(behRes.data)) {
+        const filtered = behRes.data.filter((b: any) => {
+          return b.student_id === student.id || b.student?.id === student.id
+        })
+        console.log(`📊 Found ${filtered.length} behaviour records for student ${student.user?.full_name}`)
+        setStudentBehaviourLogs(filtered)
+      } else {
+        console.log('⚠️ No behaviour data received')
+        setStudentBehaviourLogs([])
+      }
+
+      if (progRes.success) {
+        setStudentProgressLogs(progRes.data?.progress || (Array.isArray(progRes.data) ? progRes.data : []))
+      } else {
+        setStudentProgressLogs([])
+      }
+    } catch (err) {
+      console.error('Failed to load student full profile:', err)
+    } finally {
+      setDetailLoading(false)
     }
   }
 
@@ -793,7 +889,19 @@ export default function StudentListPage() {
                   filtered.map((student) => (
                     <tr key={student.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 md:py-4 text-xs sm:text-sm text-gray-900 whitespace-nowrap">{student.roll_no || 'N/A'}</td>
-                      <td className="px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 md:py-4 text-xs sm:text-sm text-gray-900 font-medium whitespace-nowrap">{student.user?.full_name || 'N/A'}</td>
+                      <td 
+                        className="px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 md:py-4 text-xs sm:text-sm font-medium whitespace-nowrap cursor-pointer"
+                        onClick={() => handleOpenStudentDetail(student)}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-full bg-purple-100 text-[#5e3a9e] font-bold text-xs flex items-center justify-center flex-shrink-0">
+                            {(student.user?.full_name || 'S').charAt(0).toUpperCase()}
+                          </div>
+                          <span className="text-gray-900 hover:text-[#5e3a9e] transition">
+                            {student.user?.full_name || 'N/A'}
+                          </span>
+                        </div>
+                      </td>
                       <td className="px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 md:py-4 text-xs sm:text-sm text-gray-900 whitespace-nowrap">{student.user?.mobile || 'N/A'}</td>
                       <td className="px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 md:py-4 text-xs sm:text-sm text-gray-900 whitespace-nowrap">{student.class || 'N/A'}</td>
                       <td className="px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 md:py-4 text-xs sm:text-sm text-gray-900 whitespace-nowrap">{student.section || 'N/A'}</td>
@@ -1518,6 +1626,321 @@ export default function StudentListPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: 360° STUDENT PROFILE (Full Profile with Tabs) */}
+      {showStudentDetailModal && selectedStudent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-100 w-full max-w-3xl overflow-hidden my-6">
+            <div className="p-6 bg-gradient-to-r from-[#5e3a9e] to-purple-800 text-white flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-md text-white font-bold text-2xl flex items-center justify-center border border-white/30 shadow-inner">
+                  {(selectedStudent.user?.full_name || 'S').charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold">{selectedStudent.user?.full_name || 'Student Profile'}</h2>
+                  <p className="text-xs text-purple-200 mt-1 flex items-center gap-2">
+                    <span>Class: {selectedStudent.class}-{selectedStudent.section || 'A'}</span>
+                    <span>•</span>
+                    <span>Roll No: #{selectedStudent.roll_no || 'N/A'}</span>
+                  </p>
+                </div>
+              </div>
+              <button onClick={() => setShowStudentDetailModal(false)} className="text-white/80 hover:text-white text-xl font-bold bg-white/10 hover:bg-white/20 p-2 rounded-full transition">✕</button>
+            </div>
+
+            <div className="flex border-b border-gray-200 bg-gray-50/50">
+              {[
+                { id: 'profile', label: '👤 Profile' },
+                { id: 'attendance', label: '📊 Attendance' },
+                { id: 'behaviour', label: '⭐ Behaviour' },
+                { id: 'personal', label: '👪 Personal & Parent' },
+                { id: 'academics', label: '🎓 Academic Marks' },
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setDetailTab(tab.id as any)}
+                  className={`flex-1 py-3.5 px-4 text-xs font-bold transition flex items-center justify-center gap-1.5 border-b-2 ${detailTab === tab.id ? 'border-[#5e3a9e] text-[#5e3a9e] bg-white' : 'border-transparent text-gray-500 hover:text-gray-800'}`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="p-6 max-h-[60vh] overflow-y-auto">
+              {detailLoading ? (
+                <div className="text-center py-12">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-[#5e3a9e] border-t-transparent mb-3"></div>
+                  <p className="text-gray-500 text-sm">Loading student data...</p>
+                </div>
+              ) : (
+                <>
+                  {detailTab === 'profile' && (
+                    <div className="space-y-6">
+                      <div className="flex flex-col items-center gap-4 pb-6 border-b">
+                        {selectedStudent.user?.profile_image_url ? (
+                          <img src={selectedStudent.user.profile_image_url} alt={selectedStudent.user?.full_name || 'Student'} className="w-32 h-32 rounded-full object-cover border-4 border-purple-100 shadow-lg" />
+                        ) : (
+                          <div className="w-32 h-32 rounded-full bg-gradient-to-br from-[#5e3a9e] to-purple-600 flex items-center justify-center text-white text-4xl font-bold border-4 border-purple-100 shadow-lg">
+                            {(selectedStudent.user?.full_name || 'S').charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        <div className="text-center">
+                          <h3 className="text-2xl font-bold text-gray-900">{selectedStudent.user?.full_name || 'Student'}</h3>
+                          <p className="text-sm text-gray-600 mt-1">Class {selectedStudent.class}-{selectedStudent.section || 'A'} • Roll No. {selectedStudent.roll_no || 'N/A'}</p>
+                          <div className="flex items-center justify-center gap-3 mt-3 flex-wrap">
+                            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 rounded-full text-xs font-semibold text-blue-700">
+                              <span>📱</span>{selectedStudent.user?.mobile || 'N/A'}
+                            </div>
+                            {(userRole === 5 || userRole === 6) && selectedStudent.user?.password_hash && (
+                              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 rounded-full text-xs font-semibold text-purple-700">
+                                <span>🔑</span>Password: {selectedStudent.user.password_hash}
+                              </div>
+                            )}
+                            {selectedStudent.email && (
+                              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-green-50 rounded-full text-xs font-semibold text-green-700">
+                                <span>✉️</span>{selectedStudent.email}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="bg-gradient-to-br from-blue-50 to-white border border-blue-100 rounded-xl p-5">
+                          <h4 className="text-sm font-bold text-blue-900 mb-4 flex items-center gap-2">
+                            <span className="w-6 h-6 bg-blue-100 rounded-lg flex items-center justify-center text-xs">👤</span>Personal Details
+                          </h4>
+                          <div className="space-y-3 text-xs">
+                            <div className="flex justify-between items-center py-2 border-b border-blue-100">
+                              <span className="text-gray-600 font-medium">Full Name</span>
+                              <span className="font-bold text-gray-900">{selectedStudent.user?.full_name || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-2 border-b border-blue-100">
+                              <span className="text-gray-600 font-medium">Date of Birth</span>
+                              <span className="font-bold text-gray-900">{selectedStudent.dob ? new Date(selectedStudent.dob).toLocaleDateString('en-IN') : 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-2 border-b border-blue-100">
+                              <span className="text-gray-600 font-medium">Age</span>
+                              <span className="font-bold text-gray-900">{selectedStudent.age || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-2 border-b border-blue-100">
+                              <span className="text-gray-600 font-medium">Gender</span>
+                              <span className="font-bold text-gray-900">{selectedStudent.gender || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-2 border-b border-blue-100">
+                              <span className="text-gray-600 font-medium">Blood Group</span>
+                              <span className="font-bold text-red-600">{selectedStudent.blood_group || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-2">
+                              <span className="text-gray-600 font-medium">Aadhar Number</span>
+                              <span className="font-bold text-gray-900">{selectedStudent.aadhar_number || 'N/A'}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="bg-gradient-to-br from-purple-50 to-white border border-purple-100 rounded-xl p-5">
+                          <h4 className="text-sm font-bold text-purple-900 mb-4 flex items-center gap-2">
+                            <span className="w-6 h-6 bg-purple-100 rounded-lg flex items-center justify-center text-xs">📚</span>Academic Information
+                          </h4>
+                          <div className="space-y-3 text-xs">
+                            <div className="flex justify-between items-center py-2 border-b border-purple-100">
+                              <span className="text-gray-600 font-medium">Class</span>
+                              <span className="font-bold text-[#5e3a9e]">{selectedStudent.class || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-2 border-b border-purple-100">
+                              <span className="text-gray-600 font-medium">Section</span>
+                              <span className="font-bold text-[#5e3a9e]">{selectedStudent.section || 'A'}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-2 border-b border-purple-100">
+                              <span className="text-gray-600 font-medium">Roll Number</span>
+                              <span className="font-bold text-gray-900">#{selectedStudent.roll_no || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-2 border-b border-purple-100">
+                              <span className="text-gray-600 font-medium">Admission Date</span>
+                              <span className="font-bold text-gray-900">{selectedStudent.admission_date ? new Date(selectedStudent.admission_date).toLocaleDateString('en-IN') : 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-2">
+                              <span className="text-gray-600 font-medium">Class Teacher</span>
+                              <span className="font-bold text-gray-900">{selectedStudent.teacher?.full_name || 'N/A'}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="bg-gradient-to-br from-green-50 to-white border border-green-100 rounded-xl p-5">
+                          <h4 className="text-sm font-bold text-green-900 mb-4 flex items-center gap-2">
+                            <span className="w-6 h-6 bg-green-100 rounded-lg flex items-center justify-center text-xs">👪</span>Parent & Guardian
+                          </h4>
+                          <div className="space-y-3 text-xs">
+                            <div className="flex justify-between items-center py-2 border-b border-green-100">
+                              <span className="text-gray-600 font-medium">Father&apos;s Name</span>
+                              <span className="font-bold text-gray-900">{selectedStudent.parent_name || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-2 border-b border-green-100">
+                              <span className="text-gray-600 font-medium">Mother&apos;s Name</span>
+                              <span className="font-bold text-gray-900">{selectedStudent.mother_name || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-2 border-b border-green-100">
+                              <span className="text-gray-600 font-medium">Mobile Number</span>
+                              <span className="font-bold text-gray-900">{selectedStudent.user?.mobile || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-2">
+                              <span className="text-gray-600 font-medium">Emergency Contact</span>
+                              <span className="font-bold text-red-600">{selectedStudent.emergency_contact || 'N/A'}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="bg-gradient-to-br from-amber-50 to-white border border-amber-100 rounded-xl p-5">
+                          <h4 className="text-sm font-bold text-amber-900 mb-4 flex items-center gap-2">
+                            <span className="w-6 h-6 bg-amber-100 rounded-lg flex items-center justify-center text-xs">📍</span>Address & Location
+                          </h4>
+                          <div className="space-y-3 text-xs">
+                            <div className="py-2 border-b border-amber-100">
+                              <span className="text-gray-600 font-medium block mb-1">Full Address</span>
+                              <span className="font-bold text-gray-900">{selectedStudent.address || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-2 border-b border-amber-100">
+                              <span className="text-gray-600 font-medium">City</span>
+                              <span className="font-bold text-gray-900">{selectedStudent.city || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-2 border-b border-amber-100">
+                              <span className="text-gray-600 font-medium">State</span>
+                              <span className="font-bold text-gray-900">{selectedStudent.state || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-2">
+                              <span className="text-gray-600 font-medium">Pin Code</span>
+                              <span className="font-bold text-gray-900">{selectedStudent.pincode || 'N/A'}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {detailTab === 'attendance' && (
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="p-4 bg-purple-50 rounded-xl border border-purple-100 text-center">
+                          <p className="text-xs font-semibold text-purple-600">Overall Attendance</p>
+                          <p className="text-2xl font-bold text-[#5e3a9e] mt-1">{attendanceSummaryMap[selectedStudent.id]?.overallPercentage ?? 0}%</p>
+                        </div>
+                        <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-100 text-center">
+                          <p className="text-xs font-semibold text-emerald-600">Present Count</p>
+                          <p className="text-2xl font-bold text-emerald-700 mt-1">{attendanceSummaryMap[selectedStudent.id]?.present ?? 0}</p>
+                        </div>
+                        <div className="p-4 bg-rose-50 rounded-xl border border-rose-100 text-center">
+                          <p className="text-xs font-semibold text-rose-600">Absent Count</p>
+                          <p className="text-2xl font-bold text-rose-700 mt-1">{attendanceSummaryMap[selectedStudent.id]?.absent ?? 0}</p>
+                        </div>
+                        <div className="p-4 bg-amber-50 rounded-xl border border-amber-100 text-center">
+                          <p className="text-xs font-semibold text-amber-600">Leave Count</p>
+                          <p className="text-2xl font-bold text-amber-700 mt-1">{attendanceSummaryMap[selectedStudent.id]?.leave ?? 0}</p>
+                        </div>
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-gray-900 mb-3">Recent Attendance Logs</h4>
+                        {studentAttendanceLogs.length === 0 ? (
+                          <p className="text-xs text-gray-500 italic bg-gray-50 p-4 rounded-xl text-center">No attendance history logged yet.</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {studentAttendanceLogs.slice(0, 8).map((log: any, idx: number) => (
+                              <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100 text-xs">
+                                <span className="font-semibold text-gray-700">📅 {new Date(log.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                                <span className={`font-bold px-2.5 py-0.5 rounded-full border ${getAttendanceBadgeClass(log.status)}`}>{log.status}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  {detailTab === 'behaviour' && (
+                    <div className="space-y-4">
+                      <h4 className="text-sm font-bold text-gray-900">Behaviour Incidents & Ratings</h4>
+                      {studentBehaviourLogs.length === 0 ? (
+                        <div className="text-center py-8 bg-gray-50 rounded-xl">
+                          <p className="text-xs text-gray-500 italic">No behaviour records reported yet.</p>
+                        </div>
+                      ) : (
+                        studentBehaviourLogs.map((beh: any, idx: number) => {
+                          const behaviorType = beh.type || 'Neutral';
+                          const bgColor = behaviorType === 'Positive' ? 'bg-emerald-100 text-emerald-800' : behaviorType === 'Negative' ? 'bg-rose-100 text-rose-800' : 'bg-yellow-100 text-yellow-800';
+                          return (
+                            <div key={idx} className="p-4 rounded-xl border border-gray-200 bg-white shadow-sm space-y-1">
+                              <div className="flex items-center justify-between text-xs">
+                                <span className={`font-bold px-2.5 py-0.5 rounded-full ${bgColor}`}>{behaviorType}</span>
+                                <span className="text-gray-400">{beh.date ? new Date(beh.date).toLocaleDateString() : ''}</span>
+                              </div>
+                              <p className="text-xs font-semibold text-gray-800 pt-1">{beh.incident}</p>
+                              {beh.action_taken && <p className="text-[11px] text-gray-500">Action: {beh.action_taken}</p>}
+                              {beh.reported_by && <p className="text-[11px] text-gray-400 italic">Reported by: {beh.reported_by}</p>}
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  )}
+                  {detailTab === 'personal' && (
+                    <div className="grid grid-cols-2 gap-4 text-xs">
+                      <div className="p-3 bg-gray-50 rounded-xl space-y-1">
+                        <span className="text-gray-400 font-medium">Father / Parent Name</span>
+                        <p className="font-bold text-gray-900">{selectedStudent.parent_name || 'N/A'}</p>
+                      </div>
+                      <div className="p-3 bg-gray-50 rounded-xl space-y-1">
+                        <span className="text-gray-400 font-medium">Mother Name</span>
+                        <p className="font-bold text-gray-900">{selectedStudent.mother_name || 'N/A'}</p>
+                      </div>
+                      <div className="p-3 bg-gray-50 rounded-xl space-y-1">
+                        <span className="text-gray-400 font-medium">Primary Mobile</span>
+                        <p className="font-bold text-gray-900">{selectedStudent.user?.mobile || 'N/A'}</p>
+                      </div>
+                      <div className="p-3 bg-gray-50 rounded-xl space-y-1">
+                        <span className="text-gray-400 font-medium">Emergency Contact</span>
+                        <p className="font-bold text-gray-900">{selectedStudent.emergency_contact || 'N/A'}</p>
+                      </div>
+                      <div className="p-3 bg-gray-50 rounded-xl space-y-1">
+                        <span className="text-gray-400 font-medium">Date of Birth</span>
+                        <p className="font-bold text-gray-900">{selectedStudent.dob || 'N/A'}</p>
+                      </div>
+                      <div className="p-3 bg-gray-50 rounded-xl space-y-1">
+                        <span className="text-gray-400 font-medium">Blood Group</span>
+                        <p className="font-bold text-gray-900">{selectedStudent.blood_group || 'N/A'}</p>
+                      </div>
+                      <div className="p-3 bg-gray-50 rounded-xl space-y-1 col-span-2">
+                        <span className="text-gray-400 font-medium">Full Address</span>
+                        <p className="font-bold text-gray-900">{selectedStudent.address ? `${selectedStudent.address}, ${selectedStudent.city || ''}` : 'N/A'}</p>
+                      </div>
+                    </div>
+                  )}
+                  {detailTab === 'academics' && (
+                    <div className="space-y-4">
+                      <h4 className="text-sm font-bold text-gray-900">Academic Progress & Exam Scores</h4>
+                      {studentProgressLogs.length === 0 ? (
+                        <div className="text-center py-8 bg-gray-50 rounded-xl">
+                          <p className="text-xs text-gray-500 italic">No academic marks entered yet.</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {studentProgressLogs.map((prog: any, idx: number) => (
+                            <div key={idx} className="p-3 bg-gray-50 rounded-xl border border-gray-200 flex items-center justify-between text-xs">
+                              <div>
+                                <p className="font-bold text-gray-900">{prog.subject} ({prog.term || 'Term 1'})</p>
+                                <p className="text-gray-500 text-[11px]">{prog.remarks || 'No remarks'}</p>
+                              </div>
+                              <div className="text-right">
+                                <span className="font-bold text-sm text-[#5e3a9e]">{prog.marks_obtained} / {prog.max_marks || 100}</span>
+                                <p className="text-[11px] font-semibold text-emerald-600">Grade: {prog.grade || 'A'}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+            <div className="p-4 border-t bg-gray-50 flex items-center justify-end">
+              <button onClick={() => setShowStudentDetailModal(false)} className="px-5 py-2 bg-gray-800 text-white hover:bg-gray-900 rounded-xl text-xs font-semibold transition">Close Profile</button>
+            </div>
           </div>
         </div>
       )}

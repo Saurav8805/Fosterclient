@@ -372,3 +372,32 @@ export const notificationsApi = {
     apiClient.post('/notifications/create', data),
   delete: (id: string) => apiClient.delete(`/notifications/${id}`),
 };
+
+
+// Validation API for checking duplicates
+export const validationApi = {
+  checkMobile: async (mobile: string, excludeUserId?: string) => {
+    return await apiClient.post('/validation/check-mobile', { mobile, excludeUserId });
+  },
+  
+  checkAadhar: async (aadhar: string, excludeStudentId?: string) => {
+    return await apiClient.post('/validation/check-aadhar', { aadhar, excludeStudentId });
+  },
+  
+  checkRollNo: async (rollNo: string | number, studentClass: string, section: string, excludeStudentId?: string) => {
+    return await apiClient.post('/validation/check-roll-no', { 
+      rollNo, 
+      studentClass, 
+      section, 
+      excludeStudentId 
+    });
+  },
+  
+  checkStaffMobile: async (mobile: string, excludeStaffId?: string) => {
+    return await apiClient.post('/validation/check-staff-mobile', { mobile, excludeStaffId });
+  },
+  
+  suggestRollNo: async (studentClass: string, section: string) => {
+    return await apiClient.get(`/validation/suggest-roll-no?studentClass=${encodeURIComponent(studentClass)}&section=${encodeURIComponent(section)}`);
+  },
+};

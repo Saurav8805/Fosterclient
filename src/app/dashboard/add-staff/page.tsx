@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { staffApi } from '@/lib/api'
+import { staffApi, validationApi } from '@/lib/api'
 import { validateMobile, validateEmail, validateJoiningDate, cleanMobile } from '@/utils/validation'
+import ValidationError from '@/components/ValidationError'
 
 interface StaffCredentials {
   mobile: string;
@@ -37,6 +38,13 @@ export default function AddStaffPage() {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string, credentials?: StaffCredentials } | null>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  
+  // Live validation state
+  const [liveErrors, setLiveErrors] = useState<Record<string, string>>({})
+  const [checkingDuplicates, setCheckingDuplicates] = useState<Record<string, boolean>>({})
+  
+  // Debounce timeout refs
+  const mobileCheckTimeout = useRef<NodeJS.Timeout | null>(null)
 
   const classList = ['Playgroup', 'Nursery', 'LKG', 'UKG', 'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5']
   const sectionList = ['A', 'B', 'C', 'D']
@@ -78,9 +86,114 @@ export default function AddStaffPage() {
     const found = assignedClasses.find(a => a.assignedClass === cls && a.assignedSection === sec)
     return found ? found.teacherName : null
   }
+  
+  // Mobile number live validation for staff
+  const handleMobileLiveValidation = async (value: string) => {
+    setLiveErrors(prev => ({...prev, mobile: ''}));
+    
+    if (!value) return;
+    
+    const cleaned = value.replace(/\D/g, '');
+    
+    if (cleaned.length > 0 && !/^[6-9]/.test(cleaned)) {
+      setLiveErrors(prev => ({...prev, mobile: 'Must start with 6, 7, 8, or 9'}));
+      return;
+    }
+    
+    if (cleaned.length > 0 && cleaned.length < 10) {
+      setLiveErrors(prev => ({...prev, mobile: `Enter ${10 - cleaned.length} more digit${10 - cleaned.length > 1 ? 's' : ''}`}));
+      return;
+    }
+    
+    if (cleaned.length === 10 && /^(\d)\1{9}$/.test(cleaned)) {
+      setLiveErrors(prev => ({...prev, mobile: 'Cannot have all same digits'}));
+      return;
+    }
+    
+    if (cleaned.length === 10) {
+      if (mobileCheckTimeout.current) clearTimeout(mobileCheckTimeout.current);
+      
+      mobileCheckTimeout.current = setTimeout(async () => {
+        setCheckingDuplicates(prev => ({...prev, mobile: true}));
+        
+        try {
+          const result = await validationApi.checkStaffMobile(cleaned);
+          
+          if (result.success && result.data?.exists) {
+            setLiveErrors(prev => ({...prev, mobile: '❌ Mobile number already registered'}));
+          } else {
+            setLiveErrors(prev => ({...prev, mobile: ''}));
+          }
+        } catch (error) {
+          console.error('Error checking mobile:', error);
+        } finally {
+          setCheckingDuplicates(prev => ({...prev, mobile: false}));
+        }
+      }, 500);
+    }
+  };
+
+  // Pincode live validation
+  const handlePincodeLiveValidation = (value: string) => {
+    setLiveErrors(prev => ({...prev, pincode: ''}));
+    
+    if (!value) return;
+    
+    const cleaned = value.replace(/\D/g, '').slice(0, 6); // Limit to 6 digits max
+    
+    if (cleaned.startsWith('0')) {
+      setLiveErrors(prev => ({...prev, pincode: 'Cannot start with 0'}));
+      return;
+    }
+    
+    if (cleaned.length > 0 && cleaned.length < 6) {
+      setLiveErrors(prev => ({...prev, pincode: `Enter ${6 - cleaned.length} more digit${6 - cleaned.length > 1 ? 's' : ''}`}));
+      return;
+    }
+  };
+
+  // Email validation - must have @gmail.com
+  const handleEmailLiveValidation = (value: string) => {
+    setLiveErrors(prev => ({...prev, email: ''}));
+    
+    if (!value) return;
+    
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    
+    if (value && !emailPattern.test(value)) {
+      setLiveErrors(prev => ({...prev, email: 'Invalid email format'}));
+      return;
+    }
+    
+    if (value && !value.toLowerCase().endsWith('@gmail.com')) {
+      setLiveErrors(prev => ({...prev, email: 'Email must be @gmail.com'}));
+      return;
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Check if there are any live errors
+    const hasLiveErrors = Object.values(liveErrors).some(error => error !== '');
+    if (hasLiveErrors) {
+      setMessage({ 
+        type: 'error', 
+        text: 'Please fix all validation errors before submitting.' 
+      });
+      return;
+    }
+    
+    // Check if still checking duplicates
+    const stillChecking = Object.values(checkingDuplicates).some(checking => checking);
+    if (stillChecking) {
+      setMessage({ 
+        type: 'error', 
+        text: 'Please wait while we verify your information...' 
+      });
+      return;
+    }
+    
     setLoading(true)
     setMessage(null)
     setErrors({})
@@ -239,43 +352,57 @@ export default function AddStaffPage() {
               </div>
 
               {/* Mobile Number */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Mobile Number * (Login ID)</label>
+              <div className="relative">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Mobile Number * (Login ID)
+                  {checkingDuplicates.mobile && (
+                    <span className="ml-2 text-xs text-blue-600">
+                      <span className="inline-block animate-spin">⟳</span> Checking...
+                    </span>
+                  )}
+                </label>
                 <input 
                   type="tel" 
                   required
                   maxLength={10}
                   className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                    liveErrors.mobile ? 'border-red-500 focus:ring-red-500' :
                     errors.mobile ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500'
                   }`}
                   value={formData.mobile}
                   onChange={(e) => {
                     const value = e.target.value.replace(/\D/g, '');
                     setFormData({...formData, mobile: value});
+                    handleMobileLiveValidation(value);
                     if (errors.mobile) setErrors(prev => ({ ...prev, mobile: '' }));
                   }}
                   placeholder="10-digit mobile number"
                 />
-                {errors.mobile && <p className="text-xs text-red-600 mt-1">❌ {errors.mobile}</p>}
-                {!errors.mobile && <p className="text-xs text-gray-500 mt-1">This will be used as login ID</p>}
+                <ValidationError error={liveErrors.mobile} />
+                {errors.mobile && !liveErrors.mobile && <p className="text-xs text-red-600 mt-1">❌ {errors.mobile}</p>}
+                {!errors.mobile && !liveErrors.mobile && <p className="text-xs text-gray-500 mt-1">This will be used as login ID</p>}
               </div>
 
               {/* Email */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+              <div className="relative">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Email *</label>
                 <input 
                   type="email" 
+                  required
                   className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                    liveErrors.email ? 'border-red-500 focus:ring-red-500' :
                     errors.email ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500'
                   }`}
                   value={formData.email}
                   onChange={(e) => {
                     setFormData({...formData, email: e.target.value});
+                    handleEmailLiveValidation(e.target.value);
                     if (errors.email) setErrors(prev => ({ ...prev, email: '' }));
                   }}
-                  placeholder="staff@example.com"
+                  placeholder="staff@gmail.com"
                 />
-                {errors.email && <p className="text-xs text-red-600 mt-1">❌ {errors.email}</p>}
+                <ValidationError error={liveErrors.email} />
+                {errors.email && !liveErrors.email && <p className="text-xs text-red-600 mt-1">❌ {errors.email}</p>}
               </div>
 
               {/* Designation */}
@@ -298,8 +425,9 @@ export default function AddStaffPage() {
 
               {/* Department */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Department</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Department *</label>
                 <select 
+                  required
                   className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={formData.department}
                   onChange={(e) => setFormData({...formData, department: e.target.value})}
@@ -354,9 +482,10 @@ export default function AddStaffPage() {
 
               {/* Joining Date */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Joining Date</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Joining Date *</label>
                 <input 
                   type="date" 
+                  required
                   className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={formData.joiningDate}
                   onChange={(e) => setFormData({...formData, joiningDate: e.target.value})}
@@ -365,9 +494,10 @@ export default function AddStaffPage() {
 
               {/* Salary */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Salary (₹)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Salary (₹) *</label>
                 <input 
                   type="number" 
+                  required
                   className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={formData.salary}
                   onChange={(e) => setFormData({...formData, salary: e.target.value})}
@@ -377,10 +507,11 @@ export default function AddStaffPage() {
 
               {/* Emergency Contact */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Emergency Contact</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Emergency Contact *</label>
                 <input 
                   type="tel" 
-                  pattern="[0-9]{10}"
+                  required
+                  maxLength={10}
                   className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={formData.emergencyContact}
                   onChange={(e) => setFormData({...formData, emergencyContact: e.target.value})}
@@ -390,8 +521,9 @@ export default function AddStaffPage() {
 
               {/* Address */}
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Address</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Address *</label>
                 <textarea 
+                  required
                   rows={2}
                   className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={formData.address}
@@ -402,9 +534,10 @@ export default function AddStaffPage() {
 
               {/* City */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">City</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">City *</label>
                 <input 
                   type="text" 
+                  required
                   className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={formData.city}
                   onChange={(e) => setFormData({...formData, city: e.target.value})}
@@ -414,9 +547,10 @@ export default function AddStaffPage() {
 
               {/* State */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">State</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">State *</label>
                 <input 
                   type="text" 
+                  required
                   className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={formData.state}
                   onChange={(e) => setFormData({...formData, state: e.target.value})}
@@ -425,16 +559,24 @@ export default function AddStaffPage() {
               </div>
 
               {/* Pincode */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Pincode</label>
+              <div className="relative">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Pincode *</label>
                 <input 
                   type="text" 
-                  pattern="[0-9]{6}"
-                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                  maxLength={6}
+                  className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                    liveErrors.pincode ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500'
+                  }`}
                   value={formData.pincode}
-                  onChange={(e) => setFormData({...formData, pincode: e.target.value})}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, '').slice(0, 6); // Limit to 6 digits
+                    setFormData({...formData, pincode: value});
+                    handlePincodeLiveValidation(value);
+                  }}
                   placeholder="6-digit pincode"
                 />
+                <ValidationError error={liveErrors.pincode} />
               </div>
             </div>
 
