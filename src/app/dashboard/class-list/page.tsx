@@ -459,24 +459,39 @@ export default function ClassListPage() {
 
     try {
       setAddClassSubmitting(true)
-      const existing = classes.find(c => c.name.toLowerCase() === newClassName.trim().toLowerCase())
-      if (!existing) {
-        const teacherObj = teachersList.find(t => t.user_id === newClassTeacherId || t.id === newClassTeacherId)
-        const teacherName = teacherObj?.user?.full_name || teacherObj?.full_name || ''
-        
-        const teacherObj2 = teachersList.find(t => t.user_id === newClassTeacherId2 || t.id === newClassTeacherId2)
-        const teacherName2 = teacherObj2?.user?.full_name || teacherObj2?.full_name || ''
+      
+      // Call API to create class in database
+      const { configApi } = await import('@/lib/api')
+      const response = await configApi.createClass({
+        className: newClassName.trim(),
+        section: newClassSection.trim() || undefined,
+        teacherId: newClassTeacherId || undefined,
+        teacherId2: newClassTeacherId2 || undefined
+      })
 
-        const teacherNames = [teacherName, teacherName2].filter(Boolean)
-
-        const newClassCard: ClassStats = {
-          name: newClassName.trim(),
-          studentCount: 0,
-          sections: newClassSection.trim() ? [newClassSection.trim()] : [],
-          teachers: teacherNames
-        }
-        setClasses(prev => [...prev, newClassCard])
+      if (!response.success) {
+        setActionMessage({ type: 'error', text: response.error || 'Failed to add class' })
+        setTimeout(() => setActionMessage(null), 4000)
+        return
       }
+
+      // Update local state
+      const teacherObj = teachersList.find(t => t.user_id === newClassTeacherId || t.id === newClassTeacherId)
+      const teacherName = teacherObj?.user?.full_name || teacherObj?.full_name || ''
+      
+      const teacherObj2 = teachersList.find(t => t.user_id === newClassTeacherId2 || t.id === newClassTeacherId2)
+      const teacherName2 = teacherObj2?.user?.full_name || teacherObj2?.full_name || ''
+
+      const teacherNames = [teacherName, teacherName2].filter(Boolean)
+
+      const newClassCard: ClassStats = {
+        name: newClassName.trim(),
+        studentCount: 0,
+        sections: newClassSection.trim() ? [newClassSection.trim()] : [],
+        teachers: teacherNames
+      }
+      setClasses(prev => [...prev, newClassCard])
+
       setShowAddClassModal(false)
       setNewClassName('')
       setNewClassSection('')
@@ -484,8 +499,13 @@ export default function ClassListPage() {
       setNewClassTeacherId2('')
       setActionMessage({ type: 'success', text: `Class ${newClassName} added successfully!` })
       setTimeout(() => setActionMessage(null), 4000)
+      
+      // Refresh class stats
+      fetchClassStats()
     } catch (err: any) {
       console.error('Failed to add class:', err)
+      setActionMessage({ type: 'error', text: err.message || 'Failed to add class' })
+      setTimeout(() => setActionMessage(null), 4000)
     } finally {
       setAddClassSubmitting(false)
     }
@@ -2399,6 +2419,42 @@ export default function ClassListPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Class Confirmation Modal */}
+      {showDeleteClassModal && classToDelete && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-100 max-w-md w-full p-6">
+            <h3 className="text-xl font-bold text-gray-900 mb-4">🗑️ Confirm Delete Class</h3>
+            <p className="text-gray-600 mb-2">
+              Are you sure you want to delete <strong>Class {classToDelete.name}</strong>?
+            </p>
+            <p className="text-sm text-amber-600 mb-6 bg-amber-50 border border-amber-200 rounded-lg p-3">
+              ⚠️ <strong>Warning:</strong> This will unassign all {classToDelete.studentCount} students and {classToDelete.teachers.length} teachers from this class. 
+              This action cannot be undone.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowDeleteClassModal(false)
+                  setClassToDelete(null)
+                }}
+                className="flex-1 px-4 py-2.5 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 font-medium transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteClass}
+                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl hover:bg-red-700 font-bold transition flex items-center justify-center gap-2"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Delete Class
+              </button>
+            </div>
           </div>
         </div>
       )}
