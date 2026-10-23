@@ -34,6 +34,7 @@ export default function StaffListPage() {
   const [addLoading, setAddLoading] = useState(false)
   const [assignedClasses, setAssignedClasses] = useState<{ staffId?: string; assignedClass: string; assignedSection: string; teacherName: string }[]>([])
   const [addCredentials, setAddCredentials] = useState<{ mobile: string; password: string } | null>(null)
+  const [classList, setClassList] = useState<string[]>([])
   const [addFormData, setAddFormData] = useState({
     fullName: '',
     mobile: '',
@@ -47,7 +48,6 @@ export default function StaffListPage() {
     address: ''
   })
 
-  const classList = ['Playgroup', 'Nursery', 'LKG', 'UKG', 'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5']
   const sectionList = ['A', 'B', 'C', 'D']
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [addErrors, setAddErrors] = useState<Record<string, string>>({})
@@ -70,7 +70,27 @@ export default function StaffListPage() {
     
     fetchStaff()
     fetchAssignedClasses()
+    fetchClassList()
   }, [])
+
+  const fetchClassList = async () => {
+    try {
+      console.log('🔄 Fetching class list from database...')
+      const { configApi } = await import('@/lib/api')
+      const res = await configApi.getClasses() as { success: boolean; data?: string[] }
+      console.log('📊 Class list response:', res)
+      if (res.success && res.data) {
+        console.log('✅ Setting class list:', res.data)
+        setClassList(res.data)
+      } else {
+        console.warn('⚠️ No class data received')
+        setClassList([])
+      }
+    } catch (e) {
+      console.error('❌ Failed to fetch class list:', e)
+      setClassList([])
+    }
+  }
 
   const fetchAssignedClasses = async () => {
     try {
@@ -975,17 +995,26 @@ export default function StaffListPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Assign Class (For Teachers)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Assign Class (For Teachers) {classList.length > 0 && `(${classList.length} classes available)`}
+                  </label>
                   <select
                     value={addFormData.assignedClass}
                     onChange={(e) => setAddFormData({ ...addFormData, assignedClass: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">Select Class to Assign</option>
-                    {classList.map(cls => (
-                      <option key={cls} value={cls}>{cls}</option>
-                    ))}
+                    {classList.length === 0 ? (
+                      <option disabled>Loading classes...</option>
+                    ) : (
+                      classList.map(cls => (
+                        <option key={cls} value={cls}>{cls}</option>
+                      ))
+                    )}
                   </select>
+                  {classList.length === 0 && (
+                    <p className="text-xs text-gray-500 mt-1">No classes found. Please add classes first.</p>
+                  )}
                 </div>
 
                 <div>
