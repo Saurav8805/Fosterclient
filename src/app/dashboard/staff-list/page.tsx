@@ -472,6 +472,9 @@ export default function StaffListPage() {
                   className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 >
                   <option value="All">All Staff</option>
+                  <option value="Admin">Admin</option>
+                  <option value="Principal">Principal</option>
+                  <option value="Vice Principal">Vice Principal</option>
                   <option value="Teacher">Teacher</option>
                   <option value="Support Staff">Support Staff</option>
                 </select>
@@ -674,9 +677,31 @@ export default function StaffListPage() {
                     name="designation"
                     required
                     value={formData.designation}
-                    onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
+                    onChange={(e) => {
+                      const designation = e.target.value;
+                      let department = formData.department;
+                      
+                      // Auto-assign department based on designation
+                      if (designation === 'Admin') {
+                        department = 'Administration';
+                      } else if (designation === 'Principal') {
+                        department = 'Head of School';
+                      } else if (designation === 'Vice Principal') {
+                        department = 'Deputy Head of School';
+                      } else if (designation === 'Teacher') {
+                        department = 'Faculty';
+                      } else if (designation === 'Support Staff') {
+                        department = 'Administration';
+                      }
+                      
+                      setFormData({ ...formData, designation, department });
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
+                    <option value="">Select Designation</option>
+                    <option value="Admin">Admin</option>
+                    <option value="Principal">Principal</option>
+                    <option value="Vice Principal">Vice Principal</option>
                     <option value="Teacher">Teacher</option>
                     <option value="Support Staff">Support Staff</option>
                   </select>
@@ -685,18 +710,15 @@ export default function StaffListPage() {
                 {/* Department */}
                 <div>
                   <label htmlFor="edit-department" className="block text-sm font-medium text-gray-700 mb-1">Department</label>
-                  <select
+                  <input
+                    type="text"
                     id="edit-department"
                     name="department"
                     value={formData.department}
-                    onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Select Department</option>
-                    <option value="Teaching">Teaching</option>
-                    <option value="Administration">Administration</option>
-                    <option value="Support">Support</option>
-                  </select>
+                    disabled
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
+                    placeholder="Auto-assigned based on designation"
+                  />
                 </div>
 
                 {/* Assign Class (For Teachers) */}
@@ -911,9 +933,31 @@ export default function StaffListPage() {
                   <select
                     required
                     value={addFormData.designation}
-                    onChange={(e) => setAddFormData({ ...addFormData, designation: e.target.value })}
+                    onChange={(e) => {
+                      const designation = e.target.value;
+                      let department = addFormData.department;
+                      
+                      // Auto-assign department based on designation
+                      if (designation === 'Admin') {
+                        department = 'Administration';
+                      } else if (designation === 'Principal') {
+                        department = 'Head of School';
+                      } else if (designation === 'Vice Principal') {
+                        department = 'Deputy Head of School';
+                      } else if (designation === 'Teacher') {
+                        department = 'Faculty';
+                      } else if (designation === 'Support Staff') {
+                        department = 'Administration';
+                      }
+                      
+                      setAddFormData({ ...addFormData, designation, department });
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
+                    <option value="">Select Designation</option>
+                    <option value="Admin">Admin</option>
+                    <option value="Principal">Principal</option>
+                    <option value="Vice Principal">Vice Principal</option>
                     <option value="Teacher">Teacher</option>
                     <option value="Support Staff">Support Staff</option>
                   </select>
@@ -921,15 +965,13 @@ export default function StaffListPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
-                  <select
+                  <input
+                    type="text"
                     value={addFormData.department}
-                    onChange={(e) => setAddFormData({ ...addFormData, department: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="Teaching">Teaching</option>
-                    <option value="Administration">Administration</option>
-                    <option value="Support">Support</option>
-                  </select>
+                    disabled
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-gray-100 text-gray-600 cursor-not-allowed"
+                    placeholder="Auto-assigned based on designation"
+                  />
                 </div>
 
                 <div>
