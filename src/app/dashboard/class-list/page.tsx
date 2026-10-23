@@ -36,6 +36,8 @@ interface StudentItem {
   user?: {
     full_name?: string
     mobile?: string
+    profile_image_url?: string
+    password_hash?: string
   }
   teacher?: {
     id?: string
@@ -80,7 +82,7 @@ export default function ClassListPage() {
 
   // Selected Student 360 View state
   const [selectedStudent, setSelectedStudent] = useState<StudentItem | null>(null)
-  const [detailTab, setDetailTab] = useState<'attendance' | 'behaviour' | 'personal' | 'academics'>('attendance')
+  const [detailTab, setDetailTab] = useState<'profile' | 'attendance' | 'behaviour' | 'personal' | 'academics'>('profile')
   const [studentAttendanceLogs, setStudentAttendanceLogs] = useState<any[]>([])
   const [studentBehaviourLogs, setStudentBehaviourLogs] = useState<any[]>([])
   const [studentProgressLogs, setStudentProgressLogs] = useState<any[]>([])
@@ -93,6 +95,11 @@ export default function ClassListPage() {
   const [editStudentSubmitting, setEditStudentSubmitting] = useState(false)
   const [editStudentMessage, setEditStudentMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [editStudentErrors, setEditStudentErrors] = useState<Record<string, string>>({})
+
+  // Delete Student state
+  const [showDeleteStudentModal, setShowDeleteStudentModal] = useState(false)
+  const [studentToDelete, setStudentToDelete] = useState<StudentItem | null>(null)
+  const [deleteStudentSubmitting, setDeleteStudentSubmitting] = useState(false)
 
   // Add Class Form State
   const [newClassName, setNewClassName] = useState('')
@@ -231,8 +238,15 @@ export default function ClassListPage() {
 
   // Handle Level 2 -> Level 3: Click Student Row for 360° Profile
   const handleOpenStudentDetail = async (student: StudentItem) => {
+    console.log('📋 Opening student profile:', student)
+    console.log('👤 Student user data:', student.user)
+    console.log('🖼️ Profile image URL:', student.user?.profile_image_url)
+    console.log('🔑 Password (password_hash):', student.user?.password_hash)
+    console.log('👔 Current user role:', userRole)
+    console.log('🔒 Should show password:', (userRole === 5 || userRole === 6) && student.user?.password_hash)
+    
     setSelectedStudent(student)
-    setDetailTab('attendance')
+    setDetailTab('profile')
     setShowStudentDetailModal(true)
     setDetailLoading(true)
 
@@ -580,6 +594,31 @@ export default function ClassListPage() {
     }
   }
 
+  // Handle Delete Student (Principal only)
+  const handleDeleteStudent = async () => {
+    if (!studentToDelete) return
+
+    setDeleteStudentSubmitting(true)
+
+    try {
+      const res = await studentsApi.delete(studentToDelete.id)
+
+      if (res.success) {
+        // Remove student from the list
+        setStudents(prev => prev.filter(s => s.id !== studentToDelete.id))
+        setShowDeleteStudentModal(false)
+        setStudentToDelete(null)
+      } else {
+        alert(res.error || 'Failed to delete student')
+      }
+    } catch (err: any) {
+      console.error('Delete student error:', err)
+      alert(err.message || 'Failed to delete student')
+    } finally {
+      setDeleteStudentSubmitting(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 pb-12">
       {/* Header Bar */}
@@ -909,51 +948,51 @@ export default function ClassListPage() {
                             </div>
                           </td>
                           <td className="px-6 py-4 text-right">
-                            <div className="flex items-center justify-end gap-2">
+                            <div className="flex items-center justify-end gap-1.5">
                               {userRole === 6 && (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    setEditingStudent(student)
-                                    setEditStudentForm({
-                                      studentName: student.student_name || '',
-                                      dob: student.dob || '',
-                                      age: student.age || '',
-                                      gender: student.gender || 'Male',
-                                      parentName: student.parent_name || '',
-                                      motherName: student.mother_name || '',
-                                      mobile: student.mobile || '',
-                                      email: student.email || '',
-                                      address: student.address || '',
-                                      city: student.city || '',
-                                      state: student.state || '',
-                                      pincode: student.pincode || '',
-                                      bloodGroup: student.blood_group || '',
-                                      aadharNumber: student.aadhar_number || '',
-                                      rollNo: student.roll_no || '',
-                                      section: student.section || 'A',
-                                      emergencyContact: student.emergency_contact || '',
-                                    })
-                                    setEditStudentMessage(null)
-                                    setShowEditStudentModal(true)
-                                  }}
-                                  title="Edit Student Details"
-                                  className="p-1.5 text-gray-400 hover:text-[#5e3a9e] hover:bg-purple-50 rounded-lg transition"
-                                >
-                                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                  </svg>
-                                </button>
+                                <>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      setEditingStudent(student)
+                                      setEditStudentForm({
+                                        studentName: student.student_name || '',
+                                        dob: student.dob || '',
+                                        age: student.age || '',
+                                        gender: student.gender || 'Male',
+                                        parentName: student.parent_name || '',
+                                        motherName: student.mother_name || '',
+                                        mobile: student.mobile || '',
+                                        email: student.email || '',
+                                        address: student.address || '',
+                                        city: student.city || '',
+                                        state: student.state || '',
+                                        pincode: student.pincode || '',
+                                        bloodGroup: student.blood_group || '',
+                                        aadharNumber: student.aadhar_number || '',
+                                        rollNo: student.roll_no || '',
+                                        section: student.section || 'A',
+                                        emergencyContact: student.emergency_contact || '',
+                                      })
+                                      setEditStudentMessage(null)
+                                      setShowEditStudentModal(true)
+                                    }}
+                                    className="px-2 py-0.5 border border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded text-[10px] font-medium transition cursor-pointer whitespace-nowrap"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      setStudentToDelete(student)
+                                      setShowDeleteStudentModal(true)
+                                    }}
+                                    className="px-2 py-0.5 border border-red-300 bg-red-50 text-red-700 hover:bg-red-100 rounded text-[10px] font-medium transition cursor-pointer whitespace-nowrap"
+                                  >
+                                    Delete
+                                  </button>
+                                </>
                               )}
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleOpenStudentDetail(student)
-                                }}
-                                className="text-xs font-bold text-[#5e3a9e] hover:text-[#4a2d7e] px-3 py-1.5 rounded-lg hover:bg-purple-100/60 transition"
-                              >
-                                Full Profile →
-                              </button>
                             </div>
                           </td>
                         </tr>
@@ -1596,9 +1635,10 @@ export default function ClassListPage() {
             {/* Profile Tab Navigation */}
             <div className="flex border-b border-gray-200 bg-gray-50/50">
               {[
+                { id: 'profile', label: '👤 Profile' },
                 { id: 'attendance', label: '📊 Attendance' },
                 { id: 'behaviour', label: '⭐ Behaviour' },
-                { id: 'personal', label: '👤 Personal & Parent' },
+                { id: 'personal', label: '👪 Personal & Parent' },
                 { id: 'academics', label: '🎓 Academic Marks' },
               ].map(tab => (
                 <button
@@ -1624,6 +1664,177 @@ export default function ClassListPage() {
                 </div>
               ) : (
                 <>
+                  {/* TAB 0: PROFILE - Student's own profile view */}
+                  {detailTab === 'profile' && (
+                    <div className="space-y-6">
+                      {/* Profile Photo & Basic Info */}
+                      <div className="flex flex-col items-center gap-4 pb-6 border-b">
+                        <div className="relative">
+                          {selectedStudent.user?.profile_image_url ? (
+                            <img 
+                              src={selectedStudent.user.profile_image_url} 
+                              alt={selectedStudent.student_name || 'Student'} 
+                              className="w-32 h-32 rounded-full object-cover border-4 border-purple-100 shadow-lg"
+                            />
+                          ) : (
+                            <div className="w-32 h-32 rounded-full bg-gradient-to-br from-[#5e3a9e] to-purple-600 flex items-center justify-center text-white text-4xl font-bold border-4 border-purple-100 shadow-lg">
+                              {(selectedStudent.student_name || 'S').charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                        </div>
+                        <div className="text-center">
+                          <h3 className="text-2xl font-bold text-gray-900">
+                            {selectedStudent.student_name || selectedStudent.user?.full_name || 'Student'}
+                          </h3>
+                          <p className="text-sm text-gray-600 mt-1">
+                            Class {selectedStudent.class}-{selectedStudent.section || 'A'} • Roll No. {selectedStudent.roll_no || 'N/A'}
+                          </p>
+                          <div className="flex items-center justify-center gap-3 mt-3 flex-wrap">
+                            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 rounded-full text-xs font-semibold text-blue-700">
+                              <span>📱</span>
+                              {selectedStudent.mobile || selectedStudent.user?.mobile || 'N/A'}
+                            </div>
+                            {(userRole === 5 || userRole === 6) && selectedStudent.user?.password_hash && (
+                              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 rounded-full text-xs font-semibold text-purple-700">
+                                <span>🔑</span>
+                                Password: {selectedStudent.user.password_hash}
+                              </div>
+                            )}
+                            {selectedStudent.email && (
+                              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-green-50 rounded-full text-xs font-semibold text-green-700">
+                                <span>✉️</span>
+                                {selectedStudent.email}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Personal Information Grid - Same as student profile page */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Personal Details Card */}
+                        <div className="bg-gradient-to-br from-blue-50 to-white border border-blue-100 rounded-xl p-5">
+                          <h4 className="text-sm font-bold text-blue-900 mb-4 flex items-center gap-2">
+                            <span className="w-6 h-6 bg-blue-100 rounded-lg flex items-center justify-center text-xs">👤</span>
+                            Personal Details
+                          </h4>
+                          <div className="space-y-3 text-xs">
+                            <div className="flex justify-between items-center py-2 border-b border-blue-100">
+                              <span className="text-gray-600 font-medium">Full Name</span>
+                              <span className="font-bold text-gray-900">{selectedStudent.student_name || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-2 border-b border-blue-100">
+                              <span className="text-gray-600 font-medium">Date of Birth</span>
+                              <span className="font-bold text-gray-900">
+                                {selectedStudent.dob ? new Date(selectedStudent.dob).toLocaleDateString('en-IN') : 'N/A'}
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center py-2 border-b border-blue-100">
+                              <span className="text-gray-600 font-medium">Age</span>
+                              <span className="font-bold text-gray-900">{selectedStudent.age || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-2 border-b border-blue-100">
+                              <span className="text-gray-600 font-medium">Gender</span>
+                              <span className="font-bold text-gray-900">{selectedStudent.gender || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-2 border-b border-blue-100">
+                              <span className="text-gray-600 font-medium">Blood Group</span>
+                              <span className="font-bold text-red-600">{selectedStudent.blood_group || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-2">
+                              <span className="text-gray-600 font-medium">Aadhar Number</span>
+                              <span className="font-bold text-gray-900">{selectedStudent.aadhar_number || 'N/A'}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Academic Details Card */}
+                        <div className="bg-gradient-to-br from-purple-50 to-white border border-purple-100 rounded-xl p-5">
+                          <h4 className="text-sm font-bold text-purple-900 mb-4 flex items-center gap-2">
+                            <span className="w-6 h-6 bg-purple-100 rounded-lg flex items-center justify-center text-xs">📚</span>
+                            Academic Information
+                          </h4>
+                          <div className="space-y-3 text-xs">
+                            <div className="flex justify-between items-center py-2 border-b border-purple-100">
+                              <span className="text-gray-600 font-medium">Class</span>
+                              <span className="font-bold text-[#5e3a9e]">{selectedStudent.class || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-2 border-b border-purple-100">
+                              <span className="text-gray-600 font-medium">Section</span>
+                              <span className="font-bold text-[#5e3a9e]">{selectedStudent.section || 'A'}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-2 border-b border-purple-100">
+                              <span className="text-gray-600 font-medium">Roll Number</span>
+                              <span className="font-bold text-gray-900">#{selectedStudent.roll_no || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-2 border-b border-purple-100">
+                              <span className="text-gray-600 font-medium">Admission Date</span>
+                              <span className="font-bold text-gray-900">
+                                {selectedStudent.admission_date ? new Date(selectedStudent.admission_date).toLocaleDateString('en-IN') : 'N/A'}
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center py-2">
+                              <span className="text-gray-600 font-medium">Class Teacher</span>
+                              <span className="font-bold text-gray-900">{selectedStudent.teacher?.full_name || 'N/A'}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Parent Details Card */}
+                        <div className="bg-gradient-to-br from-green-50 to-white border border-green-100 rounded-xl p-5">
+                          <h4 className="text-sm font-bold text-green-900 mb-4 flex items-center gap-2">
+                            <span className="w-6 h-6 bg-green-100 rounded-lg flex items-center justify-center text-xs">👪</span>
+                            Parent & Guardian
+                          </h4>
+                          <div className="space-y-3 text-xs">
+                            <div className="flex justify-between items-center py-2 border-b border-green-100">
+                              <span className="text-gray-600 font-medium">Father&apos;s Name</span>
+                              <span className="font-bold text-gray-900">{selectedStudent.parent_name || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-2 border-b border-green-100">
+                              <span className="text-gray-600 font-medium">Mother&apos;s Name</span>
+                              <span className="font-bold text-gray-900">{selectedStudent.mother_name || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-2 border-b border-green-100">
+                              <span className="text-gray-600 font-medium">Mobile Number</span>
+                              <span className="font-bold text-gray-900">{selectedStudent.mobile || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-2">
+                              <span className="text-gray-600 font-medium">Emergency Contact</span>
+                              <span className="font-bold text-red-600">{selectedStudent.emergency_contact || 'N/A'}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Address Card */}
+                        <div className="bg-gradient-to-br from-amber-50 to-white border border-amber-100 rounded-xl p-5">
+                          <h4 className="text-sm font-bold text-amber-900 mb-4 flex items-center gap-2">
+                            <span className="w-6 h-6 bg-amber-100 rounded-lg flex items-center justify-center text-xs">📍</span>
+                            Address & Location
+                          </h4>
+                          <div className="space-y-3 text-xs">
+                            <div className="py-2 border-b border-amber-100">
+                              <span className="text-gray-600 font-medium block mb-1">Full Address</span>
+                              <span className="font-bold text-gray-900">{selectedStudent.address || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-2 border-b border-amber-100">
+                              <span className="text-gray-600 font-medium">City</span>
+                              <span className="font-bold text-gray-900">{selectedStudent.city || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-2 border-b border-amber-100">
+                              <span className="text-gray-600 font-medium">State</span>
+                              <span className="font-bold text-gray-900">{selectedStudent.state || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-2">
+                              <span className="text-gray-600 font-medium">Pin Code</span>
+                              <span className="font-bold text-gray-900">{selectedStudent.pincode || 'N/A'}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* TAB 1: ATTENDANCE */}
                   {detailTab === 'attendance' && (
                     <div className="space-y-6">
@@ -1999,6 +2210,38 @@ export default function ClassListPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Student Confirmation Modal */}
+      {showDeleteStudentModal && studentToDelete && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-100 max-w-md w-full p-6">
+            <h3 className="text-xl font-bold text-gray-900 mb-4">Confirm Delete</h3>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to delete <strong>{studentToDelete.student_name || studentToDelete.user?.full_name}</strong>? 
+              This action cannot be undone.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowDeleteStudentModal(false)
+                  setStudentToDelete(null)
+                }}
+                disabled={deleteStudentSubmitting}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteStudent}
+                disabled={deleteStudentSubmitting}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 font-bold"
+              >
+                {deleteStudentSubmitting ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
           </div>
         </div>
       )}

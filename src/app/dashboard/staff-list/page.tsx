@@ -52,6 +52,14 @@ export default function StaffListPage() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [addErrors, setAddErrors] = useState<Record<string, string>>({})
 
+  // Staff Full Profile Modal state
+  const [showStaffProfileModal, setShowStaffProfileModal] = useState(false)
+  const [selectedStaffProfile, setSelectedStaffProfile] = useState<any>(null)
+  const [staffProfileTab, setStaffProfileTab] = useState<'profile' | 'attendance' | 'professional'>('profile')
+  const [staffAttendanceLogs, setStaffAttendanceLogs] = useState<any[]>([])
+  const [staffAttendanceStats, setStaffAttendanceStats] = useState<any>(null)
+  const [profileLoading, setProfileLoading] = useState(false)
+
   useEffect(() => {
     const role = localStorage.getItem('userRole')
     if (!role) {
@@ -224,6 +232,30 @@ export default function StaffListPage() {
     })
     setShowEditModal(true)
     setMessage(null)
+  }
+
+  const handleOpenStaffProfile = async (staff: any) => {
+    console.log('📋 Opening staff profile:', staff)
+    console.log('👤 Staff user data:', staff.user)
+    console.log('🖼️ Profile image URL:', staff.user?.profile_image_url)
+    
+    setSelectedStaffProfile(staff)
+    setShowStaffProfileModal(true)
+    setStaffProfileTab('profile')
+    setProfileLoading(true)
+    
+    try {
+      // Fetch staff attendance records
+      const attendanceResult = await staffApi.getAttendance({ staffId: staff.id })
+      if (attendanceResult.success) {
+        setStaffAttendanceLogs(attendanceResult.data?.attendance || [])
+        setStaffAttendanceStats(attendanceResult.data?.stats || null)
+      }
+    } catch (error) {
+      console.error('Failed to load staff attendance:', error)
+    } finally {
+      setProfileLoading(false)
+    }
   }
 
   const handleDelete = (staff: any) => {
@@ -459,9 +491,7 @@ export default function StaffListPage() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mobile</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Designation</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Assigned Class</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Department</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                 </tr>
@@ -471,41 +501,23 @@ export default function StaffListPage() {
                   filteredStaff.map((staff, index) => (
                     <tr key={staff.id || index} className="hover:bg-gray-50">
                       <td className="px-6 py-4 text-sm text-gray-900">{index + 1}</td>
-                      <td className="px-6 py-4 text-sm text-gray-900 font-medium">
-                        <div>{staff.user?.full_name || 'N/A'}</div>
-                        {/* Show multiple class assignments if available, otherwise fallback to single assignment */}
-                        {staff.class_assignments && staff.class_assignments.length > 0 ? (
-                          <div className="text-xs text-blue-600 font-semibold mt-0.5">
-                            {staff.class_assignments.map((assignment: any, idx: number) => (
-                              <div key={idx} className="flex items-center gap-1">
-                                {assignment.class} - {assignment.section}
-                                {(() => {
-                                  const coTeachers = assignedClasses.filter(a => 
-                                    a.assignedClass === assignment.class && 
-                                    a.assignedSection === assignment.section &&
-                                    a.staffId !== staff.id
-                                  );
-                                  return coTeachers.length > 0 ? (
-                                    <span className="ml-1 text-purple-600 text-[10px]">
-                                      (w/ {coTeachers[0].teacherName})
-                                    </span>
-                                  ) : null;
-                                })()}
-                              </div>
-                            ))}
+                      <td className="px-6 py-4 text-sm text-gray-900">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center flex-shrink-0">
+                            {(staff.user?.full_name || 'S').charAt(0).toUpperCase()}
                           </div>
-                        ) : (staff.assigned_class || staff.assignedClass) ? (
-                          <div className="text-xs text-blue-600 font-semibold mt-0.5">
-                            {staff.assigned_class || staff.assignedClass} - {staff.assigned_section || staff.assignedSection || 'A'}
+                          <div>
+                            <button 
+                              onClick={() => handleOpenStaffProfile(staff)}
+                              className="font-semibold text-gray-900 hover:text-blue-600 transition cursor-pointer hover:underline text-left"
+                            >
+                              {staff.user?.full_name || 'N/A'}
+                            </button>
+                            <p className="text-xs text-gray-500">{staff.designation || 'Staff'}</p>
                           </div>
-                        ) : (staff.designation === 'Teacher' || staff.department === 'Teaching') ? (
-                          <div className="text-xs text-amber-600 font-normal mt-0.5">Unassigned</div>
-                        ) : (
-                          <div className="text-xs text-gray-400 font-normal mt-0.5">{staff.department || '-'}</div>
-                        )}
+                        </div>
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-900">{staff.user?.mobile || 'N/A'}</td>
-                      <td className="px-6 py-4 text-sm text-gray-900">{staff.designation || 'N/A'}</td>
                       <td className="px-6 py-4 text-sm font-semibold text-blue-700">
                         {staff.class_assignments && staff.class_assignments.length > 0 ? (
                           <div className="space-y-1">
@@ -534,7 +546,6 @@ export default function StaffListPage() {
                           <div>{staff.assigned_class || staff.assignedClass} - {staff.assigned_section || staff.assignedSection || 'A'}</div>
                         ) : (staff.designation === 'Teacher' || staff.department === 'Teaching' ? 'Unassigned' : '-')}
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-900">{staff.department || 'N/A'}</td>
                       <td className="px-6 py-4">
                         {staff.status === 'Disabled' || staff.is_active === false || staff.user?.status === 'Disabled' || staff.user?.is_active === false ? (
                           <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800 border border-red-200">
@@ -547,26 +558,33 @@ export default function StaffListPage() {
                         )}
                       </td>
                       <td className="px-6 py-4 text-sm">
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-1.5">
                           <button 
                             onClick={() => handleEdit(staff)}
-                            className="text-blue-600 hover:text-blue-800 font-medium cursor-pointer"
+                            className="px-2 py-0.5 border border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded text-[10px] font-medium transition cursor-pointer whitespace-nowrap"
                           >
                             Edit
+                          </button>
+                          <button 
+                            onClick={() => handleDelete(staff)}
+                            className="px-2 py-0.5 border border-red-300 bg-red-50 text-red-700 hover:bg-red-100 rounded text-[10px] font-medium transition cursor-pointer whitespace-nowrap"
+                            title="Delete staff member permanently"
+                          >
+                            Delete
                           </button>
                           {staff.status === 'Disabled' || staff.is_active === false || staff.user?.status === 'Disabled' || staff.user?.is_active === false ? (
                             <button 
                               onClick={() => handleToggleStatus(staff)}
-                              className="px-3 py-1 bg-green-100 text-green-700 hover:bg-green-200 border border-green-300 rounded text-xs font-bold transition cursor-pointer"
+                              className="px-2 py-0.5 border border-green-300 bg-green-50 text-green-700 hover:bg-green-100 rounded text-[10px] font-medium transition cursor-pointer whitespace-nowrap"
                             >
-                              Enable Account
+                              Enable
                             </button>
                           ) : (
                             <button 
                               onClick={() => handleToggleStatus(staff)}
-                              className="px-3 py-1 bg-red-100 text-red-700 hover:bg-red-200 border border-red-300 rounded text-xs font-bold transition cursor-pointer"
+                              className="px-2 py-0.5 border border-orange-300 bg-orange-50 text-orange-700 hover:bg-orange-100 rounded text-[10px] font-medium transition cursor-pointer whitespace-nowrap"
                             >
-                              Disable Account
+                              Disable
                             </button>
                           )}
                         </div>
@@ -575,7 +593,7 @@ export default function StaffListPage() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={8} className="px-6 py-8 text-center text-gray-500">
+                    <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
                       No staff members found{filterDesignation !== 'All' ? ' for "' + filterDesignation + '" designation' : ''}.
                     </td>
                   </tr>
@@ -987,6 +1005,394 @@ export default function StaffListPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Staff Full Profile Modal */}
+      {showStaffProfileModal && selectedStaffProfile && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-100 w-full max-w-4xl overflow-hidden my-6">
+            {/* Profile Banner Header */}
+            <div className="p-6 bg-gradient-to-r from-blue-600 to-indigo-700 text-white flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold">
+                  {selectedStaffProfile.user?.full_name || 'Staff Profile'}
+                </h2>
+                <p className="text-sm text-blue-100 mt-1 flex items-center gap-2">
+                  <span>{selectedStaffProfile.designation || 'Staff'}</span>
+                  <span>•</span>
+                  <span>{selectedStaffProfile.department || 'N/A'}</span>
+                </p>
+              </div>
+              <button
+                onClick={() => setShowStaffProfileModal(false)}
+                className="text-white/80 hover:text-white text-xl font-bold bg-white/10 hover:bg-white/20 p-2 rounded-full transition"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Profile Tab Navigation */}
+            <div className="flex border-b border-gray-200 bg-gray-50/50">
+              {[
+                { id: 'profile', label: '👤 Profile' },
+                { id: 'attendance', label: '📊 Attendance' },
+                { id: 'professional', label: '💼 Professional Info' },
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setStaffProfileTab(tab.id as any)}
+                  className={`flex-1 py-3.5 px-4 text-sm font-bold transition flex items-center justify-center gap-1.5 border-b-2 ${
+                    staffProfileTab === tab.id
+                      ? 'border-blue-600 text-blue-600 bg-white'
+                      : 'border-transparent text-gray-500 hover:text-gray-800'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Modal Tab Body */}
+            <div className="p-6 max-h-[65vh] overflow-y-auto">
+              {profileLoading ? (
+                <div className="text-center py-12">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-600 border-t-transparent mb-3"></div>
+                  <p className="text-gray-500 text-sm">Loading staff information...</p>
+                </div>
+              ) : (
+                <>
+                  {/* TAB 1: PROFILE */}
+                  {staffProfileTab === 'profile' && (
+                    <div className="space-y-6">
+                      {/* Profile Picture & Name Section */}
+                      <div className="flex flex-col items-center text-center space-y-4">
+                        {/* Profile Image */}
+                        <div>
+                          {selectedStaffProfile.user?.profile_image_url ? (
+                            <img 
+                              src={selectedStaffProfile.user.profile_image_url} 
+                              alt={selectedStaffProfile.user?.full_name || 'Staff'} 
+                              className="w-40 h-40 rounded-full object-cover border-4 border-blue-200 shadow-xl"
+                            />
+                          ) : (
+                            <div className="w-40 h-40 rounded-full bg-gradient-to-br from-blue-100 to-indigo-200 text-blue-700 font-bold text-6xl flex items-center justify-center border-4 border-blue-200 shadow-xl">
+                              {(selectedStaffProfile.user?.full_name || 'S').charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Name and Basic Info */}
+                        <div className="text-center">
+                          <h3 className="text-2xl font-bold text-gray-900">
+                            {selectedStaffProfile.user?.full_name || 'Staff Member'}
+                          </h3>
+                          <p className="text-sm text-gray-600 mt-1">
+                            {selectedStaffProfile.designation || 'Staff'} • {selectedStaffProfile.department || 'N/A'}
+                          </p>
+                          
+                          {/* Contact Pills */}
+                          <div className="flex items-center justify-center gap-3 mt-3 flex-wrap">
+                            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 rounded-full text-xs font-semibold text-blue-700">
+                              <span>📱</span>
+                              {selectedStaffProfile.user?.mobile || 'N/A'}
+                            </div>
+                            {selectedStaffProfile.user?.email && (
+                              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-green-50 rounded-full text-xs font-semibold text-green-700">
+                                <span>✉️</span>
+                                {selectedStaffProfile.user?.email}
+                              </div>
+                            )}
+                            {selectedStaffProfile.class_assignments && selectedStaffProfile.class_assignments.length > 0 && (
+                              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 rounded-full text-xs font-semibold text-purple-700">
+                                <span>📚</span>
+                                {selectedStaffProfile.class_assignments.length} Class{selectedStaffProfile.class_assignments.length > 1 ? 'es' : ''}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Information Grid - Same style as student profile */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Contact Information Card */}
+                        <div className="bg-gradient-to-br from-blue-50 to-white border border-blue-100 rounded-xl p-5">
+                          <h4 className="text-sm font-bold text-blue-900 mb-4 flex items-center gap-2">
+                            <span className="w-6 h-6 bg-blue-100 rounded-lg flex items-center justify-center text-xs">📞</span>
+                            Contact Information
+                          </h4>
+                          <div className="space-y-3 text-xs">
+                            <div className="flex justify-between items-center py-2 border-b border-blue-100">
+                              <span className="text-gray-600 font-medium">Mobile</span>
+                              <span className="font-bold text-gray-900">{selectedStaffProfile.user?.mobile || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-2 border-b border-blue-100">
+                              <span className="text-gray-600 font-medium">Email</span>
+                              <span className="font-bold text-gray-900 text-xs break-all">{selectedStaffProfile.user?.email || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-2">
+                              <span className="text-gray-600 font-medium">Staff ID</span>
+                              <span className="font-mono font-bold text-gray-900 text-xs">{selectedStaffProfile.id?.slice(0, 8) || 'N/A'}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Professional Summary Card */}
+                        <div className="bg-gradient-to-br from-purple-50 to-white border border-purple-100 rounded-xl p-5">
+                          <h4 className="text-sm font-bold text-purple-900 mb-4 flex items-center gap-2">
+                            <span className="w-6 h-6 bg-purple-100 rounded-lg flex items-center justify-center text-xs">💼</span>
+                            Professional Details
+                          </h4>
+                          <div className="space-y-3 text-xs">
+                            <div className="flex justify-between items-center py-2 border-b border-purple-100">
+                              <span className="text-gray-600 font-medium">Designation</span>
+                              <span className="font-bold text-purple-700">{selectedStaffProfile.designation || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-2 border-b border-purple-100">
+                              <span className="text-gray-600 font-medium">Department</span>
+                              <span className="font-bold text-gray-900">{selectedStaffProfile.department || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-2">
+                              <span className="text-gray-600 font-medium">Status</span>
+                              <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                                selectedStaffProfile.status === 'Active' 
+                                  ? 'bg-green-100 text-green-700' 
+                                  : 'bg-red-100 text-red-700'
+                              }`}>
+                                {selectedStaffProfile.status || 'Active'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Assigned Classes Card */}
+                        <div className="bg-gradient-to-br from-green-50 to-white border border-green-100 rounded-xl p-5">
+                          <h4 className="text-sm font-bold text-green-900 mb-4 flex items-center gap-2">
+                            <span className="w-6 h-6 bg-green-100 rounded-lg flex items-center justify-center text-xs">📚</span>
+                            Assigned Classes
+                          </h4>
+                          <div className="space-y-2 text-xs">
+                            {selectedStaffProfile.class_assignments && selectedStaffProfile.class_assignments.length > 0 ? (
+                              selectedStaffProfile.class_assignments.map((assignment: any, idx: number) => (
+                                <div key={idx} className="flex items-center justify-between py-2 px-3 bg-white rounded-lg border border-green-200">
+                                  <span className="font-bold text-green-700">{assignment.class}</span>
+                                  <span className="text-gray-600">Section {assignment.section}</span>
+                                </div>
+                              ))
+                            ) : selectedStaffProfile.assigned_class ? (
+                              <div className="flex items-center justify-between py-2 px-3 bg-white rounded-lg border border-green-200">
+                                <span className="font-bold text-green-700">{selectedStaffProfile.assigned_class}</span>
+                                <span className="text-gray-600">Section {selectedStaffProfile.assigned_section || 'A'}</span>
+                              </div>
+                            ) : (
+                              <p className="text-gray-500 italic text-center py-3">No classes assigned</p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Joining & Salary Card */}
+                        <div className="bg-gradient-to-br from-amber-50 to-white border border-amber-100 rounded-xl p-5">
+                          <h4 className="text-sm font-bold text-amber-900 mb-4 flex items-center gap-2">
+                            <span className="w-6 h-6 bg-amber-100 rounded-lg flex items-center justify-center text-xs">💰</span>
+                            Employment Details
+                          </h4>
+                          <div className="space-y-3 text-xs">
+                            <div className="flex justify-between items-center py-2 border-b border-amber-100">
+                              <span className="text-gray-600 font-medium">Joining Date</span>
+                              <span className="font-bold text-gray-900">
+                                {selectedStaffProfile.date_of_joining 
+                                  ? new Date(selectedStaffProfile.date_of_joining).toLocaleDateString('en-IN')
+                                  : 'N/A'}
+                              </span>
+                            </div>
+                            {userRole === 6 && selectedStaffProfile.salary && (
+                              <div className="flex justify-between items-center py-2">
+                                <span className="text-gray-600 font-medium">Monthly Salary</span>
+                                <span className="font-bold text-green-600">₹{Number(selectedStaffProfile.salary).toLocaleString('en-IN')}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TAB 2: ATTENDANCE */}
+                  {staffProfileTab === 'attendance' && (
+                    <div className="space-y-6">
+                      {/* Attendance Stats Summary */}
+                      {staffAttendanceStats && (
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                          <div className="p-4 bg-purple-50 rounded-xl border border-purple-100 text-center">
+                            <p className="text-xs font-semibold text-purple-600">Total Days</p>
+                            <p className="text-2xl font-bold text-purple-700 mt-1">{staffAttendanceStats.totalDays || 0}</p>
+                          </div>
+                          <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-100 text-center">
+                            <p className="text-xs font-semibold text-emerald-600">Present</p>
+                            <p className="text-2xl font-bold text-emerald-700 mt-1">{staffAttendanceStats.present || 0}</p>
+                          </div>
+                          <div className="p-4 bg-rose-50 rounded-xl border border-rose-100 text-center">
+                            <p className="text-xs font-semibold text-rose-600">Absent</p>
+                            <p className="text-2xl font-bold text-rose-700 mt-1">{staffAttendanceStats.absent || 0}</p>
+                          </div>
+                          <div className="p-4 bg-amber-50 rounded-xl border border-amber-100 text-center">
+                            <p className="text-xs font-semibold text-amber-600">Leave</p>
+                            <p className="text-2xl font-bold text-amber-700 mt-1">{staffAttendanceStats.leave || 0}</p>
+                          </div>
+                          <div className="p-4 bg-blue-50 rounded-xl border border-blue-100 text-center">
+                            <p className="text-xs font-semibold text-blue-600">Percentage</p>
+                            <p className="text-2xl font-bold text-blue-700 mt-1">{staffAttendanceStats.percentage || 0}%</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Recent Attendance Logs */}
+                      <div>
+                        <h4 className="text-sm font-bold text-gray-900 mb-3">Recent Attendance Records</h4>
+                        {staffAttendanceLogs.length === 0 ? (
+                          <p className="text-xs text-gray-500 italic bg-gray-50 p-4 rounded-xl text-center">
+                            No attendance records found for this staff member.
+                          </p>
+                        ) : (
+                          <div className="space-y-2">
+                            {staffAttendanceLogs.slice(0, 10).map((log: any, idx: number) => (
+                              <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100 text-xs">
+                                <span className="font-semibold text-gray-700">
+                                  📅 {new Date(log.date).toLocaleDateString('en-IN', { 
+                                    day: 'numeric', 
+                                    month: 'short', 
+                                    year: 'numeric',
+                                    weekday: 'short'
+                                  })}
+                                </span>
+                                <span className={`font-bold px-3 py-1 rounded-full ${
+                                  log.status === 'Present' 
+                                    ? 'bg-green-100 text-green-800 border border-green-300' 
+                                    : log.status === 'Absent'
+                                    ? 'bg-red-100 text-red-800 border border-red-300'
+                                    : 'bg-yellow-100 text-yellow-800 border border-yellow-300'
+                                }`}>
+                                  {log.status}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TAB 3: PROFESSIONAL INFO */}
+                  {staffProfileTab === 'professional' && (
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-1 gap-4">
+                        {/* Employment Information */}
+                        <div className="bg-gradient-to-br from-blue-50 to-white border border-blue-100 rounded-xl p-6">
+                          <h4 className="text-base font-bold text-blue-900 mb-5 flex items-center gap-2">
+                            <span className="w-7 h-7 bg-blue-100 rounded-lg flex items-center justify-center">💼</span>
+                            Employment Information
+                          </h4>
+                          <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div className="space-y-1">
+                              <span className="text-gray-600 font-medium block">Designation</span>
+                              <span className="font-bold text-gray-900 text-base">{selectedStaffProfile.designation || 'N/A'}</span>
+                            </div>
+                            <div className="space-y-1">
+                              <span className="text-gray-600 font-medium block">Department</span>
+                              <span className="font-bold text-gray-900 text-base">{selectedStaffProfile.department || 'N/A'}</span>
+                            </div>
+                            <div className="space-y-1">
+                              <span className="text-gray-600 font-medium block">Date of Joining</span>
+                              <span className="font-bold text-gray-900 text-base">
+                                {selectedStaffProfile.date_of_joining 
+                                  ? new Date(selectedStaffProfile.date_of_joining).toLocaleDateString('en-IN', {
+                                      day: 'numeric',
+                                      month: 'long',
+                                      year: 'numeric'
+                                    })
+                                  : 'N/A'}
+                              </span>
+                            </div>
+                            <div className="space-y-1">
+                              <span className="text-gray-600 font-medium block">Employment Status</span>
+                              <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${
+                                selectedStaffProfile.status === 'Active' 
+                                  ? 'bg-green-100 text-green-700' 
+                                  : 'bg-red-100 text-red-700'
+                              }`}>
+                                {selectedStaffProfile.status || 'Active'}
+                              </span>
+                            </div>
+                            {userRole === 6 && selectedStaffProfile.salary && (
+                              <div className="space-y-1 col-span-2">
+                                <span className="text-gray-600 font-medium block">Monthly Salary</span>
+                                <span className="font-bold text-green-600 text-xl">₹{Number(selectedStaffProfile.salary).toLocaleString('en-IN')}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Class Assignments */}
+                        <div className="bg-gradient-to-br from-purple-50 to-white border border-purple-100 rounded-xl p-6">
+                          <h4 className="text-base font-bold text-purple-900 mb-5 flex items-center gap-2">
+                            <span className="w-7 h-7 bg-purple-100 rounded-lg flex items-center justify-center">📚</span>
+                            Class Assignments
+                          </h4>
+                          {selectedStaffProfile.class_assignments && selectedStaffProfile.class_assignments.length > 0 ? (
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                              {selectedStaffProfile.class_assignments.map((assignment: any, idx: number) => (
+                                <div key={idx} className="p-4 bg-white rounded-xl border-2 border-purple-200 text-center">
+                                  <div className="text-2xl font-bold text-purple-700">{assignment.class}</div>
+                                  <div className="text-xs text-gray-600 mt-1">Section {assignment.section}</div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : selectedStaffProfile.assigned_class ? (
+                            <div className="p-4 bg-white rounded-xl border-2 border-purple-200 text-center max-w-xs">
+                              <div className="text-2xl font-bold text-purple-700">{selectedStaffProfile.assigned_class}</div>
+                              <div className="text-xs text-gray-600 mt-1">Section {selectedStaffProfile.assigned_section || 'A'}</div>
+                            </div>
+                          ) : (
+                            <p className="text-gray-500 italic text-center py-8 bg-white rounded-xl">
+                              No classes assigned to this staff member
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Contact & Personal Details */}
+                        <div className="bg-gradient-to-br from-green-50 to-white border border-green-100 rounded-xl p-6">
+                          <h4 className="text-base font-bold text-green-900 mb-5 flex items-center gap-2">
+                            <span className="w-7 h-7 bg-green-100 rounded-lg flex items-center justify-center">📞</span>
+                            Contact Details
+                          </h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                            <div className="space-y-1">
+                              <span className="text-gray-600 font-medium block">Mobile Number</span>
+                              <span className="font-bold text-gray-900 text-base">{selectedStaffProfile.user?.mobile || 'N/A'}</span>
+                            </div>
+                            <div className="space-y-1">
+                              <span className="text-gray-600 font-medium block">Email Address</span>
+                              <span className="font-bold text-gray-900 text-sm break-all">{selectedStaffProfile.user?.email || 'N/A'}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Profile Footer */}
+            <div className="p-4 border-t bg-gray-50 flex items-center justify-end">
+              <button
+                onClick={() => setShowStaffProfileModal(false)}
+                className="px-5 py-2 bg-gray-800 text-white hover:bg-gray-900 rounded-xl text-sm font-semibold transition"
+              >
+                Close Profile
+              </button>
+            </div>
           </div>
         </div>
       )}

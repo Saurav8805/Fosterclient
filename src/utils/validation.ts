@@ -371,3 +371,226 @@ export const getPastDate = (years: number): string => {
   date.setFullYear(date.getFullYear() - years);
   return date.toISOString().split('T')[0];
 };
+
+// ============================================================================
+// AADHAR NUMBER VALIDATION
+// ============================================================================
+
+/**
+ * Validates Aadhar number (12 digits)
+ * @param aadhar - Aadhar number string
+ * @param required - Whether the field is required
+ * @returns validation result
+ */
+export const validateAadhar = (aadhar: string, required: boolean = false): { valid: boolean; error?: string } => {
+  // If not required and empty, it's valid
+  if (!required && !aadhar) {
+    return { valid: true };
+  }
+  
+  // Check if empty when required
+  if (required && !aadhar) {
+    return { valid: false, error: 'Aadhar number is required' };
+  }
+  
+  // Remove spaces and special characters
+  const cleaned = aadhar.replace(/[\s\-]/g, '');
+  
+  // Check if contains only digits
+  if (!/^\d+$/.test(cleaned)) {
+    return { valid: false, error: 'Aadhar must contain only digits' };
+  }
+  
+  // Check length (must be exactly 12 digits)
+  if (cleaned.length !== 12) {
+    return { valid: false, error: 'Aadhar must be exactly 12 digits' };
+  }
+  
+  // Check for all same digits (invalid Aadhar)
+  if (/^(\d)\1{11}$/.test(cleaned)) {
+    return { valid: false, error: 'Invalid Aadhar number' };
+  }
+  
+  return { valid: true };
+};
+
+/**
+ * Format Aadhar number with spaces (XXXX XXXX XXXX)
+ */
+export const formatAadhar = (value: string): string => {
+  const cleaned = value.replace(/\D/g, '');
+  const limited = cleaned.substring(0, 12);
+  
+  const parts: string[] = [];
+  for (let i = 0; i < limited.length; i += 4) {
+    parts.push(limited.substring(i, i + 4));
+  }
+  
+  return parts.join(' ');
+};
+
+// ============================================================================
+// PINCODE VALIDATION
+// ============================================================================
+
+/**
+ * Validates Indian pincode (6 digits)
+ * @param pincode - Pincode string
+ * @param required - Whether the field is required
+ * @returns validation result
+ */
+export const validatePincode = (pincode: string, required: boolean = true): { valid: boolean; error?: string } => {
+  // If not required and empty, it's valid
+  if (!required && !pincode) {
+    return { valid: true };
+  }
+  
+  // Check if empty when required
+  if (required && !pincode) {
+    return { valid: false, error: 'Pincode is required' };
+  }
+  
+  // Remove spaces
+  const cleaned = pincode.replace(/\s/g, '');
+  
+  // Check if contains only digits
+  if (!/^\d+$/.test(cleaned)) {
+    return { valid: false, error: 'Pincode must contain only digits' };
+  }
+  
+  // Check length (must be exactly 6 digits)
+  if (cleaned.length !== 6) {
+    return { valid: false, error: 'Pincode must be exactly 6 digits' };
+  }
+  
+  // Check if starts with 0 (invalid)
+  if (cleaned.startsWith('0')) {
+    return { valid: false, error: 'Invalid pincode format' };
+  }
+  
+  return { valid: true };
+};
+
+// ============================================================================
+// ROLL NUMBER VALIDATION
+// ============================================================================
+
+/**
+ * Validates roll number
+ * @param rollNo - Roll number string or number
+ * @param required - Whether the field is required
+ * @returns validation result
+ */
+export const validateRollNo = (rollNo: string | number, required: boolean = false): { valid: boolean; error?: string } => {
+  const rollNoStr = String(rollNo).trim();
+  
+  // If not required and empty, it's valid
+  if (!required && !rollNoStr) {
+    return { valid: true };
+  }
+  
+  // Check if empty when required
+  if (required && !rollNoStr) {
+    return { valid: false, error: 'Roll number is required' };
+  }
+  
+  // Check if valid number
+  const rollNoNum = Number(rollNoStr);
+  if (isNaN(rollNoNum)) {
+    return { valid: false, error: 'Roll number must be a number' };
+  }
+  
+  // Check if positive integer
+  if (rollNoNum <= 0 || !Number.isInteger(rollNoNum)) {
+    return { valid: false, error: 'Roll number must be a positive integer' };
+  }
+  
+  // Check reasonable range (1-999)
+  if (rollNoNum > 999) {
+    return { valid: false, error: 'Roll number cannot exceed 999' };
+  }
+  
+  return { valid: true };
+};
+
+// ============================================================================
+// LIVE VALIDATION HELPERS
+// ============================================================================
+
+/**
+ * Live validation for mobile number with real-time feedback
+ */
+export const liveValidateMobile = (
+  value: string,
+  setError: (error: string | null) => void
+): void => {
+  if (!value) {
+    setError(null);
+    return;
+  }
+  
+  const cleaned = value.replace(/\D/g, '');
+  
+  // Show real-time errors
+  if (cleaned.length > 0 && !/^[6-9]/.test(cleaned)) {
+    setError('Must start with 6, 7, 8, or 9');
+  } else if (cleaned.length > 0 && cleaned.length < 10) {
+    setError(`Enter ${10 - cleaned.length} more digit${10 - cleaned.length > 1 ? 's' : ''}`);
+  } else if (cleaned.length === 10 && /^(\d)\1{9}$/.test(cleaned)) {
+    setError('Cannot have all same digits');
+  } else if (cleaned.length === 10) {
+    setError(null); // Valid!
+  } else {
+    setError(null);
+  }
+};
+
+/**
+ * Live validation for Aadhar number
+ */
+export const liveValidateAadhar = (
+  value: string,
+  setError: (error: string | null) => void
+): void => {
+  if (!value) {
+    setError(null);
+    return;
+  }
+  
+  const cleaned = value.replace(/\D/g, '');
+  
+  if (cleaned.length > 0 && cleaned.length < 12) {
+    setError(`Enter ${12 - cleaned.length} more digit${12 - cleaned.length > 1 ? 's' : ''}`);
+  } else if (cleaned.length === 12 && /^(\d)\1{11}$/.test(cleaned)) {
+    setError('Invalid Aadhar number');
+  } else if (cleaned.length === 12) {
+    setError(null); // Valid!
+  } else {
+    setError(null);
+  }
+};
+
+/**
+ * Live validation for Pincode
+ */
+export const liveValidatePincode = (
+  value: string,
+  setError: (error: string | null) => void
+): void => {
+  if (!value) {
+    setError(null);
+    return;
+  }
+  
+  const cleaned = value.replace(/\D/g, '');
+  
+  if (cleaned.startsWith('0')) {
+    setError('Pincode cannot start with 0');
+  } else if (cleaned.length > 0 && cleaned.length < 6) {
+    setError(`Enter ${6 - cleaned.length} more digit${6 - cleaned.length > 1 ? 's' : ''}`);
+  } else if (cleaned.length === 6) {
+    setError(null); // Valid!
+  } else {
+    setError(null);
+  }
+};

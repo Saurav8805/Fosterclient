@@ -88,6 +88,54 @@ export default function AdmitStudentPage() {
     }
   }
 
+  // NEP 2020 Age Criteria for each class
+  const getClassAgeRange = (className: string): { min: number; max: number; label: string } => {
+    const ageRanges: Record<string, { min: number; max: number; label: string }> = {
+      'Playgroup': { min: 2, max: 3, label: '2-3 years' },
+      'Pre-Nursery': { min: 2, max: 3, label: '2-3 years' },
+      'Nursery': { min: 3, max: 4, label: '3-4 years' },
+      'LKG': { min: 4, max: 5, label: '4-5 years' },
+      'UKG': { min: 5, max: 6, label: '5-6 years' },
+      'Class 1': { min: 6, max: 7, label: '6-7 years' },
+      'Class 2': { min: 7, max: 8, label: '7-8 years' },
+      'Class 3': { min: 8, max: 9, label: '8-9 years' },
+      'Class 4': { min: 9, max: 10, label: '9-10 years' },
+      'Class 5': { min: 10, max: 11, label: '10-11 years' },
+      'Class 6': { min: 11, max: 12, label: '11-12 years' },
+      'Class 7': { min: 12, max: 13, label: '12-13 years' },
+      'Class 8': { min: 13, max: 14, label: '13-14 years' },
+      'Class 9': { min: 14, max: 15, label: '14-15 years' },
+      'Class 10': { min: 15, max: 16, label: '15-16 years' },
+    };
+    
+    return ageRanges[className] || { min: 3, max: 18, label: '3-18 years' };
+  };
+
+  // Validate age for selected class (NEP 2020)
+  const validateAgeForClass = (age: number, className: string): { valid: boolean; error?: string } => {
+    if (!age || !className) {
+      return { valid: true }; // Skip if no age or class
+    }
+
+    const ageRange = getClassAgeRange(className);
+    
+    if (age < ageRange.min) {
+      return {
+        valid: false,
+        error: `Student is too young for ${className}. Minimum age: ${ageRange.min} years (NEP 2020)`
+      };
+    }
+    
+    if (age > ageRange.max) {
+      return {
+        valid: false,
+        error: `Student is too old for ${className}. Maximum age: ${ageRange.max} years (NEP 2020)`
+      };
+    }
+    
+    return { valid: true };
+  };
+
   // Calculate age from date of birth
   const calculateAge = (dob: string): string => {
     if (!dob) return '';
@@ -114,6 +162,19 @@ export default function AdmitStudentPage() {
       dob: dob,
       age: calculatedAge
     });
+    
+    // Validate age for current class immediately
+    if (calculatedAge && formData.studentClass) {
+      const ageForClassResult = validateAgeForClass(parseInt(calculatedAge), formData.studentClass)
+      if (!ageForClassResult.valid) {
+        setErrors({...errors, age: ageForClassResult.error!})
+      } else {
+        // Clear age error if valid
+        const newErrors = {...errors}
+        delete newErrors.age
+        setErrors(newErrors)
+      }
+    }
   }
 
   // Fetch teachers on component mount
@@ -220,6 +281,14 @@ export default function AdmitStudentPage() {
     const dobResult = validateDOB(formData.dob, 1, 18)
     if (!dobResult.valid) {
       validationErrors.dob = dobResult.error!
+    }
+    
+    // Validate age for selected class (NEP 2020)
+    if (formData.age && formData.studentClass) {
+      const ageForClassResult = validateAgeForClass(parseInt(formData.age), formData.studentClass)
+      if (!ageForClassResult.valid) {
+        validationErrors.age = ageForClassResult.error!
+      }
     }
     
     // Validate admission date (required, can't be in future)
@@ -407,8 +476,8 @@ export default function AdmitStudentPage() {
           <form onSubmit={handleSubmit}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5 md:gap-6">
               {/* Student Name */}
-              <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Student Name *</label>
+              <div className="required-field">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Student Name</label>
                 <input 
                   type="text" 
                   required
@@ -420,8 +489,8 @@ export default function AdmitStudentPage() {
               </div>
 
               {/* Date of Birth */}
-              <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Date of Birth *</label>
+              <div className="required-field">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Date of Birth</label>
                 <input 
                   id="dob"
                   type="date" 
@@ -449,17 +518,31 @@ export default function AdmitStudentPage() {
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Age (Auto-calculated)</label>
                 <input 
+                  id="age"
                   type="text" 
                   readOnly
-                  className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border rounded-lg bg-gray-100 cursor-not-allowed text-sm sm:text-base"
+                  className={`w-full px-3 sm:px-4 py-2 sm:py-2.5 border rounded-lg bg-gray-100 cursor-not-allowed text-sm sm:text-base ${
+                    errors.age ? 'border-red-500' : ''
+                  }`}
                   value={formData.age ? `${formData.age} years` : 'Enter date of birth'}
                   placeholder="Auto-calculated from DOB"
                 />
+                {formData.studentClass && !errors.age && (
+                  <p className="mt-1 text-xs text-blue-600">
+                    Expected age for {formData.studentClass}: {getClassAgeRange(formData.studentClass).label} (NEP 2020)
+                  </p>
+                )}
+                {errors.age && (
+                  <p className="mt-1 text-xs sm:text-sm text-red-600 flex items-center gap-1">
+                    <span>❌</span>
+                    <span>{errors.age}</span>
+                  </p>
+                )}
               </div>
 
               {/* Admission Date */}
-              <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Admission Date *</label>
+              <div className="required-field">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Admission Date</label>
                 <input 
                   id="admissionDate"
                   type="date" 
@@ -486,23 +569,30 @@ export default function AdmitStudentPage() {
               {/* Aadhar Number */}
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Aadhar Number</label>
-                <input 
-                  id="aadharNumber"
-                  type="text" 
-                  maxLength={12}
-                  className={`w-full px-3 sm:px-4 py-2 sm:py-2.5 border rounded-lg focus:outline-none focus:ring-2 text-sm sm:text-base touch-manipulation ${
-                    errors.aadharNumber ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500'
-                  }`}
-                  value={formData.aadharNumber}
-                  onChange={(e) => {
-                    const value = e.target.value.replace(/\D/g, '')
-                    setFormData({...formData, aadharNumber: value})
-                    if (errors.aadharNumber) {
-                      setErrors({...errors, aadharNumber: ''})
-                    }
-                  }}
-                  placeholder="12-digit Aadhar (optional)"
-                />
+                <div className="relative">
+                  <input 
+                    id="aadharNumber"
+                    type="text" 
+                    maxLength={12}
+                    className={`w-full px-3 sm:px-4 py-2 sm:py-2.5 border rounded-lg focus:outline-none focus:ring-2 text-sm sm:text-base touch-manipulation ${
+                      errors.aadharNumber ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500'
+                    }`}
+                    value={formData.aadharNumber}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, '')
+                      setFormData({...formData, aadharNumber: value})
+                      if (errors.aadharNumber) {
+                        setErrors({...errors, aadharNumber: ''})
+                      }
+                    }}
+                    placeholder="12-digit Aadhar (optional)"
+                  />
+                  {formData.aadharNumber && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
+                      {formData.aadharNumber.length}/12
+                    </div>
+                  )}
+                </div>
                 {errors.aadharNumber && (
                   <p className="mt-1 text-xs sm:text-sm text-red-600 flex items-center gap-1">
                     <span>❌</span>
@@ -512,8 +602,8 @@ export default function AdmitStudentPage() {
               </div>
 
               {/* Gender */}
-              <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Gender *</label>
+              <div className="required-field">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Gender</label>
                 <select 
                   required
                   className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base touch-manipulation"
@@ -543,16 +633,30 @@ export default function AdmitStudentPage() {
               </div>
 
               {/* Class */}
-              <div>
+              <div className="required-field">
                 <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
-                  Class * {userRole !== 6 && <span className="text-[10px] sm:text-xs text-blue-600 font-normal">(ðŸ”’ Pre-filled)</span>}
+                  Class {userRole !== 6 && <span className="text-[10px] sm:text-xs text-blue-600 font-normal">(ðŸ”’ Pre-filled)</span>}
                 </label>
                 {userRole === 6 ? (
                   <select 
                     required
                     className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base touch-manipulation"
                     value={formData.studentClass}
-                    onChange={(e) => setFormData({...formData, studentClass: e.target.value})}
+                    onChange={(e) => {
+                      setFormData({...formData, studentClass: e.target.value})
+                      // Re-validate age for new class
+                      if (formData.age) {
+                        const ageForClassResult = validateAgeForClass(parseInt(formData.age), e.target.value)
+                        if (!ageForClassResult.valid) {
+                          setErrors({...errors, age: ageForClassResult.error!})
+                        } else {
+                          // Clear age error if valid
+                          const newErrors = {...errors}
+                          delete newErrors.age
+                          setErrors(newErrors)
+                        }
+                      }
+                    }}
                   >
                     {classes.map((className) => (
                       <option key={className} value={className}>{className}</option>
@@ -569,9 +673,9 @@ export default function AdmitStudentPage() {
               </div>
 
               {/* Section */}
-              <div>
+              <div className="required-field">
                 <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
-                  Section * {userRole !== 6 && <span className="text-[10px] sm:text-xs text-blue-600 font-normal">(ðŸ”’ Pre-filled)</span>}
+                  Section {userRole !== 6 && <span className="text-[10px] sm:text-xs text-blue-600 font-normal">(ðŸ”’ Pre-filled)</span>}
                 </label>
                 {userRole === 6 ? (
                   <select 
@@ -610,8 +714,8 @@ export default function AdmitStudentPage() {
 
               {/* Assigned Teacher (Visible only for Principal) */}
               {userRole === 6 && (
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Assigned Teacher *</label>
+                <div className="required-field">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Assigned Teacher</label>
                   <select 
                     required
                     className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base touch-manipulation"
@@ -630,8 +734,8 @@ export default function AdmitStudentPage() {
               )}
 
               {/* Parent/Guardian Name */}
-              <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Father Name *</label>
+              <div className="required-field">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Father Name</label>
                 <input 
                   type="text" 
                   required
@@ -643,8 +747,8 @@ export default function AdmitStudentPage() {
               </div>
 
               {/* Mother Name */}
-              <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Mother Name *</label>
+              <div className="required-field">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Mother Name</label>
                 <input 
                   type="text" 
                   required
@@ -656,8 +760,8 @@ export default function AdmitStudentPage() {
               </div>
 
               {/* Mobile Number */}
-              <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Mobile Number * (Login ID)</label>
+              <div className="required-field">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Mobile Number (Login ID)</label>
                 <input 
                   id="mobile"
                   type="tel" 
@@ -740,8 +844,8 @@ export default function AdmitStudentPage() {
               </div>
 
               {/* Address */}
-              <div className="md:col-span-2">
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Address *</label>
+              <div className="md:col-span-2 required-field">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Address</label>
                 <textarea 
                   required
                   rows={2}
@@ -753,8 +857,8 @@ export default function AdmitStudentPage() {
               </div>
 
               {/* City */}
-              <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">City *</label>
+              <div className="required-field">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">City</label>
                 <input 
                   type="text" 
                   required
@@ -766,8 +870,8 @@ export default function AdmitStudentPage() {
               </div>
 
               {/* State */}
-              <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">State *</label>
+              <div className="required-field">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">State</label>
                 <input 
                   type="text" 
                   required
@@ -779,8 +883,8 @@ export default function AdmitStudentPage() {
               </div>
 
               {/* Pincode */}
-              <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Pincode *</label>
+              <div className="required-field">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Pincode</label>
                 <input 
                   id="pincode"
                   type="text" 

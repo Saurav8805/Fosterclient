@@ -85,10 +85,21 @@ export default function StaffAttendancePage() {
       setLoading(true)
       const result = await staffApi.list()
       if (result.success) {
-        setStaffMembers(result.data || [])
+        // Deduplicate staff members by ID to ensure each person appears only once
+        const uniqueStaffMap = new Map<string, any>()
+        const staffData = result.data || []
+        
+        staffData.forEach((staff: any) => {
+          if (!uniqueStaffMap.has(staff.id)) {
+            uniqueStaffMap.set(staff.id, staff)
+          }
+        })
+        
+        const uniqueStaff = Array.from(uniqueStaffMap.values())
+        setStaffMembers(uniqueStaff)
         
         // Find the current teacher's staff record
-        const myStaffRecord = result.data?.find((s: any) => s.user_id === userId)
+        const myStaffRecord = uniqueStaff.find((s: any) => s.user_id === userId)
         if (myStaffRecord) {
           setSelectedStaff(myStaffRecord.id)
           console.log('👨‍🏫 Auto-selected teacher staff ID:', myStaffRecord.id)
@@ -238,7 +249,33 @@ export default function StaffAttendancePage() {
       setLoading(true)
       const result = await staffApi.list()
       if (result.success) {
-        setStaffMembers(result.data || [])
+        console.log('📥 Received staff data from API:', result.data?.length, 'records')
+        
+        // Deduplicate staff members by ID to ensure each person appears only once
+        const uniqueStaffMap = new Map<string, any>()
+        const staffData = result.data || []
+        
+        // Log any duplicates found
+        const duplicatesFound: string[] = []
+        
+        staffData.forEach((staff: any) => {
+          if (!uniqueStaffMap.has(staff.id)) {
+            uniqueStaffMap.set(staff.id, staff)
+          } else {
+            duplicatesFound.push(`${staff.user?.full_name} (ID: ${staff.id})`)
+          }
+        })
+        
+        if (duplicatesFound.length > 0) {
+          console.warn('⚠️ Frontend found duplicate staff IDs:', duplicatesFound)
+        }
+        
+        const uniqueStaff = Array.from(uniqueStaffMap.values())
+        console.log('✅ After deduplication:', uniqueStaff.length, 'unique staff members')
+        console.log('📋 Staff list:', uniqueStaff.map(s => ({ id: s.id, name: s.user?.full_name, user_id: s.user_id })))
+        
+        setStaffMembers(uniqueStaff)
+        
         // Initialize attendance data as empty - no default selection
         const initialData: { [key: string]: string } = {}
         setAttendanceData(initialData)
@@ -435,7 +472,16 @@ export default function StaffAttendancePage() {
 
         const staffStats: { [key: string]: any } = {}
 
+        // Deduplicate staff members by ID to prevent duplicate entries
+        const uniqueStaffMap = new Map<string, any>()
         staffMembers.forEach(staff => {
+          if (!uniqueStaffMap.has(staff.id)) {
+            uniqueStaffMap.set(staff.id, staff)
+          }
+        })
+        const uniqueStaff = Array.from(uniqueStaffMap.values())
+
+        uniqueStaff.forEach(staff => {
           const staffAttendance = allAttendance.filter((a: any) => a.staff_id === staff.id)
           const totalDays = staffAttendance.length
           const present = staffAttendance.filter((a: any) => a.status === 'Present').length
@@ -940,12 +986,7 @@ export default function StaffAttendancePage() {
                         {staffMembers.map((staff) => (
                           <tr key={staff.id} className={`hover:bg-gray-50 ${!isEditMode ? 'bg-gray-50' : ''}`}>
                             <td className="px-6 py-4 text-sm text-gray-900 font-medium">
-                              <div>{staff.user?.full_name || 'N/A'}</div>
-                              {(staff.assigned_class || staff.assignedClass) ? (
-                                <div className="text-xs text-blue-600 font-semibold mt-0.5">
-                                  {staff.assigned_class || staff.assignedClass} - {staff.assigned_section || staff.assignedSection || 'A'}
-                                </div>
-                              ) : null}
+                              {staff.user?.full_name || 'N/A'}
                             </td>
                             <td className="px-6 py-4 text-sm text-gray-900">{staff.designation || 'N/A'}</td>
                             <td className="px-6 py-4 text-sm text-gray-900">{staff.department || 'N/A'}</td>
@@ -1244,12 +1285,7 @@ export default function StaffAttendancePage() {
                               >
                                 <td className="px-6 py-4 text-sm text-gray-900">{index + 1}</td>
                                 <td className="px-6 py-4 text-sm font-medium text-blue-600">
-                                  <div>{staff.name}</div>
-                                  {(staff.class && staff.class !== '-') ? (
-                                    <div className="text-xs text-blue-600 font-semibold mt-0.5">
-                                      {staff.class} - {staff.section && staff.section !== '-' ? staff.section : 'A'}
-                                    </div>
-                                  ) : null}
+                                  {staff.name}
                                 </td>
                                 <td className="px-6 py-4 text-sm text-gray-900">{staff.designation}</td>
                                 <td className="px-6 py-4 text-sm text-gray-900">{staff.department}</td>
