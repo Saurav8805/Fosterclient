@@ -146,6 +146,19 @@ export default function ClassListPage() {
     fetchTeachers()
   }, [])
 
+  // Helper function: Calculate age from date of birth
+  const calculateAge = (dob: string): string => {
+    if (!dob) return ''
+    const birthDate = new Date(dob)
+    const today = new Date()
+    let age = today.getFullYear() - birthDate.getFullYear()
+    const monthDiff = today.getMonth() - birthDate.getMonth()
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--
+    }
+    return age.toString()
+  }
+
   const fetchClassStats = async () => {
     try {
       setLoadingClasses(true)
@@ -1368,7 +1381,9 @@ export default function ClassListPage() {
                       type="date"
                       value={admitFormData.dob}
                       onChange={e => {
-                        setAdmitFormData(prev => ({ ...prev, dob: e.target.value }))
+                        const dob = e.target.value
+                        const age = calculateAge(dob)
+                        setAdmitFormData(prev => ({ ...prev, dob, age }))
                         if (admitErrors.dob) setAdmitErrors(prev => ({ ...prev, dob: '' }))
                       }}
                       className={`w-full px-3.5 py-2 border rounded-xl text-sm focus:ring-2 outline-none ${
@@ -1379,13 +1394,13 @@ export default function ClassListPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">Age (Years)</label>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Age (Auto-calculated)</label>
                     <input
-                      type="number"
-                      placeholder="e.g. 6"
-                      value={admitFormData.age}
-                      onChange={e => setAdmitFormData(prev => ({ ...prev, age: e.target.value }))}
-                      className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#5e3a9e]/30 outline-none"
+                      type="text"
+                      readOnly
+                      value={admitFormData.age ? `${admitFormData.age} years` : ''}
+                      placeholder="Auto-calculated from DOB"
+                      className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm bg-gray-100 text-gray-600 cursor-not-allowed"
                     />
                   </div>
 
