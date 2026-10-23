@@ -18,6 +18,7 @@ interface AddStaffResponse {
 export default function AddStaffPage() {
   const router = useRouter()
   const [assignedClasses, setAssignedClasses] = useState<{ assignedClass: string; assignedSection: string; teacherName: string }[]>([])
+  const [classList, setClassList] = useState<string[]>([])
   const [formData, setFormData] = useState({
     fullName: '',
     mobile: '',
@@ -46,7 +47,6 @@ export default function AddStaffPage() {
   // Debounce timeout refs
   const mobileCheckTimeout = useRef<NodeJS.Timeout | null>(null)
 
-  const classList = ['Playgroup', 'Nursery', 'LKG', 'UKG', 'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5']
   const sectionList = ['A', 'B', 'C', 'D']
 
   // Check role-based access & fetch taken class assignments
@@ -65,7 +65,22 @@ export default function AddStaffPage() {
     }
 
     fetchAssignedClasses()
+    fetchClassList()
   }, [])
+
+  const fetchClassList = async () => {
+    try {
+      const configApi = await import('@/lib/api').then(m => m.configApi)
+      const res = await configApi.getClasses() as { success: boolean; data?: string[] }
+      if (res.success && res.data) {
+        setClassList(res.data)
+      }
+    } catch (e) {
+      console.error('Failed to fetch class list:', e)
+      // Fallback to empty array if fetch fails
+      setClassList([])
+    }
+  }
 
   const fetchAssignedClasses = async () => {
     try {
