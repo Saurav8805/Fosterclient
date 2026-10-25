@@ -116,7 +116,7 @@ export default function StudentListPage() {
     const roleNum = Number(role)
     setUserRole(roleNum)
     
-    // Admin (5), Principal (6), Teacher (7) can access
+    // Admin (5) and Principal (6) can access
     if (![5, 6, 7].includes(roleNum)) {
       router.push('/dashboard')
       return
@@ -797,7 +797,7 @@ export default function StudentListPage() {
               </div>
               
               {/* Admit button - moved to top right */}
-              {(userRole === 5 || userRole === 6) && (
+              {(userRole === 5 || userRole === 6 || (userRole === 7 && teacherAssignedClasses.length > 0)) && (
                 <button
                   onClick={() => {
                     setAdmitMessage(null)

@@ -189,16 +189,11 @@ const DashboardSidebar = memo(function DashboardSidebar() {
     { name: 'Gallery', icon: Icons.gallery, path: '/dashboard/gallery' },
   ]
 
-  const removedPathsForPrincipal = [
-    '/dashboard/admit-student',
-    '/dashboard/student-attendance',
-    '/dashboard/behaviour',
-    '/dashboard/homework'
-  ]
+  const removedPathsForPrincipal = []
 
-  const principalMenuItems = adminMenuItems.filter(item => !removedPathsForPrincipal.includes(item.path))
+  const principalMenuItems = adminMenuItems
 
-  const menuItems = userRole === 5 ? adminMenuItems : userRole === 6 ? principalMenuItems : userRole === 7 ? facultyMenuItems : userRole === 8 ? staffMenuItems : studentMenuItems
+  const menuItems = userRole === 5 || userRole === 6 ? adminMenuItems : userRole === 7 ? facultyMenuItems : userRole === 8 ? staffMenuItems : studentMenuItems
 
   return (
     <aside className={`${isOpen ? 'w-64 sm:w-56' : 'w-0 overflow-hidden'} bg-white border-r border-gray-100 transition-all duration-300 flex flex-col flex-shrink-0 h-full shadow-sm lg:relative fixed left-0 top-0 z-[60] lg:z-auto`}>
