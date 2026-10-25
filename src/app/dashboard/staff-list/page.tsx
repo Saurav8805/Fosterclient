@@ -428,13 +428,12 @@ export default function StaffListPage() {
     }
   }
 
-  // Filter staff by designation & exclude Admin/Superadmin
+  // Filter staff by designation & exclude Support Staff
   const filteredStaff = staffMembers.filter(staff => {
-    const roleNum = staff.user?.role
     const desig = (staff.designation || '').toLowerCase()
-    // Exclude Admin and Superadmin users
-    const isAdminOrSuperAdmin = roleNum === 8 || desig.includes('admin')
-    if (isAdminOrSuperAdmin) return false
+    // Exclude Support Staff users
+    const isSupportStaff = desig.includes('support staff')
+    if (isSupportStaff) return false
     
     if (filterDesignation !== 'All') {
       return staff.designation === filterDesignation
@@ -488,10 +487,10 @@ export default function StaffListPage() {
                   className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 >
                   <option value="All">All Staff</option>
+                  <option value="Admin">Admin</option>
                   <option value="Principal">Principal</option>
                   <option value="Vice Principal">Vice Principal</option>
                   <option value="Teacher">Teacher</option>
-                  <option value="Support Staff">Support Staff</option>
                 </select>
               </div>
             </div>
