@@ -428,13 +428,8 @@ export default function StaffListPage() {
     }
   }
 
-  // Filter staff by designation & exclude Support Staff
+  // Filter staff by designation
   const filteredStaff = staffMembers.filter(staff => {
-    const desig = (staff.designation || '').toLowerCase()
-    // Exclude Support Staff users
-    const isSupportStaff = desig.includes('support staff')
-    if (isSupportStaff) return false
-    
     if (filterDesignation !== 'All') {
       return staff.designation === filterDesignation
     }
@@ -491,6 +486,7 @@ export default function StaffListPage() {
                   <option value="Principal">Principal</option>
                   <option value="Vice Principal">Vice Principal</option>
                   <option value="Teacher">Teacher</option>
+                  <option value="Support Staff">Support Staff</option>
                 </select>
               </div>
             </div>
