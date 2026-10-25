@@ -751,7 +751,18 @@ export default function StudentListPage() {
     // For admin/principal (role 6 or 8), apply selected filters
     const classMatch = selectedClass === 'All' || s.class === selectedClass
     const sectionMatch = selectedSection === 'All' || s.section === selectedSection
-    const academicYearMatch = selectedAcademicYear === 'All' || s.academic_year === selectedAcademicYear
+    
+    // Academic year filter based on admission date
+    let academicYearMatch = selectedAcademicYear === 'All'
+    if (selectedAcademicYear !== 'All' && s.admission_date) {
+      const [startYear, endYear] = selectedAcademicYear.split('-')
+      const startYearNum = parseInt(startYear)
+      const academicYearStart = new Date(startYearNum, 5, 1) // June 1st of start year
+      const academicYearEnd = new Date(startYearNum + 1, 4, 31) // May 31st of end year
+      const admissionDate = new Date(s.admission_date)
+      academicYearMatch = admissionDate >= academicYearStart && admissionDate <= academicYearEnd
+    }
+    
     return classMatch && sectionMatch && academicYearMatch
   })
 
@@ -784,6 +795,19 @@ export default function StudentListPage() {
                 <h3 className="text-base sm:text-lg md:text-xl font-semibold">All Students</h3>
                 <span className="text-xs sm:text-sm text-gray-500 bg-gray-100 px-2 sm:px-3 py-0.5 sm:py-1 rounded-full">{filtered.length}</span>
               </div>
+              
+              {/* Admit button - moved to top right */}
+              {(userRole === 6 || userRole === 8 || (userRole === 7 && teacherAssignedClasses.length > 0)) && (
+                <button
+                  onClick={() => {
+                    setAdmitMessage(null)
+                    setShowAdmitModal(true)
+                  }}
+                  className="bg-blue-50 text-blue-700 border-2 border-blue-400 font-medium px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm hover:bg-blue-100 transition flex items-center justify-center gap-1.5 touch-manipulation whitespace-nowrap"
+                >
+                  <span>+ Admit New Student</span>
+                </button>
+              )}
               
               {/* Show teacher's assigned class info */}
               {userRole === 7 && (
