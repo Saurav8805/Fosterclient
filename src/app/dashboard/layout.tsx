@@ -142,7 +142,7 @@ const DashboardSidebar = memo(function DashboardSidebar() {
     { name: 'Staff List', icon: Icons.staffList, path: '/dashboard/staff-list' },
     { name: 'Staff Attendance', icon: Icons.staffAttendance, path: '/dashboard/staff-attendance' },
     { name: 'Class List', icon: Icons.classList, path: '/dashboard/class-list' },
-    // { name: 'Student List', icon: Icons.studentList, path: '/dashboard/student-list' },
+    { name: 'Student List', icon: Icons.studentList, path: '/dashboard/student-list' },
     // { name: 'Student Attendance', icon: Icons.attendance, path: '/dashboard/student-attendance' },
     { name: 'Fees Management', icon: Icons.fees, path: '/dashboard/fees' },
     { name: 'Calendar & Events', icon: Icons.calendar, path: '/dashboard/calendar' },
@@ -183,7 +183,6 @@ const DashboardSidebar = memo(function DashboardSidebar() {
 
   const removedPathsForPrincipal = [
     '/dashboard/admit-student',
-    '/dashboard/student-list',
     '/dashboard/student-attendance',
     '/dashboard/behaviour',
     '/dashboard/homework'
