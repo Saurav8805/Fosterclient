@@ -997,7 +997,7 @@ export default function StudentListPage() {
                           >
                             Edit
                           </button>
-                          {(userRole === 6 || userRole === 8) && ( // Only principal/vice principal (role 6/8) can delete
+                          {(userRole === 5 || userRole === 6 || userRole === 8) && (
                             <button 
                               onClick={() => handleDelete(student)}
                               className="text-red-600 hover:text-red-800 font-medium px-2 py-1 rounded hover:bg-red-50 transition-colors touch-manipulation"
