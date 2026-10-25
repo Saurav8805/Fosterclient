@@ -116,8 +116,8 @@ export default function StudentListPage() {
     const roleNum = Number(role)
     setUserRole(roleNum)
     
-    // Admin (role 6), Teacher (role 7), and Staff (role 8) can access
-    if (![6, 7, 8].includes(roleNum)) {
+    // Admin (role 5), Principal (role 6), Teacher (role 7), and Superadmin (role 8) can access
+    if (![5, 6, 7, 8].includes(roleNum)) {
       router.push('/dashboard')
       return
     }
@@ -127,7 +127,7 @@ export default function StudentListPage() {
     fetchClasses()
     fetchSections()
 
-    if (roleNum !== 6) {
+    if (roleNum !== 5 && roleNum !== 6) {
       fetchTeacherProfile()
     }
   }, []) // Empty dependency array - runs only once
@@ -797,7 +797,7 @@ export default function StudentListPage() {
               </div>
               
               {/* Admit button - moved to top right */}
-              {(userRole === 6 || userRole === 8 || (userRole === 7 && teacherAssignedClasses.length > 0)) && (
+              {(userRole === 5 || userRole === 6 || userRole === 8 || (userRole === 7 && teacherAssignedClasses.length > 0)) && (
                 <button
                   onClick={() => {
                     setAdmitMessage(null)
