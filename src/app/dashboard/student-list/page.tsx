@@ -16,6 +16,8 @@ export default function StudentListPage() {
   const [sections, setSections] = useState<string[]>([])
   const [selectedClass, setSelectedClass] = useState('All')
   const [selectedSection, setSelectedSection] = useState('All')
+  const [selectedAcademicYear, setSelectedAcademicYear] = useState('All')
+  const [academicYears, setAcademicYears] = useState<string[]>(['All', '2024-2025'])
   const [showModal, setShowModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [selectedStudent, setSelectedStudent] = useState<any>(null)
@@ -732,7 +734,8 @@ export default function StudentListPage() {
     // For admin/principal (role 6 or 8), apply selected filters
     const classMatch = selectedClass === 'All' || s.class === selectedClass
     const sectionMatch = selectedSection === 'All' || s.section === selectedSection
-    return classMatch && sectionMatch
+    const academicYearMatch = selectedAcademicYear === 'All' || s.academic_year === selectedAcademicYear
+    return classMatch && sectionMatch && academicYearMatch
   })
 
   return (
@@ -829,6 +832,22 @@ export default function StudentListPage() {
                   >
                     {sections.map((s) => (
                       <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Academic Year filter - only for admin/principal */}
+              {userRole !== 7 && (
+                <div className="flex items-center gap-2">
+                  <label className="text-xs sm:text-sm font-medium text-gray-700 whitespace-nowrap">Academic Year:</label>
+                  <select
+                    value={selectedAcademicYear}
+                    onChange={(e) => setSelectedAcademicYear(e.target.value)}
+                    className="flex-1 sm:flex-none px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg text-xs sm:text-sm touch-manipulation"
+                  >
+                    {academicYears.map((year) => (
+                      <option key={year} value={year}>{year}</option>
                     ))}
                   </select>
                 </div>
