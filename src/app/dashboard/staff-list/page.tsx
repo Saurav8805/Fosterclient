@@ -34,6 +34,7 @@ export default function StaffListPage() {
   const [addLoading, setAddLoading] = useState(false)
   const [assignedClasses, setAssignedClasses] = useState<{ staffId?: string; assignedClass: string; assignedSection: string; teacherName: string }[]>([])
   const [addCredentials, setAddCredentials] = useState<{ mobile: string; password: string } | null>(null)
+  const [classList, setClassList] = useState<string[]>([])
   const [addFormData, setAddFormData] = useState({
     fullName: '',
     mobile: '',
@@ -47,7 +48,6 @@ export default function StaffListPage() {
     address: ''
   })
 
-  const classList = ['Playgroup', 'Nursery', 'LKG', 'UKG', 'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5']
   const sectionList = ['A', 'B', 'C', 'D']
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [addErrors, setAddErrors] = useState<Record<string, string>>({})
@@ -66,11 +66,34 @@ export default function StaffListPage() {
       router.push('/login')
       return
     }
-    setUserRole(Number(role))
+    const roleNum = Number(role)
+    setUserRole(roleNum)
+    
+    // Only Admin (5), Principal (6), and Teachers (7) can access staff list
+    // Staff (8) and Students (19) cannot access
+    if (![5, 6, 7].includes(roleNum)) {
+      router.push('/dashboard')
+      return
+    }
     
     fetchStaff()
     fetchAssignedClasses()
+    fetchClassList()
   }, [])
+
+  const fetchClassList = async () => {
+    try {
+      const { configApi } = await import('@/lib/api')
+      const res = await configApi.getClasses() as { success: boolean; data?: string[] }
+      if (res.success && res.data) {
+        setClassList(res.data)
+      } else {
+        setClassList([])
+      }
+    } catch (e) {
+      setClassList([])
+    }
+  }
 
   const fetchAssignedClasses = async () => {
     try {
@@ -189,9 +212,11 @@ export default function StaffListPage() {
     setAddLoading(true)
 
     try {
-      let role = 7
+      let role = 8  // Default: Support Staff (role 8)
       if (['Principal', 'Vice-Principal', 'Admin'].includes(addFormData.designation)) {
-        role = 6
+        role = 6  // Principal/Vice-Principal get role 6
+      } else if (addFormData.designation === 'Teacher') {
+        role = 7  // Teachers get role 7
       }
 
       const res = await staffApi.add({
@@ -413,13 +438,8 @@ export default function StaffListPage() {
     }
   }
 
-  // Filter staff by designation & exclude Principal/Vice-Principal/Admin
+  // Filter staff by designation
   const filteredStaff = staffMembers.filter(staff => {
-    const roleNum = staff.user?.role
-    const desig = (staff.designation || '').toLowerCase()
-    const isPrincipalOrAdmin = roleNum === 6 || desig.includes('principal') || desig.includes('admin')
-    if (isPrincipalOrAdmin) return false
-    
     if (filterDesignation !== 'All') {
       return staff.designation === filterDesignation
     }
@@ -434,15 +454,17 @@ export default function StaffListPage() {
             <h1 className="text-3xl font-bold text-gray-900">Staff Management</h1>
             <p className="text-sm text-gray-600 mt-1">Manage staff members and assign classes</p>
           </div>
-          <button
-            onClick={handleOpenAddModal}
-            className="px-5 py-2.5 bg-blue-600 text-white font-medium text-sm rounded-lg hover:bg-blue-700 transition flex items-center gap-2 shadow-sm cursor-pointer"
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Add Staff Member
-          </button>
+          {(userRole === 5 || userRole === 6) && (
+            <button
+              onClick={handleOpenAddModal}
+              className="px-5 py-2.5 bg-blue-600 text-white font-medium text-sm rounded-lg hover:bg-blue-700 transition flex items-center gap-2 shadow-sm cursor-pointer"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Add Staff Member
+            </button>
+          )}
         </div>
       </div>
 
@@ -472,6 +494,9 @@ export default function StaffListPage() {
                   className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 >
                   <option value="All">All Staff</option>
+                  <option value="Admin">Admin</option>
+                  <option value="Principal">Principal</option>
+                  <option value="Vice Principal">Vice Principal</option>
                   <option value="Teacher">Teacher</option>
                   <option value="Support Staff">Support Staff</option>
                 </select>
@@ -674,9 +699,31 @@ export default function StaffListPage() {
                     name="designation"
                     required
                     value={formData.designation}
-                    onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
+                    onChange={(e) => {
+                      const designation = e.target.value;
+                      let department = formData.department;
+                      
+                      // Auto-assign department based on designation
+                      if (designation === 'Admin') {
+                        department = 'Administration';
+                      } else if (designation === 'Principal') {
+                        department = 'Head of School';
+                      } else if (designation === 'Vice Principal') {
+                        department = 'Deputy Head of School';
+                      } else if (designation === 'Teacher') {
+                        department = 'Faculty';
+                      } else if (designation === 'Support Staff') {
+                        department = 'Support Department';
+                      }
+                      
+                      setFormData({ ...formData, designation, department });
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
+                    <option value="">Select Designation</option>
+                    <option value="Admin">Admin</option>
+                    <option value="Principal">Principal</option>
+                    <option value="Vice Principal">Vice Principal</option>
                     <option value="Teacher">Teacher</option>
                     <option value="Support Staff">Support Staff</option>
                   </select>
@@ -685,18 +732,15 @@ export default function StaffListPage() {
                 {/* Department */}
                 <div>
                   <label htmlFor="edit-department" className="block text-sm font-medium text-gray-700 mb-1">Department</label>
-                  <select
+                  <input
+                    type="text"
                     id="edit-department"
                     name="department"
                     value={formData.department}
-                    onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Select Department</option>
-                    <option value="Teaching">Teaching</option>
-                    <option value="Administration">Administration</option>
-                    <option value="Support">Support</option>
-                  </select>
+                    disabled
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
+                    placeholder="Auto-assigned based on designation"
+                  />
                 </div>
 
                 {/* Assign Class (For Teachers) */}
@@ -911,9 +955,31 @@ export default function StaffListPage() {
                   <select
                     required
                     value={addFormData.designation}
-                    onChange={(e) => setAddFormData({ ...addFormData, designation: e.target.value })}
+                    onChange={(e) => {
+                      const designation = e.target.value;
+                      let department = addFormData.department;
+                      
+                      // Auto-assign department based on designation
+                      if (designation === 'Admin') {
+                        department = 'Administration';
+                      } else if (designation === 'Principal') {
+                        department = 'Head of School';
+                      } else if (designation === 'Vice Principal') {
+                        department = 'Deputy Head of School';
+                      } else if (designation === 'Teacher') {
+                        department = 'Faculty';
+                      } else if (designation === 'Support Staff') {
+                        department = 'Support Department';
+                      }
+                      
+                      setAddFormData({ ...addFormData, designation, department });
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
+                    <option value="">Select Designation</option>
+                    <option value="Admin">Admin</option>
+                    <option value="Principal">Principal</option>
+                    <option value="Vice Principal">Vice Principal</option>
                     <option value="Teacher">Teacher</option>
                     <option value="Support Staff">Support Staff</option>
                   </select>
@@ -921,29 +987,40 @@ export default function StaffListPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
-                  <select
+                  <input
+                    type="text"
                     value={addFormData.department}
-                    onChange={(e) => setAddFormData({ ...addFormData, department: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="Teaching">Teaching</option>
-                    <option value="Administration">Administration</option>
-                    <option value="Support">Support</option>
-                  </select>
+                    disabled
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-gray-100 text-gray-600 cursor-not-allowed"
+                    placeholder="Auto-assigned based on designation"
+                  />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Assign Class (For Teachers)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Assign Class (For Teachers) 
+                    {classList.length > 0 && <span className="text-blue-600"> ({classList.length} classes available)</span>}
+                  </label>
                   <select
                     value={addFormData.assignedClass}
                     onChange={(e) => setAddFormData({ ...addFormData, assignedClass: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">Select Class to Assign</option>
-                    {classList.map(cls => (
-                      <option key={cls} value={cls}>{cls}</option>
-                    ))}
+                    {classList.length === 0 ? (
+                      <option disabled>⏳ Loading classes from database...</option>
+                    ) : (
+                      classList.map(cls => (
+                        <option key={cls} value={cls}>{cls}</option>
+                      ))
+                    )}
                   </select>
+                  {classList.length === 0 && (
+                    <p className="text-xs text-amber-600 mt-1">⚠️ No classes found in database. Please add classes first.</p>
+                  )}
+                  {classList.length > 0 && (
+                    <p className="text-xs text-green-600 mt-1">✅ Loaded {classList.length} classes from database</p>
+                  )}
                 </div>
 
                 <div>

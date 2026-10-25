@@ -16,6 +16,25 @@ export default function StudentListPage() {
   const [sections, setSections] = useState<string[]>([])
   const [selectedClass, setSelectedClass] = useState('All')
   const [selectedSection, setSelectedSection] = useState('All')
+  const [selectedAcademicYear, setSelectedAcademicYear] = useState('All')
+  const [academicYears, setAcademicYears] = useState<string[]>([])
+
+  // Generate academic years dynamically
+  useEffect(() => {
+    const currentYear = new Date().getFullYear()
+    const years = ['All']
+    // Generate years from 2024 to current year + 2
+    for (let year = 2024; year <= currentYear + 2; year++) {
+      const startYear = year
+      const endYear = year + 1
+      const yearStr = `${startYear}-${String(endYear).slice(-2)}`
+      years.push(yearStr)
+    }
+    setAcademicYears(years)
+    // Set default to current or next academic year
+    const defaultYear = currentYear >= 6 ? `${currentYear}-${String(currentYear + 1).slice(-2)}` : `${currentYear - 1}-${String(currentYear).slice(-2)}`
+    setSelectedAcademicYear(defaultYear)
+  }, [])
   const [showModal, setShowModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [selectedStudent, setSelectedStudent] = useState<any>(null)
@@ -97,8 +116,8 @@ export default function StudentListPage() {
     const roleNum = Number(role)
     setUserRole(roleNum)
     
-    // Admin (role 6), Teacher (role 7), and Staff (role 8) can access
-    if (![6, 7, 8].includes(roleNum)) {
+    // Admin (5) and Principal (6) can access
+    if (![5, 6, 7].includes(roleNum)) {
       router.push('/dashboard')
       return
     }
@@ -108,7 +127,7 @@ export default function StudentListPage() {
     fetchClasses()
     fetchSections()
 
-    if (roleNum !== 6) {
+    if (roleNum !== 5 && roleNum !== 6) {
       fetchTeacherProfile()
     }
   }, []) // Empty dependency array - runs only once
@@ -299,7 +318,7 @@ export default function StudentListPage() {
     console.log('🖼️ Profile image URL:', student.user?.profile_image_url)
     console.log('🔑 Password (password_hash):', student.user?.password_hash)
     console.log('👔 Current user role:', userRole)
-    console.log('🔒 Should show password:', (userRole === 5 || userRole === 6) && student.user?.password_hash)
+    console.log('🔒 Should show password:', (userRole === 5 || userRole === 6 || userRole === 8) && student.user?.password_hash)
     
     setSelectedStudent(student)
     setDetailTab('profile')
@@ -732,7 +751,19 @@ export default function StudentListPage() {
     // For admin/principal (role 6 or 8), apply selected filters
     const classMatch = selectedClass === 'All' || s.class === selectedClass
     const sectionMatch = selectedSection === 'All' || s.section === selectedSection
-    return classMatch && sectionMatch
+    
+    // Academic year filter based on admission date
+    let academicYearMatch = selectedAcademicYear === 'All'
+    if (selectedAcademicYear !== 'All' && s.admission_date) {
+      const [startYear, endYear] = selectedAcademicYear.split('-')
+      const startYearNum = parseInt(startYear)
+      const academicYearStart = new Date(startYearNum, 5, 1) // June 1st of start year
+      const academicYearEnd = new Date(startYearNum + 1, 4, 31) // May 31st of end year
+      const admissionDate = new Date(s.admission_date)
+      academicYearMatch = admissionDate >= academicYearStart && admissionDate <= academicYearEnd
+    }
+    
+    return classMatch && sectionMatch && academicYearMatch
   })
 
   return (
@@ -764,6 +795,19 @@ export default function StudentListPage() {
                 <h3 className="text-base sm:text-lg md:text-xl font-semibold">All Students</h3>
                 <span className="text-xs sm:text-sm text-gray-500 bg-gray-100 px-2 sm:px-3 py-0.5 sm:py-1 rounded-full">{filtered.length}</span>
               </div>
+              
+              {/* Admit button - moved to top right */}
+              {(userRole === 5 || userRole === 6 || (userRole === 7 && teacherAssignedClasses.length > 0)) && (
+                <button
+                  onClick={() => {
+                    setAdmitMessage(null)
+                    setShowAdmitModal(true)
+                  }}
+                  className="bg-blue-50 text-blue-700 border-2 border-blue-400 font-medium px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm hover:bg-blue-100 transition flex items-center justify-center gap-1.5 touch-manipulation whitespace-nowrap"
+                >
+                  <span>+ Admit New Student</span>
+                </button>
+              )}
               
               {/* Show teacher's assigned class info */}
               {userRole === 7 && (
@@ -801,15 +845,40 @@ export default function StudentListPage() {
               )}
             </div>
             
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 flex-wrap">
+            {/* Filters Container - styled like Fees page */}
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3 sm:p-4 mb-3 sm:mb-4 flex flex-wrap gap-2 sm:gap-3 items-end">
+              {/* Academic Year filter - only for admin/principal */}
+              {userRole !== 7 && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Academic Year</label>
+                  <select
+                    value={selectedAcademicYear}
+                    onChange={(e) => setSelectedAcademicYear(e.target.value)}
+                    className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:border-[#5e3a9e] focus:ring-1 focus:ring-[#5e3a9e] font-semibold"
+                  >
+                    {academicYears.map((year) => {
+                      if (year === 'All') {
+                        return <option key={year} value={year}>{year}</option>
+                      }
+                      const [startYear, endYear] = year.split('-')
+                      return (
+                        <option key={year} value={year}>
+                          {year} (Jun {startYear} - May {endYear})
+                        </option>
+                      )
+                    })}
+                  </select>
+                </div>
+              )}
+
               {/* Class filter - only for admin/principal */}
               {userRole !== 7 && (
-                <div className="flex items-center gap-2">
-                  <label className="text-xs sm:text-sm font-medium text-gray-700 whitespace-nowrap">Class:</label>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Class</label>
                   <select
                     value={selectedClass}
                     onChange={(e) => setSelectedClass(e.target.value)}
-                    className="flex-1 sm:flex-none px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg text-xs sm:text-sm touch-manipulation"
+                    className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:border-[#5e3a9e] focus:ring-1 focus:ring-[#5e3a9e]"
                   >
                     {classes.map((c) => (
                       <option key={c} value={c}>{c}</option>
@@ -820,12 +889,12 @@ export default function StudentListPage() {
 
               {/* Section filter - only for admin/principal */}
               {userRole !== 7 && (
-                <div className="flex items-center gap-2">
-                  <label className="text-xs sm:text-sm font-medium text-gray-700 whitespace-nowrap">Section:</label>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Section</label>
                   <select
                     value={selectedSection}
                     onChange={(e) => setSelectedSection(e.target.value)}
-                    className="flex-1 sm:flex-none px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg text-xs sm:text-sm touch-manipulation"
+                    className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:border-[#5e3a9e] focus:ring-1 focus:ring-[#5e3a9e]"
                   >
                     {sections.map((s) => (
                       <option key={s} value={s}>{s}</option>
@@ -834,16 +903,17 @@ export default function StudentListPage() {
                 </div>
               )}
 
-              {/* Admit button - only show if teacher has assigned class OR if admin */}
-              {(userRole === 6 || userRole === 8 || (userRole === 7 && teacherAssignedClasses.length > 0)) && (
-                <button
-                  onClick={() => {
-                    setAdmitMessage(null)
-                    setShowAdmitModal(true)
-                  }}
-                  className="bg-blue-50 text-blue-700 border-2 border-blue-400 font-medium px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm hover:bg-blue-100 transition flex items-center justify-center gap-1.5 touch-manipulation whitespace-nowrap"
+              {/* Reset button */}
+              {userRole !== 7 && (
+                <button 
+                  onClick={() => { 
+                    setSelectedClass('All')
+                    setSelectedSection('All')
+                    setSelectedAcademicYear('All')
+                  }} 
+                  className="px-3 py-2 text-sm text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
                 >
-                  <span>+ Admit New Student</span>
+                  Reset
                 </button>
               )}
             </div>
@@ -927,7 +997,7 @@ export default function StudentListPage() {
                           >
                             Edit
                           </button>
-                          {userRole === 6 && ( // Only admin (role 6) can delete
+                          {(userRole === 5 || userRole === 6) && (
                             <button 
                               onClick={() => handleDelete(student)}
                               className="text-red-600 hover:text-red-800 font-medium px-2 py-1 rounded hover:bg-red-50 transition-colors touch-manipulation"
@@ -1694,7 +1764,7 @@ export default function StudentListPage() {
                             <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 rounded-full text-xs font-semibold text-blue-700">
                               <span>📱</span>{selectedStudent.user?.mobile || 'N/A'}
                             </div>
-                            {(userRole === 5 || userRole === 6) && selectedStudent.user?.password_hash && (
+                            {(userRole === 5 || userRole === 6 || userRole === 8) && selectedStudent.user?.password_hash && (
                               <div className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 rounded-full text-xs font-semibold text-purple-700">
                                 <span>🔑</span>Password: {selectedStudent.user.password_hash}
                               </div>

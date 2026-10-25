@@ -18,6 +18,7 @@ interface AddStaffResponse {
 export default function AddStaffPage() {
   const router = useRouter()
   const [assignedClasses, setAssignedClasses] = useState<{ assignedClass: string; assignedSection: string; teacherName: string }[]>([])
+  const [classList, setClassList] = useState<string[]>([])
   const [formData, setFormData] = useState({
     fullName: '',
     mobile: '',
@@ -46,7 +47,6 @@ export default function AddStaffPage() {
   // Debounce timeout refs
   const mobileCheckTimeout = useRef<NodeJS.Timeout | null>(null)
 
-  const classList = ['Playgroup', 'Nursery', 'LKG', 'UKG', 'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5']
   const sectionList = ['A', 'B', 'C', 'D']
 
   // Check role-based access & fetch taken class assignments
@@ -65,7 +65,28 @@ export default function AddStaffPage() {
     }
 
     fetchAssignedClasses()
+    fetchClassList()
   }, [])
+
+  const fetchClassList = async () => {
+    try {
+      console.log('🔄 Fetching class list from database...')
+      const { configApi } = await import('@/lib/api')
+      const res = await configApi.getClasses() as { success: boolean; data?: string[] }
+      console.log('📊 Class list response:', res)
+      if (res.success && res.data) {
+        console.log('✅ Setting class list:', res.data)
+        setClassList(res.data)
+      } else {
+        console.warn('⚠️ No class data received')
+        setClassList([])
+      }
+    } catch (e) {
+      console.error('❌ Failed to fetch class list:', e)
+      // Fallback to empty array if fetch fails
+      setClassList([])
+    }
+  }
 
   const fetchAssignedClasses = async () => {
     try {
@@ -239,9 +260,18 @@ export default function AddStaffPage() {
     try {
       console.log('🔄 Adding staff member:', formData.fullName)
       
-      let role = 7;
-      if (['Principal', 'Vice-Principal', 'Admin'].includes(formData.designation)) {
+      // Assign roles based on designation
+      // Role 5 = Admin, Role 6 = Principal, Role 7 = Teacher/Staff, Role 8 = Vice Principal
+      let role = 7; // Default to Teacher/Staff
+      
+      if (formData.designation === 'Admin') {
+        role = 5;
+      } else if (formData.designation === 'Principal') {
         role = 6;
+      } else if (formData.designation === 'Vice Principal') {
+        role = 8;
+      } else if (formData.designation === 'Teacher' || formData.designation === 'Support Staff') {
+        role = 7;
       }
       
       const staffData = {
@@ -412,14 +442,32 @@ export default function AddStaffPage() {
                   required
                   className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={formData.designation}
-                  onChange={(e) => setFormData({...formData, designation: e.target.value})}
+                  onChange={(e) => {
+                    const newDesignation = e.target.value;
+                    setFormData({...formData, designation: newDesignation});
+                    
+                    // Auto-set department based on designation
+                    if (newDesignation === 'Admin') {
+                      setFormData({...formData, designation: newDesignation, department: 'Administration'});
+                    } else if (newDesignation === 'Principal') {
+                      setFormData({...formData, designation: newDesignation, department: 'Head of School'});
+                    } else if (newDesignation === 'Vice Principal') {
+                      setFormData({...formData, designation: newDesignation, department: 'Deputy Head of School'});
+                    } else if (newDesignation === 'Teacher') {
+                      setFormData({...formData, designation: newDesignation, department: 'Faculty'});
+                    } else if (newDesignation === 'Support Staff') {
+                      setFormData({...formData, designation: newDesignation, department: 'Support Department'});
+                    } else {
+                      setFormData({...formData, designation: newDesignation, department: ''});
+                    }
+                  }}
                 >
                   <option value="">Select Designation</option>
-                  <option value="Support Staff">Support Staff</option>
-                  <option value="Teacher">Teacher</option>
-                  <option value="Principal">Principal</option>
-                  <option value="Vice-Principal">Vice-Principal</option>
                   <option value="Admin">Admin</option>
+                  <option value="Principal">Principal</option>
+                  <option value="Vice Principal">Vice Principal</option>
+                  <option value="Teacher">Teacher</option>
+                  <option value="Support Staff">Support Staff</option>
                 </select>
               </div>
 
@@ -428,30 +476,43 @@ export default function AddStaffPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">Department *</label>
                 <select 
                   required
-                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
                   value={formData.department}
                   onChange={(e) => setFormData({...formData, department: e.target.value})}
+                  disabled={true}
                 >
                   <option value="">Select Department</option>
-                  <option value="Teaching">Teaching</option>
+                  <option value="Head of School">Head of School</option>
+                  <option value="Deputy Head of School">Deputy Head of School</option>
+                  <option value="Faculty">Faculty</option>
                   <option value="Administration">Administration</option>
-                  <option value="Support">Support</option>
+                  <option value="Support Department">Support Department</option>
                 </select>
+                <p className="text-xs text-gray-500 mt-1">Auto-assigned based on designation</p>
               </div>
 
               {/* Assigned Class */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Assign Class (Optional for Teachers)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Assign Class (Optional for Teachers) {classList.length > 0 && `(${classList.length} classes available)`}
+                </label>
                 <select 
                   className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={formData.assignedClass}
                   onChange={(e) => setFormData({...formData, assignedClass: e.target.value})}
                 >
                   <option value="">Select Class to Assign</option>
-                  {classList.map(cls => (
-                    <option key={cls} value={cls}>{cls}</option>
-                  ))}
+                  {classList.length === 0 ? (
+                    <option disabled>Loading classes...</option>
+                  ) : (
+                    classList.map(cls => (
+                      <option key={cls} value={cls}>{cls}</option>
+                    ))
+                  )}
                 </select>
+                {classList.length === 0 && (
+                  <p className="text-xs text-gray-500 mt-1">No classes found. Please add classes first.</p>
+                )}
               </div>
 
               {/* Assigned Section */}

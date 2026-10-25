@@ -110,6 +110,16 @@ export const studentsApi = {
     }
     return apiClient.get(url);
   },
+  // Get only students with valid class assignments
+  listWithValidClasses: async (params?: { class?: string; section?: string; status?: string }) => {
+    const result = await apiClient.get('/students/list');
+    if (result.success && result.data?.students) {
+      // Filter out students with empty or null class
+      const validStudents = result.data.students.filter((s: any) => s.class && s.class.trim() !== '');
+      return { ...result, data: { ...result.data, students: validStudents } };
+    }
+    return result;
+  },
   admit: (data: any) => apiClient.post('/students/admit', data),
   update: (id: string, data: any) => apiClient.put(`/students/update/${id}`, data),
   delete: (id: string) => apiClient.delete(`/students/delete/${id}`),
@@ -294,8 +304,10 @@ export const syllabusApi = {
 export const configApi = {
   getClasses: () => apiClient.get('/config/classes'),
   getClassStats: () => apiClient.get('/config/class-stats'),
+  createClass: (data: { className: string; section?: string; teacherId?: string; teacherId2?: string }) => apiClient.post('/config/create-class', data),
   updateClass: (data: { oldClassName: string; newClassName?: string; teacherId?: string; teacherId2?: string; section?: string }) => apiClient.put('/config/update-class', data),
   deleteClass: (className: string) => apiClient.delete('/config/delete-class', { className }),
+  cleanOrphanedData: () => apiClient.delete('/config/clean-orphaned-data', {}),
   getSections: () => apiClient.get('/config/sections'),
   getDepartments: () => apiClient.get('/config/departments'),
   getDesignations: () => apiClient.get('/config/designations'),

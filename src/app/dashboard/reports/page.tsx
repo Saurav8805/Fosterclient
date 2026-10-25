@@ -77,7 +77,7 @@ export default function ReportsPage() {
     setUserClass(cls);
     
     // Fetch classes for Principal/Super Admin
-    if (role === 5 || role === 6) {
+    if (role === 5 || role === 6 || role === 8) {
       fetchPrincipalClasses();
     }
   }, []);
@@ -152,7 +152,7 @@ export default function ReportsPage() {
   
   // Load students for progress report when class/section changes
   useEffect(() => {
-    if ((userRole === 5 || userRole === 6) && progressFilters.class && progressFilters.section) {
+    if ((userRole === 5 || userRole === 6 || userRole === 8) && progressFilters.class && progressFilters.section) {
       loadProgressStudents();
     }
   }, [progressFilters.class, progressFilters.section, userRole]);
@@ -900,7 +900,7 @@ export default function ReportsPage() {
           </div>
           
           {/* Student List Selection (shows when class is selected) */}
-          {(userRole === 5 || userRole === 6) && progressStudents.length > 0 && (
+          {(userRole === 5 || userRole === 6 || userRole === 8) && progressStudents.length > 0 && (
             <div className="mb-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-semibold text-gray-700">👥 Select Student(s) for Report:</h3>

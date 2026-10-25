@@ -102,8 +102,8 @@ export default function HomeworkPage() {
               setHomeworkList(sortHomeworkByDate(hwRes.success && Array.isArray(hwRes.data) ? hwRes.data : []))
             }
           }
-        } else if (storedUserRole === '6') {
-          // Principal - fetch all homework and load classes for filter
+        } else if (storedUserRole === '6' || storedUserRole === '8') {
+          // Principal/Vice Principal - fetch all homework and load classes for filter
           console.log('👔 Fetching all homework (Principal)...');
           
           // Fetch all classes for filter dropdown
@@ -173,7 +173,7 @@ export default function HomeworkPage() {
 
   // Principal/Super Admin re-fetch on filter change
   useEffect(() => {
-    if ((userRole === 5 || userRole === 6) && !loading) {
+    if ((userRole === 5 || userRole === 6 || userRole === 8) && !loading) {
       const fetchFiltered = async () => {
         try {
           const hwRes = await homeworkApi.list(filterClass, filterSection);
@@ -322,7 +322,7 @@ export default function HomeworkPage() {
   }
 
   const isTeacher = userRole === 7;
-  const isPrincipal = userRole === 6;
+  const isPrincipal = userRole === 6 || userRole === 8;
   const isSuperAdmin = userRole === 5;
   const isStudent = userRole === 19;
   const isAdmin = isPrincipal || isSuperAdmin;

@@ -142,7 +142,7 @@ const DashboardSidebar = memo(function DashboardSidebar() {
     { name: 'Staff List', icon: Icons.staffList, path: '/dashboard/staff-list' },
     { name: 'Staff Attendance', icon: Icons.staffAttendance, path: '/dashboard/staff-attendance' },
     { name: 'Class List', icon: Icons.classList, path: '/dashboard/class-list' },
-    // { name: 'Student List', icon: Icons.studentList, path: '/dashboard/student-list' },
+    { name: 'Student List', icon: Icons.studentList, path: '/dashboard/student-list' },
     // { name: 'Student Attendance', icon: Icons.attendance, path: '/dashboard/student-attendance' },
     { name: 'Fees Management', icon: Icons.fees, path: '/dashboard/fees' },
     { name: 'Calendar & Events', icon: Icons.calendar, path: '/dashboard/calendar' },
@@ -169,6 +169,14 @@ const DashboardSidebar = memo(function DashboardSidebar() {
     { name: 'Gallery', icon: Icons.gallery, path: '/dashboard/gallery' },
   ]
 
+  const staffMenuItems = [
+    { name: 'Profile', icon: Icons.profile, path: '/dashboard/profile' },
+    { name: 'Calendar & Events', icon: Icons.calendar, path: '/dashboard/calendar' },
+    { name: 'Salary Status', icon: Icons.salary, path: '/dashboard/salary' },
+    { name: 'My Attendance', icon: Icons.staffAttendance, path: '/dashboard/staff-attendance' },
+    { name: 'Gallery', icon: Icons.gallery, path: '/dashboard/gallery' },
+  ]
+
   const studentMenuItems = [
     { name: 'Profile', icon: Icons.profile, path: '/dashboard/profile' },
     { name: 'My Attendance', icon: Icons.attendance, path: '/dashboard/student-attendance' },
@@ -181,17 +189,11 @@ const DashboardSidebar = memo(function DashboardSidebar() {
     { name: 'Gallery', icon: Icons.gallery, path: '/dashboard/gallery' },
   ]
 
-  const removedPathsForPrincipal = [
-    '/dashboard/admit-student',
-    '/dashboard/student-list',
-    '/dashboard/student-attendance',
-    '/dashboard/behaviour',
-    '/dashboard/homework'
-  ]
+  const removedPathsForPrincipal = []
 
-  const principalMenuItems = adminMenuItems.filter(item => !removedPathsForPrincipal.includes(item.path))
+  const principalMenuItems = adminMenuItems
 
-  const menuItems = userRole === 5 ? adminMenuItems : userRole === 6 ? principalMenuItems : userRole === 8 ? adminMenuItems : userRole === 7 ? facultyMenuItems : studentMenuItems
+  const menuItems = userRole === 5 || userRole === 6 ? adminMenuItems : userRole === 7 ? facultyMenuItems : userRole === 8 ? staffMenuItems : studentMenuItems
 
   return (
     <aside className={`${isOpen ? 'w-64 sm:w-56' : 'w-0 overflow-hidden'} bg-white border-r border-gray-100 transition-all duration-300 flex flex-col flex-shrink-0 h-full shadow-sm lg:relative fixed left-0 top-0 z-[60] lg:z-auto`}>

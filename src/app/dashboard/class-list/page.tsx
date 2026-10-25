@@ -146,20 +146,109 @@ export default function ClassListPage() {
     fetchTeachers()
   }, [])
 
+  // Helper function: Calculate age from date of birth
+  const calculateAge = (dob: string): string => {
+    if (!dob) return ''
+    const birthDate = new Date(dob)
+    const today = new Date()
+    let age = today.getFullYear() - birthDate.getFullYear()
+    const monthDiff = today.getMonth() - birthDate.getMonth()
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--
+    }
+    return age.toString()
+  }
+
+  // Helper function: Validate age for specific class based on Indian education standards
+  const validateAgeForClass = (className: string, age: number): { valid: boolean; error?: string; minAge: number; maxAge: number } => {
+    // Indian education age standards (as per RTE Act and common practices)
+    const ageRanges: { [key: string]: { min: number; max: number } } = {
+      'Playgroup': { min: 2, max: 4 },
+      'Nursery': { min: 3, max: 5 },
+      'LKG': { min: 4, max: 6 },
+      'UKG': { min: 5, max: 7 },
+      'Class 1': { min: 6, max: 8 },
+      '1': { min: 6, max: 8 },
+      'Class 2': { min: 7, max: 9 },
+      '2': { min: 7, max: 9 },
+      'Class 3': { min: 8, max: 10 },
+      '3': { min: 8, max: 10 },
+      'Class 4': { min: 9, max: 11 },
+      '4': { min: 9, max: 11 },
+      'Class 5': { min: 10, max: 12 },
+      '5': { min: 10, max: 12 },
+      'Class 6': { min: 11, max: 14 },
+      '6': { min: 11, max: 14 },
+      'Class 7': { min: 12, max: 15 },
+      '7': { min: 12, max: 15 },
+      'Class 8': { min: 13, max: 16 },
+      '8': { min: 13, max: 16 },
+      'Class 9': { min: 14, max: 18 },
+      '9': { min: 14, max: 18 },
+      'Class 10': { min: 15, max: 20 },
+      '10': { min: 15, max: 20 },
+      'Class 11': { min: 16, max: 22 },
+      '11': { min: 16, max: 22 },
+      'Class 12': { min: 17, max: 25 },
+      '12': { min: 17, max: 25 },
+    }
+
+    const range = ageRanges[className]
+    if (!range) {
+      // If class not found in ranges, use general validation (2-18 years)
+      return { 
+        valid: age >= 2 && age <= 25, 
+        error: age < 2 ? 'Student must be at least 2 years old' : 'Student cannot be older than 18 years',
+        minAge: 2,
+        maxAge: 25
+      }
+    }
+
+    if (age < range.min) {
+      return { 
+        valid: false, 
+        error: `Student must be at least ${range.min} years old for ${className}`,
+        minAge: range.min,
+        maxAge: range.max
+      }
+    }
+
+    if (age > range.max) {
+      return { 
+        valid: false, 
+        error: `Student cannot be older than ${range.max} years for ${className}`,
+        minAge: range.min,
+        maxAge: range.max
+      }
+    }
+
+    return { valid: true, minAge: range.min, maxAge: range.max }
+  }
+
   const fetchClassStats = async () => {
     try {
       setLoadingClasses(true)
       setError(null)
-      const result = await configApi.getClassStats()
+      const result = await configApi.getClasses()
       
       if (result.success) {
-        setClasses(result.data || [])
+        // Convert array of class names to ClassStats format
+        const classNames = Array.isArray(result.data) ? result.data : []
+        const classStatsList: ClassStats[] = classNames.map(name => ({
+          name: name,
+          studentCount: 0,
+          sections: [],
+          teachers: []
+        }))
+        setClasses(classStatsList)
       } else {
-        setError(result.error || 'Failed to fetch class statistics')
+        setError(result.error || 'Failed to fetch classes')
+        setClasses([])
       }
     } catch (err: any) {
-      console.error('Failed to fetch class stats:', err)
-      setError(err.message || 'Failed to fetch class statistics')
+      console.error('Failed to fetch classes:', err)
+      setError(err.message || 'Failed to fetch classes')
+      setClasses([])
     } finally {
       setLoadingClasses(false)
     }
@@ -243,7 +332,7 @@ export default function ClassListPage() {
     console.log('🖼️ Profile image URL:', student.user?.profile_image_url)
     console.log('🔑 Password (password_hash):', student.user?.password_hash)
     console.log('👔 Current user role:', userRole)
-    console.log('🔒 Should show password:', (userRole === 5 || userRole === 6) && student.user?.password_hash)
+    console.log('🔒 Should show password:', (userRole === 5 || userRole === 6 || userRole === 8) && student.user?.password_hash)
     
     setSelectedStudent(student)
     setDetailTab('profile')
@@ -380,24 +469,39 @@ export default function ClassListPage() {
 
     try {
       setAddClassSubmitting(true)
-      const existing = classes.find(c => c.name.toLowerCase() === newClassName.trim().toLowerCase())
-      if (!existing) {
-        const teacherObj = teachersList.find(t => t.user_id === newClassTeacherId || t.id === newClassTeacherId)
-        const teacherName = teacherObj?.user?.full_name || teacherObj?.full_name || ''
-        
-        const teacherObj2 = teachersList.find(t => t.user_id === newClassTeacherId2 || t.id === newClassTeacherId2)
-        const teacherName2 = teacherObj2?.user?.full_name || teacherObj2?.full_name || ''
+      
+      // Call API to create class in database
+      const { configApi } = await import('@/lib/api')
+      const response = await configApi.createClass({
+        className: newClassName.trim(),
+        section: newClassSection.trim() || undefined,
+        teacherId: newClassTeacherId || undefined,
+        teacherId2: newClassTeacherId2 || undefined
+      })
 
-        const teacherNames = [teacherName, teacherName2].filter(Boolean)
-
-        const newClassCard: ClassStats = {
-          name: newClassName.trim(),
-          studentCount: 0,
-          sections: newClassSection.trim() ? [newClassSection.trim()] : [],
-          teachers: teacherNames
-        }
-        setClasses(prev => [...prev, newClassCard])
+      if (!response.success) {
+        setActionMessage({ type: 'error', text: response.error || 'Failed to add class' })
+        setTimeout(() => setActionMessage(null), 4000)
+        return
       }
+
+      // Update local state
+      const teacherObj = teachersList.find(t => t.user_id === newClassTeacherId || t.id === newClassTeacherId)
+      const teacherName = teacherObj?.user?.full_name || teacherObj?.full_name || ''
+      
+      const teacherObj2 = teachersList.find(t => t.user_id === newClassTeacherId2 || t.id === newClassTeacherId2)
+      const teacherName2 = teacherObj2?.user?.full_name || teacherObj2?.full_name || ''
+
+      const teacherNames = [teacherName, teacherName2].filter(Boolean)
+
+      const newClassCard: ClassStats = {
+        name: newClassName.trim(),
+        studentCount: 0,
+        sections: newClassSection.trim() ? [newClassSection.trim()] : [],
+        teachers: teacherNames
+      }
+      setClasses(prev => [...prev, newClassCard])
+
       setShowAddClassModal(false)
       setNewClassName('')
       setNewClassSection('')
@@ -405,8 +509,13 @@ export default function ClassListPage() {
       setNewClassTeacherId2('')
       setActionMessage({ type: 'success', text: `Class ${newClassName} added successfully!` })
       setTimeout(() => setActionMessage(null), 4000)
+      
+      // Refresh class stats
+      fetchClassStats()
     } catch (err: any) {
       console.error('Failed to add class:', err)
+      setActionMessage({ type: 'error', text: err.message || 'Failed to add class' })
+      setTimeout(() => setActionMessage(null), 4000)
     } finally {
       setAddClassSubmitting(false)
     }
@@ -418,6 +527,48 @@ export default function ClassListPage() {
     if (!admitFormData.studentName.trim() || !selectedClass) return
 
     setAdmitErrors({})
+
+    // Validate required fields
+    if (!admitFormData.dob) {
+      setAdmitErrors(prev => ({ ...prev, dob: 'Date of Birth is required' }))
+      return
+    }
+
+    if (!admitFormData.parentName.trim()) {
+      setAdmitErrors(prev => ({ ...prev, parentName: 'Father Name is required' }))
+      return
+    }
+
+    if (!admitFormData.motherName.trim()) {
+      setAdmitErrors(prev => ({ ...prev, motherName: 'Mother Name is required' }))
+      return
+    }
+
+    if (!admitFormData.address.trim()) {
+      setAdmitErrors(prev => ({ ...prev, address: 'Address is required' }))
+      return
+    }
+
+    if (!admitFormData.city.trim()) {
+      setAdmitErrors(prev => ({ ...prev, city: 'City is required' }))
+      return
+    }
+
+    if (!admitFormData.state.trim()) {
+      setAdmitErrors(prev => ({ ...prev, state: 'State is required' }))
+      return
+    }
+
+    if (!admitFormData.pincode.trim()) {
+      setAdmitErrors(prev => ({ ...prev, pincode: 'Pincode is required' }))
+      return
+    }
+
+    // Validate pincode format
+    if (!/^\d{6}$/.test(admitFormData.pincode)) {
+      setAdmitErrors(prev => ({ ...prev, pincode: 'Pincode must be exactly 6 digits' }))
+      return
+    }
 
     // Validate mobile number
     const mobileResult = validateMobile(admitFormData.mobile)
@@ -435,11 +586,20 @@ export default function ClassListPage() {
       }
     }
 
-    // Validate Date of Birth (age 2-18 years for students)
-    if (admitFormData.dob) {
-      const dobResult = validateDOB(admitFormData.dob, 2, 18)
-      if (!dobResult.valid) {
-        setAdmitErrors(prev => ({ ...prev, dob: dobResult.error! }))
+    // Validate Date of Birth
+    const dobResult = validateDOB(admitFormData.dob, 2, 18)
+    if (!dobResult.valid) {
+      setAdmitErrors(prev => ({ ...prev, dob: dobResult.error! }))
+      return
+    }
+
+    // Validate age for specific class (Indian education standards)
+    const age = parseInt(admitFormData.age)
+    if (age && selectedClass) {
+      const ageValidation = validateAgeForClass(selectedClass, age)
+      if (!ageValidation.valid) {
+        setAdmitErrors(prev => ({ ...prev, dob: ageValidation.error! }))
+        setActionMessage({ type: 'error', text: ageValidation.error! })
         return
       }
     }
@@ -451,6 +611,12 @@ export default function ClassListPage() {
         setAdmitErrors(prev => ({ ...prev, emergencyContact: emergencyResult.error! }))
         return
       }
+    }
+
+    // Validate aadhar if provided
+    if (admitFormData.aadharNumber && !/^\d{12}$/.test(admitFormData.aadharNumber)) {
+      setAdmitErrors(prev => ({ ...prev, aadharNumber: 'Aadhar must be exactly 12 digits' }))
+      return
     }
 
     try {
@@ -689,7 +855,7 @@ export default function ClassListPage() {
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
-                Add Student
+                + Admit New Student
               </button>
             )}
           </div>
@@ -875,7 +1041,7 @@ export default function ClassListPage() {
                   onClick={() => setShowAddStudentModal(true)}
                   className="bg-[#5e3a9e] text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-[#4a2d7e] transition"
                 >
-                  Add Student Now
+                  + Admit New Student
                 </button>
               </div>
             ) : (
@@ -949,7 +1115,7 @@ export default function ClassListPage() {
                           </td>
                           <td className="px-6 py-4 text-right">
                             <div className="flex items-center justify-end gap-1.5">
-                              {userRole === 6 && (
+                              {(userRole === 6 || userRole === 8) && (
                                 <>
                                   <button
                                     onClick={(e) => {
@@ -1059,7 +1225,11 @@ export default function ClassListPage() {
                 >
                   <option value="">-- Select Teacher 1 (Optional) --</option>
                   {teachersList
-                    .filter((t: any) => !newClassTeacherId2 || (t.user_id || t.id) !== newClassTeacherId2)
+                    .filter((t: any) => {
+                      const designation = (t.designation || 'Teacher').toLowerCase()
+                      const isTeachingRole = designation.includes('teacher') || designation.includes('principal') || designation.includes('vice')
+                      return isTeachingRole && (!newClassTeacherId2 || (t.user_id || t.id) !== newClassTeacherId2)
+                    })
                     .map((t: any) => (
                       <option key={t.id || t.user_id} value={t.user_id || t.id}>
                         {t.user?.full_name || t.full_name} ({t.designation || 'Teacher'})
@@ -1079,7 +1249,11 @@ export default function ClassListPage() {
                 >
                   <option value="">-- Select Teacher 2 (Optional) --</option>
                   {teachersList
-                    .filter((t: any) => !newClassTeacherId || (t.user_id || t.id) !== newClassTeacherId)
+                    .filter((t: any) => {
+                      const designation = (t.designation || 'Teacher').toLowerCase()
+                      const isTeachingRole = designation.includes('teacher') || designation.includes('principal') || designation.includes('vice')
+                      return isTeachingRole && (!newClassTeacherId || (t.user_id || t.id) !== newClassTeacherId)
+                    })
                     .map((t: any) => (
                       <option key={t.id || t.user_id} value={t.user_id || t.id}>
                         {t.user?.full_name || t.full_name} ({t.designation || 'Teacher'})
@@ -1162,7 +1336,11 @@ export default function ClassListPage() {
                 >
                   <option value="">-- Select Teacher 1 (Optional) --</option>
                   {teachersList
-                    .filter((t: any) => !editClassTeacherId2 || (t.user_id || t.id) !== editClassTeacherId2)
+                    .filter((t: any) => {
+                      const designation = (t.designation || 'Teacher').toLowerCase()
+                      const isTeachingRole = designation.includes('teacher') || designation.includes('principal') || designation.includes('vice')
+                      return isTeachingRole && (!editClassTeacherId2 || (t.user_id || t.id) !== editClassTeacherId2)
+                    })
                     .map((t: any) => (
                       <option key={t.id || t.user_id} value={t.user_id || t.id}>
                         {t.user?.full_name || t.full_name} ({t.designation || 'Teacher'})
@@ -1182,7 +1360,11 @@ export default function ClassListPage() {
                 >
                   <option value="">-- Select Teacher 2 (Optional) --</option>
                   {teachersList
-                    .filter((t: any) => !editClassTeacherId || (t.user_id || t.id) !== editClassTeacherId)
+                    .filter((t: any) => {
+                      const designation = (t.designation || 'Teacher').toLowerCase()
+                      const isTeachingRole = designation.includes('teacher') || designation.includes('principal') || designation.includes('vice')
+                      return isTeachingRole && (!editClassTeacherId || (t.user_id || t.id) !== editClassTeacherId)
+                    })
                     .map((t: any) => (
                       <option key={t.id || t.user_id} value={t.user_id || t.id}>
                         {t.user?.full_name || t.full_name} ({t.designation || 'Teacher'})
@@ -1350,8 +1532,9 @@ export default function ClassListPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">Gender</label>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Gender <span className="text-rose-500">*</span></label>
                     <select
+                      required
                       value={admitFormData.gender}
                       onChange={e => setAdmitFormData(prev => ({ ...prev, gender: e.target.value }))}
                       className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-[#5e3a9e]/30 outline-none"
@@ -1363,12 +1546,15 @@ export default function ClassListPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">Date of Birth</label>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Date of Birth <span className="text-rose-500">*</span></label>
                     <input
                       type="date"
+                      required
                       value={admitFormData.dob}
                       onChange={e => {
-                        setAdmitFormData(prev => ({ ...prev, dob: e.target.value }))
+                        const dob = e.target.value
+                        const age = calculateAge(dob)
+                        setAdmitFormData(prev => ({ ...prev, dob, age }))
                         if (admitErrors.dob) setAdmitErrors(prev => ({ ...prev, dob: '' }))
                       }}
                       className={`w-full px-3.5 py-2 border rounded-xl text-sm focus:ring-2 outline-none ${
@@ -1379,13 +1565,13 @@ export default function ClassListPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">Age (Years)</label>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Age (Auto-calculated)</label>
                     <input
-                      type="number"
-                      placeholder="e.g. 6"
-                      value={admitFormData.age}
-                      onChange={e => setAdmitFormData(prev => ({ ...prev, age: e.target.value }))}
-                      className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#5e3a9e]/30 outline-none"
+                      type="text"
+                      readOnly
+                      value={admitFormData.age ? `${admitFormData.age} years` : ''}
+                      placeholder="Auto-calculated from DOB"
+                      className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm bg-gray-100 text-gray-600 cursor-not-allowed"
                     />
                   </div>
 
@@ -1396,6 +1582,7 @@ export default function ClassListPage() {
                       onChange={e => setAdmitFormData(prev => ({ ...prev, bloodGroup: e.target.value }))}
                       className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-[#5e3a9e]/30 outline-none"
                     >
+                      <option value="">Select Blood Group</option>
                       {['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'].map(bg => (
                         <option key={bg} value={bg}>{bg}</option>
                       ))}
@@ -1406,24 +1593,30 @@ export default function ClassListPage() {
                     <label className="block text-xs font-semibold text-gray-700 mb-1">Aadhar Number</label>
                     <input
                       type="text"
+                      pattern="[0-9]{12}"
+                      maxLength={12}
                       placeholder="12-digit Aadhar number"
                       value={admitFormData.aadharNumber}
-                      onChange={e => setAdmitFormData(prev => ({ ...prev, aadharNumber: e.target.value }))}
-                      className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#5e3a9e]/30 outline-none"
+                      onChange={e => {
+                        const value = e.target.value.replace(/\D/g, '')
+                        setAdmitFormData(prev => ({ ...prev, aadharNumber: value }))
+                        if (admitErrors.aadharNumber) setAdmitErrors(prev => ({ ...prev, aadharNumber: '' }))
+                      }}
+                      className={`w-full px-3.5 py-2 border rounded-xl text-sm focus:ring-2 outline-none ${
+                        admitErrors.aadharNumber ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-[#5e3a9e]/30'
+                      }`}
                     />
+                    {admitErrors.aadharNumber && <p className="text-xs text-red-600 mt-1">❌ {admitErrors.aadharNumber}</p>}
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">
-                      Total Annual Fees (₹)
-                    </label>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Admission Date <span className="text-rose-500">*</span></label>
                     <input
-                      type="number"
-                      min="0"
-                      placeholder="e.g. 25000"
-                      value={admitFormData.totalFees}
-                      onChange={e => setAdmitFormData(prev => ({ ...prev, totalFees: e.target.value }))}
-                      className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#5e3a9e]/30 outline-none font-bold text-[#5e3a9e]"
+                      type="date"
+                      required
+                      value={admitFormData.admissionDate}
+                      onChange={e => setAdmitFormData(prev => ({ ...prev, admissionDate: e.target.value }))}
+                      className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#5e3a9e]/30 outline-none"
                     />
                   </div>
                 </div>
@@ -1437,32 +1630,45 @@ export default function ClassListPage() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 mb-1">
-                      Parent / Father Name <span className="text-rose-500">*</span>
+                      Father Name <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="text"
                       required
                       placeholder="Father's full name"
                       value={admitFormData.parentName}
-                      onChange={e => setAdmitFormData(prev => ({ ...prev, parentName: e.target.value }))}
-                      className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#5e3a9e]/30 outline-none"
+                      onChange={e => {
+                        setAdmitFormData(prev => ({ ...prev, parentName: e.target.value }))
+                        if (admitErrors.parentName) setAdmitErrors(prev => ({ ...prev, parentName: '' }))
+                      }}
+                      className={`w-full px-3.5 py-2 border rounded-xl text-sm focus:ring-2 outline-none ${
+                        admitErrors.parentName ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-[#5e3a9e]/30'
+                      }`}
                     />
+                    {admitErrors.parentName && <p className="text-xs text-red-600 mt-1">❌ {admitErrors.parentName}</p>}
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">Mother Name</label>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Mother Name <span className="text-rose-500">*</span></label>
                     <input
                       type="text"
+                      required
                       placeholder="Mother's full name"
                       value={admitFormData.motherName}
-                      onChange={e => setAdmitFormData(prev => ({ ...prev, motherName: e.target.value }))}
-                      className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#5e3a9e]/30 outline-none"
+                      onChange={e => {
+                        setAdmitFormData(prev => ({ ...prev, motherName: e.target.value }))
+                        if (admitErrors.motherName) setAdmitErrors(prev => ({ ...prev, motherName: '' }))
+                      }}
+                      className={`w-full px-3.5 py-2 border rounded-xl text-sm focus:ring-2 outline-none ${
+                        admitErrors.motherName ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-[#5e3a9e]/30'
+                      }`}
                     />
+                    {admitErrors.motherName && <p className="text-xs text-red-600 mt-1">❌ {admitErrors.motherName}</p>}
                   </div>
 
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 mb-1">
-                      Primary Mobile <span className="text-rose-500">*</span>
+                      Mobile Number <span className="text-rose-500">*</span> (Login ID)
                     </label>
                     <input
                       type="tel"
@@ -1480,6 +1686,7 @@ export default function ClassListPage() {
                       }`}
                     />
                     {admitErrors.mobile && <p className="text-xs text-red-600 mt-1">❌ {admitErrors.mobile}</p>}
+                    <p className="text-xs text-gray-500 mt-1">Used as login ID for parent portal</p>
                   </div>
 
                   <div>
@@ -1517,16 +1724,6 @@ export default function ClassListPage() {
                     />
                     {admitErrors.emergencyContact && <p className="text-xs text-red-600 mt-1">❌ {admitErrors.emergencyContact}</p>}
                   </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">Admission Date</label>
-                    <input
-                      type="date"
-                      value={admitFormData.admissionDate}
-                      onChange={e => setAdmitFormData(prev => ({ ...prev, admissionDate: e.target.value }))}
-                      className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#5e3a9e]/30 outline-none"
-                    />
-                  </div>
                 </div>
               </div>
 
@@ -1537,49 +1734,87 @@ export default function ClassListPage() {
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="md:col-span-3">
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">Street Address</label>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Address <span className="text-rose-500">*</span></label>
                     <input
                       type="text"
+                      required
                       placeholder="House No, Colony, Landmark"
                       value={admitFormData.address}
-                      onChange={e => setAdmitFormData(prev => ({ ...prev, address: e.target.value }))}
-                      className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#5e3a9e]/30 outline-none"
+                      onChange={e => {
+                        setAdmitFormData(prev => ({ ...prev, address: e.target.value }))
+                        if (admitErrors.address) setAdmitErrors(prev => ({ ...prev, address: '' }))
+                      }}
+                      className={`w-full px-3.5 py-2 border rounded-xl text-sm focus:ring-2 outline-none ${
+                        admitErrors.address ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-[#5e3a9e]/30'
+                      }`}
                     />
+                    {admitErrors.address && <p className="text-xs text-red-600 mt-1">❌ {admitErrors.address}</p>}
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">City</label>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">City <span className="text-rose-500">*</span></label>
                     <input
                       type="text"
+                      required
                       placeholder="City"
                       value={admitFormData.city}
-                      onChange={e => setAdmitFormData(prev => ({ ...prev, city: e.target.value }))}
-                      className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#5e3a9e]/30 outline-none"
+                      onChange={e => {
+                        setAdmitFormData(prev => ({ ...prev, city: e.target.value }))
+                        if (admitErrors.city) setAdmitErrors(prev => ({ ...prev, city: '' }))
+                      }}
+                      className={`w-full px-3.5 py-2 border rounded-xl text-sm focus:ring-2 outline-none ${
+                        admitErrors.city ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-[#5e3a9e]/30'
+                      }`}
                     />
+                    {admitErrors.city && <p className="text-xs text-red-600 mt-1">❌ {admitErrors.city}</p>}
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">State</label>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">State <span className="text-rose-500">*</span></label>
                     <input
                       type="text"
+                      required
                       placeholder="State"
                       value={admitFormData.state}
-                      onChange={e => setAdmitFormData(prev => ({ ...prev, state: e.target.value }))}
-                      className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#5e3a9e]/30 outline-none"
+                      onChange={e => {
+                        setAdmitFormData(prev => ({ ...prev, state: e.target.value }))
+                        if (admitErrors.state) setAdmitErrors(prev => ({ ...prev, state: '' }))
+                      }}
+                      className={`w-full px-3.5 py-2 border rounded-xl text-sm focus:ring-2 outline-none ${
+                        admitErrors.state ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-[#5e3a9e]/30'
+                      }`}
                     />
+                    {admitErrors.state && <p className="text-xs text-red-600 mt-1">❌ {admitErrors.state}</p>}
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">Pincode</label>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Pincode <span className="text-rose-500">*</span></label>
                     <input
                       type="text"
+                      required
+                      pattern="[0-9]{6}"
+                      maxLength={6}
                       placeholder="6-digit pincode"
                       value={admitFormData.pincode}
-                      onChange={e => setAdmitFormData(prev => ({ ...prev, pincode: e.target.value }))}
-                      className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#5e3a9e]/30 outline-none"
+                      onChange={e => {
+                        const value = e.target.value.replace(/\D/g, '')
+                        setAdmitFormData(prev => ({ ...prev, pincode: value }))
+                        if (admitErrors.pincode) setAdmitErrors(prev => ({ ...prev, pincode: '' }))
+                      }}
+                      className={`w-full px-3.5 py-2 border rounded-xl text-sm focus:ring-2 outline-none ${
+                        admitErrors.pincode ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-[#5e3a9e]/30'
+                      }`}
                     />
+                    {admitErrors.pincode && <p className="text-xs text-red-600 mt-1">❌ {admitErrors.pincode}</p>}
                   </div>
                 </div>
+              </div>
+
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                <p className="text-sm text-blue-800">
+                  <span className="font-semibold">📌 Note:</span> Default password will be <span className="font-mono font-bold">default123</span>. 
+                  The mobile number will be used as the login ID for parent portal.
+                </p>
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-4 border-t">
@@ -1694,7 +1929,7 @@ export default function ClassListPage() {
                               <span>📱</span>
                               {selectedStudent.mobile || selectedStudent.user?.mobile || 'N/A'}
                             </div>
-                            {(userRole === 5 || userRole === 6) && selectedStudent.user?.password_hash && (
+                            {(userRole === 5 || userRole === 6 || userRole === 8) && selectedStudent.user?.password_hash && (
                               <div className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 rounded-full text-xs font-semibold text-purple-700">
                                 <span>🔑</span>
                                 Password: {selectedStudent.user.password_hash}
@@ -2210,6 +2445,42 @@ export default function ClassListPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Class Confirmation Modal */}
+      {showDeleteClassModal && classToDelete && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-100 max-w-md w-full p-6">
+            <h3 className="text-xl font-bold text-gray-900 mb-4">🗑️ Confirm Delete Class</h3>
+            <p className="text-gray-600 mb-2">
+              Are you sure you want to delete <strong>Class {classToDelete.name}</strong>?
+            </p>
+            <p className="text-sm text-amber-600 mb-6 bg-amber-50 border border-amber-200 rounded-lg p-3">
+              ⚠️ <strong>Warning:</strong> This will unassign all {classToDelete.studentCount} students and {classToDelete.teachers.length} teachers from this class. 
+              This action cannot be undone.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowDeleteClassModal(false)
+                  setClassToDelete(null)
+                }}
+                className="flex-1 px-4 py-2.5 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 font-medium transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteClass}
+                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl hover:bg-red-700 font-bold transition flex items-center justify-center gap-2"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Delete Class
+              </button>
+            </div>
           </div>
         </div>
       )}

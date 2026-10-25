@@ -82,7 +82,7 @@ export default function BehaviourManagementPage() {
     if (id) setUserId(id);
     
     // Fetch all classes if role is teacher, principal, or super admin
-    if (role && (parseInt(role, 10) === 7 || parseInt(role, 10) === 6 || parseInt(role, 10) === 5)) {
+    if (role && (parseInt(role, 10) === 7 || parseInt(role, 10) === 6 || parseInt(role, 10) === 8 || parseInt(role, 10) === 5)) {
       fetchAllClasses(parseInt(role, 10));
     }
 
@@ -114,7 +114,7 @@ export default function BehaviourManagementPage() {
         }
         
         // Set for Principal/Super Admin filter
-        if (role === 6 || role === 5) {
+        if (role === 6 || role === 8 || role === 5) {
           console.log('✅ Setting principalClassesList for role', role, 'with', allClasses.length, 'classes');
           setPrincipalClassesList(allClasses)
         }
@@ -133,8 +133,8 @@ export default function BehaviourManagementPage() {
       
       console.log('👨‍🎓 Fetching student behaviour for ID:', studentRecordId);
       fetchStudentRecords(studentRecordId);
-    } else if ((userRole === 7 || userRole === 6 || userRole === 5) && userId) {
-      // Teachers, principals, and super admins can access classes
+    } else if ((userRole === 7 || userRole === 6 || userRole === 8 || userRole === 5) && userId) {
+      // Teachers, principals, vice principals, and super admins can access classes
       fetchStudents();
       fetchAllRecords();
     }
@@ -185,7 +185,7 @@ export default function BehaviourManagementPage() {
         }
         
         // Filter students by selected class for Principal/Super Admin
-        if ((userRole === 6 || userRole === 5) && principalClassFilter) {
+        if ((userRole === 6 || userRole === 8 || userRole === 5) && principalClassFilter) {
           studentsList = studentsList.filter((s: any) => {
             return s.class === principalClassFilter.class && s.section === principalClassFilter.section;
           });
@@ -231,13 +231,13 @@ export default function BehaviourManagementPage() {
         }
         
         // Filter records by selected class for Principal/Super Admin
-        if ((userRole === 6 || userRole === 5) && principalClassFilter) {
+        if ((userRole === 6 || userRole === 8 || userRole === 5) && principalClassFilter) {
           records = records.filter((r: any) => {
             return r.studentClass === principalClassFilter.class && r.studentSection === principalClassFilter.section;
           });
           console.log(`👔 Admin filtered records for ${principalClassFilter.class} ${principalClassFilter.section}: ${records.length}`);
-        } else if (userRole === 6 || userRole === 5) {
-          console.log(`👔 Admin viewing all ${records.length} records`);
+        } else if (userRole === 6 || userRole === 8 || userRole === 5) {
+          console.log(`👔 Admin/Principal viewing all ${records.length} records`);
         }
         
         setAllRecords(records);
@@ -545,7 +545,7 @@ export default function BehaviourManagementPage() {
   }
 
   // Render Teacher (Role 7) or Principal (Role 6) View
-  const isPrincipal = userRole === 6;
+  const isPrincipal = userRole === 6 || userRole === 8;
   const totalRecords = filteredRecords.length;
   
   // Calculate rating counts for filtered records
@@ -602,7 +602,7 @@ export default function BehaviourManagementPage() {
           )}
           
           {/* Principal/Super Admin Class Filter Dropdown */}
-          {(userRole === 5 || userRole === 6) && (
+          {(userRole === 5 || userRole === 6 || userRole === 8) && (
             <>
               {principalClassesList.length > 0 ? (
                 <select

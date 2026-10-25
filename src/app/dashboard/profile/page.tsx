@@ -129,7 +129,7 @@ export default function ProfilePage() {
   }
 
   const isStudent = userRole === 19
-  const isStaff = userRole === 6 || userRole === 7 || userRole === 8
+  const isStaff = userRole === 6 || userRole === 8 || userRole === 7
   const getRoleName = (role: number) => {
     switch(role) {
       case 6: return 'Principal/Vice-Principal'
@@ -360,7 +360,7 @@ export default function ProfilePage() {
               <div><p className="text-xs text-neutral-500">Designation</p><p className="font-medium">{staffData.designation || 'N/A'}</p></div>
               <div><p className="text-xs text-neutral-500">Department</p><p className="font-medium">{staffData.department || 'N/A'}</p></div>
               <div><p className="text-xs text-neutral-500">Joining Date</p><p className="font-medium">{staffData.joiningDate ? new Date(staffData.joiningDate).toLocaleDateString('en-IN') : 'N/A'}</p></div>
-              {userRole === 6 && staffData.salary && (
+              {(userRole === 6 || userRole === 8) && staffData.salary && (
                 <div><p className="text-xs text-neutral-500">Salary</p><p className="font-medium">₹{Number(staffData.salary).toLocaleString('en-IN')}</p></div>
               )}
             </CardContent>
