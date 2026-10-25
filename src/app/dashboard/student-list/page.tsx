@@ -17,7 +17,24 @@ export default function StudentListPage() {
   const [selectedClass, setSelectedClass] = useState('All')
   const [selectedSection, setSelectedSection] = useState('All')
   const [selectedAcademicYear, setSelectedAcademicYear] = useState('All')
-  const [academicYears, setAcademicYears] = useState<string[]>(['All', '2024-2025'])
+  const [academicYears, setAcademicYears] = useState<string[]>([])
+
+  // Generate academic years dynamically
+  useEffect(() => {
+    const currentYear = new Date().getFullYear()
+    const years = ['All']
+    // Generate years from 2024 to current year + 2
+    for (let year = 2024; year <= currentYear + 2; year++) {
+      const startYear = year
+      const endYear = year + 1
+      const yearStr = `${startYear}-${String(endYear).slice(-2)}`
+      years.push(yearStr)
+    }
+    setAcademicYears(years)
+    // Set default to current or next academic year
+    const defaultYear = currentYear >= 6 ? `${currentYear}-${String(currentYear + 1).slice(-2)}` : `${currentYear - 1}-${String(currentYear).slice(-2)}`
+    setSelectedAcademicYear(defaultYear)
+  }, [])
   const [showModal, setShowModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [selectedStudent, setSelectedStudent] = useState<any>(null)
@@ -815,9 +832,17 @@ export default function StudentListPage() {
                     onChange={(e) => setSelectedAcademicYear(e.target.value)}
                     className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:border-[#5e3a9e] focus:ring-1 focus:ring-[#5e3a9e] font-semibold"
                   >
-                    {academicYears.map((year) => (
-                      <option key={year} value={year}>{year}</option>
-                    ))}
+                    {academicYears.map((year) => {
+                      if (year === 'All') {
+                        return <option key={year} value={year}>{year}</option>
+                      }
+                      const [startYear, endYear] = year.split('-')
+                      return (
+                        <option key={year} value={year}>
+                          {year} (Jun {startYear} - May {endYear})
+                        </option>
+                      )
+                    })}
                   </select>
                 </div>
               )}
