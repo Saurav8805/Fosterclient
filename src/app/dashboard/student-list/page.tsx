@@ -908,6 +908,8 @@ export default function StudentListPage() {
                 </button>
               )}
             </div>
+          </div>
+        </CardHeader>
         <CardContent>
           <div className="overflow-x-auto -mx-4 sm:mx-0">
             <div className="inline-block min-w-full align-middle">
