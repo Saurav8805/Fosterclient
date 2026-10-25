@@ -229,16 +229,26 @@ export default function ClassListPage() {
     try {
       setLoadingClasses(true)
       setError(null)
-      const result = await configApi.getClassStats()
+      const result = await configApi.getClasses()
       
       if (result.success) {
-        setClasses(result.data || [])
+        // Convert array of class names to ClassStats format
+        const classNames = Array.isArray(result.data) ? result.data : []
+        const classStatsList: ClassStats[] = classNames.map(name => ({
+          name: name,
+          studentCount: 0,
+          sections: [],
+          teachers: []
+        }))
+        setClasses(classStatsList)
       } else {
-        setError(result.error || 'Failed to fetch class statistics')
+        setError(result.error || 'Failed to fetch classes')
+        setClasses([])
       }
     } catch (err: any) {
-      console.error('Failed to fetch class stats:', err)
-      setError(err.message || 'Failed to fetch class statistics')
+      console.error('Failed to fetch classes:', err)
+      setError(err.message || 'Failed to fetch classes')
+      setClasses([])
     } finally {
       setLoadingClasses(false)
     }
