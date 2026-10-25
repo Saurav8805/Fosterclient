@@ -917,21 +917,6 @@ export default function StudentListPage() {
                 </button>
               )}
             </div>
-
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 flex-wrap">
-              {/* Admit button - only show if teacher has assigned class OR if admin */}
-              {(userRole === 6 || userRole === 8 || (userRole === 7 && teacherAssignedClasses.length > 0)) && (
-                <button
-                  onClick={() => {
-                    setAdmitMessage(null)
-                    setShowAdmitModal(true)
-                  }}
-                  className="bg-blue-50 text-blue-700 border-2 border-blue-400 font-medium px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm hover:bg-blue-100 transition flex items-center justify-center gap-1.5 touch-manipulation whitespace-nowrap"
-                >
-                  <span>+ Admit New Student</span>
-                </button>
-              )}
-            </div>
           </div>
         </CardHeader>
         <CardContent>
