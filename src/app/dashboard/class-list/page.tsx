@@ -1225,7 +1225,11 @@ export default function ClassListPage() {
                 >
                   <option value="">-- Select Teacher 1 (Optional) --</option>
                   {teachersList
-                    .filter((t: any) => !newClassTeacherId2 || (t.user_id || t.id) !== newClassTeacherId2)
+                    .filter((t: any) => {
+                      const designation = (t.designation || 'Teacher').toLowerCase()
+                      const isTeachingRole = designation.includes('teacher') || designation.includes('principal') || designation.includes('vice')
+                      return isTeachingRole && (!newClassTeacherId2 || (t.user_id || t.id) !== newClassTeacherId2)
+                    })
                     .map((t: any) => (
                       <option key={t.id || t.user_id} value={t.user_id || t.id}>
                         {t.user?.full_name || t.full_name} ({t.designation || 'Teacher'})
@@ -1245,7 +1249,11 @@ export default function ClassListPage() {
                 >
                   <option value="">-- Select Teacher 2 (Optional) --</option>
                   {teachersList
-                    .filter((t: any) => !newClassTeacherId || (t.user_id || t.id) !== newClassTeacherId)
+                    .filter((t: any) => {
+                      const designation = (t.designation || 'Teacher').toLowerCase()
+                      const isTeachingRole = designation.includes('teacher') || designation.includes('principal') || designation.includes('vice')
+                      return isTeachingRole && (!newClassTeacherId || (t.user_id || t.id) !== newClassTeacherId)
+                    })
                     .map((t: any) => (
                       <option key={t.id || t.user_id} value={t.user_id || t.id}>
                         {t.user?.full_name || t.full_name} ({t.designation || 'Teacher'})
@@ -1328,7 +1336,11 @@ export default function ClassListPage() {
                 >
                   <option value="">-- Select Teacher 1 (Optional) --</option>
                   {teachersList
-                    .filter((t: any) => !editClassTeacherId2 || (t.user_id || t.id) !== editClassTeacherId2)
+                    .filter((t: any) => {
+                      const designation = (t.designation || 'Teacher').toLowerCase()
+                      const isTeachingRole = designation.includes('teacher') || designation.includes('principal') || designation.includes('vice')
+                      return isTeachingRole && (!editClassTeacherId2 || (t.user_id || t.id) !== editClassTeacherId2)
+                    })
                     .map((t: any) => (
                       <option key={t.id || t.user_id} value={t.user_id || t.id}>
                         {t.user?.full_name || t.full_name} ({t.designation || 'Teacher'})
@@ -1348,7 +1360,11 @@ export default function ClassListPage() {
                 >
                   <option value="">-- Select Teacher 2 (Optional) --</option>
                   {teachersList
-                    .filter((t: any) => !editClassTeacherId || (t.user_id || t.id) !== editClassTeacherId)
+                    .filter((t: any) => {
+                      const designation = (t.designation || 'Teacher').toLowerCase()
+                      const isTeachingRole = designation.includes('teacher') || designation.includes('principal') || designation.includes('vice')
+                      return isTeachingRole && (!editClassTeacherId || (t.user_id || t.id) !== editClassTeacherId)
+                    })
                     .map((t: any) => (
                       <option key={t.id || t.user_id} value={t.user_id || t.id}>
                         {t.user?.full_name || t.full_name} ({t.designation || 'Teacher'})
