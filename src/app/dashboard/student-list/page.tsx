@@ -116,8 +116,8 @@ export default function StudentListPage() {
     const roleNum = Number(role)
     setUserRole(roleNum)
     
-    // Admin (role 5), Principal (role 6), Teacher (role 7), and Superadmin (role 8) can access
-    if (![5, 6, 7, 8].includes(roleNum)) {
+    // Admin (5), Principal (6), Teacher (7) can access
+    if (![5, 6, 7].includes(roleNum)) {
       router.push('/dashboard')
       return
     }
@@ -797,7 +797,7 @@ export default function StudentListPage() {
               </div>
               
               {/* Admit button - moved to top right */}
-              {(userRole === 5 || userRole === 6 || userRole === 8 || (userRole === 7 && teacherAssignedClasses.length > 0)) && (
+              {(userRole === 5 || userRole === 6) && (
                 <button
                   onClick={() => {
                     setAdmitMessage(null)
@@ -997,7 +997,7 @@ export default function StudentListPage() {
                           >
                             Edit
                           </button>
-                          {(userRole === 5 || userRole === 6 || userRole === 8) && (
+                          {(userRole === 5 || userRole === 6) && (
                             <button 
                               onClick={() => handleDelete(student)}
                               className="text-red-600 hover:text-red-800 font-medium px-2 py-1 rounded hover:bg-red-50 transition-colors touch-manipulation"

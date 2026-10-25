@@ -66,7 +66,15 @@ export default function StaffListPage() {
       router.push('/login')
       return
     }
-    setUserRole(Number(role))
+    const roleNum = Number(role)
+    setUserRole(roleNum)
+    
+    // Only Admin (5), Principal (6), and Teachers (7) can access staff list
+    // Staff (8) and Students (19) cannot access
+    if (![5, 6, 7].includes(roleNum)) {
+      router.push('/dashboard')
+      return
+    }
     
     fetchStaff()
     fetchAssignedClasses()
@@ -204,9 +212,11 @@ export default function StaffListPage() {
     setAddLoading(true)
 
     try {
-      let role = 7
+      let role = 8  // Default: Support Staff (role 8)
       if (['Principal', 'Vice-Principal', 'Admin'].includes(addFormData.designation)) {
-        role = 6
+        role = 6  // Principal/Vice-Principal get role 6
+      } else if (addFormData.designation === 'Teacher') {
+        role = 7  // Teachers get role 7
       }
 
       const res = await staffApi.add({
@@ -444,15 +454,17 @@ export default function StaffListPage() {
             <h1 className="text-3xl font-bold text-gray-900">Staff Management</h1>
             <p className="text-sm text-gray-600 mt-1">Manage staff members and assign classes</p>
           </div>
-          <button
-            onClick={handleOpenAddModal}
-            className="px-5 py-2.5 bg-blue-600 text-white font-medium text-sm rounded-lg hover:bg-blue-700 transition flex items-center gap-2 shadow-sm cursor-pointer"
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Add Staff Member
-          </button>
+          {(userRole === 5 || userRole === 6) && (
+            <button
+              onClick={handleOpenAddModal}
+              className="px-5 py-2.5 bg-blue-600 text-white font-medium text-sm rounded-lg hover:bg-blue-700 transition flex items-center gap-2 shadow-sm cursor-pointer"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Add Staff Member
+            </button>
+          )}
         </div>
       </div>
 
