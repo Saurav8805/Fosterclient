@@ -738,9 +738,45 @@ export default function StudentListPage() {
     return classMatch && sectionMatch && academicYearMatch
   })
 
+  // Calculate admission statistics
+  const admissionStats = {
+    totalStudents: filtered.length,
+    recentAdmissions: filtered.filter(s => {
+      if (!s.admission_date) return false
+      const admissionDate = new Date(s.admission_date)
+      const thirtyDaysAgo = new Date()
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+      return admissionDate >= thirtyDaysAgo
+    }).length,
+    thisYearAdmissions: filtered.filter(s => {
+      if (!s.admission_date) return false
+      const admissionDate = new Date(s.admission_date)
+      return admissionDate.getFullYear() === new Date().getFullYear()
+    }).length,
+    averageAge: filtered.length > 0 ? Math.round(filtered.reduce((sum, s) => sum + (Number(s.age) || 0), 0) / filtered.length) : 0
+  }
+
   return (
     <div className="p-3 sm:p-4 md:p-6 max-w-7xl mx-auto">
       <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-4 sm:mb-6">Student List</h1>
+
+      {/* Summary Cards */}
+      {userRole !== 7 && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
+          {[
+            { label: 'Total Students', value: admissionStats.totalStudents, color: 'bg-blue-50 text-blue-700', icon: '👨‍🎓' },
+            { label: 'Recent (30 days)', value: admissionStats.recentAdmissions, color: 'bg-green-50 text-green-700', icon: '📝' },
+            { label: 'This Year', value: admissionStats.thisYearAdmissions, color: 'bg-purple-50 text-purple-700', icon: '📅' },
+            { label: 'Avg Age', value: `${admissionStats.averageAge} yrs`, color: 'bg-amber-50 text-amber-700', icon: '🎂' },
+          ].map((c, i) => (
+            <div key={i} className={`${c.color} rounded-xl p-3 sm:p-4 border border-opacity-20`}>
+              <div className="text-xl sm:text-2xl mb-1">{c.icon}</div>
+              <div className="text-base sm:text-lg md:text-xl font-bold">{c.value}</div>
+              <div className="text-[10px] sm:text-xs font-medium mt-1 opacity-70">{c.label}</div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {message && (
         <div className={`mb-3 sm:mb-4 p-3 sm:p-4 rounded-lg border text-xs sm:text-sm ${
