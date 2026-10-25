@@ -75,19 +75,14 @@ export default function StaffListPage() {
 
   const fetchClassList = async () => {
     try {
-      console.log('🔄 [v2.0] Fetching class list from database...')
       const { configApi } = await import('@/lib/api')
       const res = await configApi.getClasses() as { success: boolean; data?: string[] }
-      console.log('📊 [v2.0] Class list response:', res)
       if (res.success && res.data) {
-        console.log('✅ [v2.0] Setting class list:', res.data)
         setClassList(res.data)
       } else {
-        console.warn('⚠️ [v2.0] No class data received')
         setClassList([])
       }
     } catch (e) {
-      console.error('❌ [v2.0] Failed to fetch class list:', e)
       setClassList([])
     }
   }
@@ -998,7 +993,6 @@ export default function StaffListPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Assign Class (For Teachers) 
                     {classList.length > 0 && <span className="text-blue-600"> ({classList.length} classes available)</span>}
-                    <span className="text-xs text-gray-500 ml-2">[v2.0 - Database]</span>
                   </label>
                   <select
                     value={addFormData.assignedClass}
