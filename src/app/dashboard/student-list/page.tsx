@@ -804,15 +804,32 @@ export default function StudentListPage() {
               )}
             </div>
             
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 flex-wrap">
+            {/* Filters Container - styled like Fees page */}
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3 sm:p-4 mb-3 sm:mb-4 flex flex-wrap gap-2 sm:gap-3 items-end">
+              {/* Academic Year filter - only for admin/principal */}
+              {userRole !== 7 && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Academic Year</label>
+                  <select
+                    value={selectedAcademicYear}
+                    onChange={(e) => setSelectedAcademicYear(e.target.value)}
+                    className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:border-[#5e3a9e] focus:ring-1 focus:ring-[#5e3a9e] font-semibold"
+                  >
+                    {academicYears.map((year) => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               {/* Class filter - only for admin/principal */}
               {userRole !== 7 && (
-                <div className="flex items-center gap-2">
-                  <label className="text-xs sm:text-sm font-medium text-gray-700 whitespace-nowrap">Class:</label>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Class</label>
                   <select
                     value={selectedClass}
                     onChange={(e) => setSelectedClass(e.target.value)}
-                    className="flex-1 sm:flex-none px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg text-xs sm:text-sm touch-manipulation"
+                    className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:border-[#5e3a9e] focus:ring-1 focus:ring-[#5e3a9e]"
                   >
                     {classes.map((c) => (
                       <option key={c} value={c}>{c}</option>
@@ -823,12 +840,12 @@ export default function StudentListPage() {
 
               {/* Section filter - only for admin/principal */}
               {userRole !== 7 && (
-                <div className="flex items-center gap-2">
-                  <label className="text-xs sm:text-sm font-medium text-gray-700 whitespace-nowrap">Section:</label>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Section</label>
                   <select
                     value={selectedSection}
                     onChange={(e) => setSelectedSection(e.target.value)}
-                    className="flex-1 sm:flex-none px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg text-xs sm:text-sm touch-manipulation"
+                    className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:border-[#5e3a9e] focus:ring-1 focus:ring-[#5e3a9e]"
                   >
                     {sections.map((s) => (
                       <option key={s} value={s}>{s}</option>
@@ -837,22 +854,22 @@ export default function StudentListPage() {
                 </div>
               )}
 
-              {/* Academic Year filter - only for admin/principal */}
+              {/* Reset button */}
               {userRole !== 7 && (
-                <div className="flex items-center gap-2">
-                  <label className="text-xs sm:text-sm font-medium text-gray-700 whitespace-nowrap">Academic Year:</label>
-                  <select
-                    value={selectedAcademicYear}
-                    onChange={(e) => setSelectedAcademicYear(e.target.value)}
-                    className="flex-1 sm:flex-none px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg text-xs sm:text-sm touch-manipulation"
-                  >
-                    {academicYears.map((year) => (
-                      <option key={year} value={year}>{year}</option>
-                    ))}
-                  </select>
-                </div>
+                <button 
+                  onClick={() => { 
+                    setSelectedClass('All')
+                    setSelectedSection('All')
+                    setSelectedAcademicYear('All')
+                  }} 
+                  className="px-3 py-2 text-sm text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
+                >
+                  Reset
+                </button>
               )}
+            </div>
 
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 flex-wrap">
               {/* Admit button - only show if teacher has assigned class OR if admin */}
               {(userRole === 6 || userRole === 8 || (userRole === 7 && teacherAssignedClasses.length > 0)) && (
                 <button
@@ -866,8 +883,6 @@ export default function StudentListPage() {
                 </button>
               )}
             </div>
-          </div>
-        </CardHeader>
         <CardContent>
           <div className="overflow-x-auto -mx-4 sm:mx-0">
             <div className="inline-block min-w-full align-middle">
