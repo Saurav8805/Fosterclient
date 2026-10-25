@@ -122,17 +122,22 @@ export default function SyllabusPage() {
   const fetchClassesAndSyllabus = async () => {
     setLoading(true);
     try {
-      const [statsRes, syllabusRes] = await Promise.all([
-        configApi.getClassStats(),
-        syllabusApi.list()
-      ]);
+      // Get ONLY valid classes from database (NOT from syllabus)
+      const classesRes = await configApi.getClasses();
+      const validClasses: string[] = (classesRes.success && Array.isArray(classesRes.data))
+        ? classesRes.data.map((c: any) => String(c).trim())
+        : [];
 
+      const syllabusRes = await syllabusApi.list();
       const syllabusData: SyllabusRecord[] = (syllabusRes.success && Array.isArray(syllabusRes.data))
         ? syllabusRes.data : [];
 
+      // Filter syllabus to ONLY show valid classes
+      const filteredSyllabus = syllabusData.filter(s => validClasses.includes(String(s.class || '').trim()));
+
       // Build normalized syllabus map — keyed by lowercase class name
       const map: { [key: string]: SyllabusRecord[] } = {};
-      syllabusData.forEach((s: SyllabusRecord) => {
+      filteredSyllabus.forEach((s: SyllabusRecord) => {
         if (s.class) {
           const key = String(s.class).trim().toLowerCase();
           if (!map[key]) map[key] = [];
@@ -141,29 +146,8 @@ export default function SyllabusPage() {
       });
       setClassSyllabusMap(map);
 
-      // Build classList: from class-stats + from syllabus (so classes with syllabus always show)
-      const statsNames: string[] = (statsRes.success && Array.isArray(statsRes.data) && statsRes.data.length > 0)
-        ? statsRes.data.map((c: any) => String(c.name).trim())
-        : [];
-
-      const syllabusClassNames: string[] = syllabusData
-        .map((s: SyllabusRecord) => String(s.class).trim())
-        .filter(Boolean);
-
-      // Merge unique class names preserving original casing
-      const merged = Array.from(new Set([...statsNames, ...syllabusClassNames]));
-
-      // Sort standard order
-      const ORDER = ['Nursery', 'LKG', 'UKG', 'Playgroup', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
-      merged.sort((a, b) => {
-        const ia = ORDER.indexOf(a), ib = ORDER.indexOf(b);
-        if (ia !== -1 && ib !== -1) return ia - ib;
-        if (ia !== -1) return -1;
-        if (ib !== -1) return 1;
-        return a.localeCompare(b);
-      });
-
-      setClassList(merged);
+      // Use ONLY valid classes - no merging with syllabus orphans
+      setClassList(validClasses);
     } catch (err) {
       console.error('Failed to load syllabus data:', err);
     } finally {
