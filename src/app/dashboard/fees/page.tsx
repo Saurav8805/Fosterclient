@@ -356,7 +356,7 @@ export default function FeesPage() {
                       className="p-1.5 hover:opacity-80 transition"
                       title="Share fee status via WhatsApp"
                     >
-                      <img src="/whatsapp.png" alt="WhatsApp" className="w-6 h-6" />
+                      <img src="/whatsapp.png" alt="WhatsApp" className="w-12 h-12" />
                     </button>
                     <span className="px-2.5 py-1 bg-blue-100 text-blue-700 rounded-lg text-xs font-semibold">
                       {myPaymentHistory.length} {myPaymentHistory.length === 1 ? 'Payment' : 'Payments'}
@@ -585,7 +585,7 @@ export default function FeesPage() {
                           className="p-1 hover:opacity-80 transition"
                           title="Send fee status via WhatsApp"
                         >
-                          <img src="/whatsapp.png" alt="WhatsApp" className="w-5 h-5" />
+                          <img src="/whatsapp.png" alt="WhatsApp" className="w-10 h-10" />
                         </button>
                       </div>
                     </td>
