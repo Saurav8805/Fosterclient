@@ -353,10 +353,10 @@ export default function FeesPage() {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => sendStudentWhatsAppNotification(fee, myPaymentHistory)}
-                      className="p-2 bg-[#25D366] text-white rounded-lg hover:bg-[#20BA5A] transition"
+                      className="p-1.5 hover:opacity-80 transition"
                       title="Share fee status via WhatsApp"
                     >
-                      <img src="/whatsapp.png" alt="WhatsApp" className="w-5 h-5" />
+                      <img src="/whatsapp.png" alt="WhatsApp" className="w-6 h-6" />
                     </button>
                     <span className="px-2.5 py-1 bg-blue-100 text-blue-700 rounded-lg text-xs font-semibold">
                       {myPaymentHistory.length} {myPaymentHistory.length === 1 ? 'Payment' : 'Payments'}
@@ -582,10 +582,10 @@ export default function FeesPage() {
                         </button>
                         <button 
                           onClick={() => sendWhatsAppNotification(fee)} 
-                          className="p-1.5 bg-[#25D366] text-white rounded hover:bg-[#20BA5A] transition"
+                          className="p-1 hover:opacity-80 transition"
                           title="Send fee status via WhatsApp"
                         >
-                          <img src="/whatsapp.png" alt="WhatsApp" className="w-4 h-4" />
+                          <img src="/whatsapp.png" alt="WhatsApp" className="w-5 h-5" />
                         </button>
                       </div>
                     </td>
