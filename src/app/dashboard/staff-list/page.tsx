@@ -213,10 +213,14 @@ export default function StaffListPage() {
 
     try {
       let role = 8  // Default: Support Staff (role 8)
-      if (['Principal', 'Vice-Principal', 'Admin'].includes(addFormData.designation)) {
+      if (['Admin', 'Super Admin'].includes(addFormData.designation)) {
+        role = 5  // Admin/Super Admin get role 5
+      } else if (['Principal', 'Vice Principal', 'Vice-Principal'].includes(addFormData.designation)) {
         role = 6  // Principal/Vice-Principal get role 6
       } else if (addFormData.designation === 'Teacher') {
         role = 7  // Teachers get role 7
+      } else if (['Support Staff', 'Office Staff', 'Clerk'].includes(addFormData.designation)) {
+        role = 8  // Support Staff get role 8
       }
 
       const res = await staffApi.add({
