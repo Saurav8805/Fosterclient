@@ -229,155 +229,58 @@ export default function FeesPage() {
   };
 
   const sendWhatsAppNotification = async (fee: any) => {
-    // Fetch payment history for the student
-    const historyRes = await feesApi.getHistory(fee.studentId);
-    const history = historyRes.success ? historyRes.data || [] : [];
-
-    // Calculate payment summary
-    const totalPaid = Number(fee.paidAmount || 0);
-    const totalPending = Number(fee.pendingAmount || 0);
-    const totalFees = Number(fee.totalFees || 0);
-    const paymentCount = history.length;
-    const lastPayment = history.length > 0 ? history[0] : null;
-
-    // Format due date
-    const dueDate = fee.dueDate ? new Date(fee.dueDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }) : 'Not Set';
-    const isDueOverdue = fee.dueDate && new Date(fee.dueDate) < new Date() && fee.status !== 'Paid';
-
-    // Build comprehensive WhatsApp message
-    let message = `*FosterKids - Fee Status Report*\n`;
-    message += `_Chhatrapati Sambhajinagar_\n\n`;
-    message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-    message += `👤 *Student Details*\n`;
-    message += `Name: ${fee.studentName}\n`;
-    message += `Class: ${fee.class} (${fee.section})\n`;
-    message += `Academic Year: ${filterYear}\n\n`;
-    message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-    message += `💰 *Fee Summary*\n`;
-    message += `Total Annual Fees: ₹${totalFees.toLocaleString()}\n`;
-    message += `Amount Paid: ₹${totalPaid.toLocaleString()} ✅\n`;
-    message += `Amount Pending: ₹${totalPending.toLocaleString()} ${totalPending > 0 ? '⚠️' : ''}\n`;
-    message += `Status: ${fee.status === 'Paid' ? '✅ FULLY PAID' : '⏳ PAYMENT PENDING'}\n\n`;
-
-    if (totalPending > 0) {
-      message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-      message += `📅 *Payment Due Date*\n`;
-      message += `${dueDate}${isDueOverdue ? ' ⚠️ *OVERDUE*' : ''}\n\n`;
-      if (isDueOverdue) {
-        message += `⚠️ *URGENT: Payment is overdue!*\n`;
-        message += `Please submit the pending amount of ₹${totalPending.toLocaleString()} at the earliest to avoid late fees.\n\n`;
-      } else {
-        message += `Please ensure payment of ₹${totalPending.toLocaleString()} before the due date.\n\n`;
-      }
-    }
-
-    if (paymentCount > 0) {
-      message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-      message += `📊 *Payment History* (${paymentCount} payment${paymentCount > 1 ? 's' : ''})\n\n`;
+    try {
+      setLoading(true);
+      setError('');
       
-      history.slice(0, 5).forEach((payment: any, idx: number) => {
-        const paymentDate = new Date(payment.payment_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-        message += `${idx + 1}. ₹${Number(payment.amount).toLocaleString()} - ${paymentDate}\n`;
-        message += `   Mode: ${payment.payment_mode} | ${payment.month} ${payment.year}\n`;
-        if (payment.remarks) message += `   Note: ${payment.remarks}\n`;
-        message += `\n`;
-      });
-
-      if (history.length > 5) {
-        message += `_...and ${history.length - 5} more payment${history.length - 5 > 1 ? 's' : ''}_\n\n`;
+      // Call backend API to send WhatsApp notification
+      const res = await feesApi.sendWhatsAppNotification(fee.studentId, filterYear);
+      
+      if (res.success) {
+        setSuccess(`✅ WhatsApp notification sent to ${res.data?.sentTo || fee.mobile}!`);
+        setTimeout(() => setSuccess(''), 5000);
+        
+        // In development mode, if wa.me link is returned, open it
+        if (res.data?.waLink) {
+          window.open(res.data.waLink, '_blank');
+        }
+      } else {
+        setError(res.error || 'Failed to send WhatsApp notification');
       }
-
-      if (lastPayment) {
-        message += `Last Payment: ₹${Number(lastPayment.amount).toLocaleString()} on ${new Date(lastPayment.payment_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}\n\n`;
-      }
+    } catch (err: any) {
+      setError(err.message || 'Error sending WhatsApp notification');
+    } finally {
+      setLoading(false);
     }
-
-    message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-    message += `📞 *Contact Information*\n`;
-    message += `For any queries, please contact:\n`;
-    message += `Phone: +91 9730238574\n`;
-    message += `School Office Hours: 8:00 AM - 4:00 PM\n\n`;
-    message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-    message += `_This is an automated fee notification from FosterKids School Management System._\n`;
-    message += `_Generated on: ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}_`;
-
-    // URL encode the message
-    const encodedMessage = encodeURIComponent(message);
-    
-    // Open WhatsApp with the message
-    const whatsappUrl = `https://wa.me/919730238574?text=${encodedMessage}`;
-    window.open(whatsappUrl, '_blank');
   };
 
-  const sendStudentWhatsAppNotification = (fee: any, history: any[]) => {
-    // Calculate payment summary
-    const totalPaid = Number(fee.paid_amount || 0);
-    const totalPending = Number(fee.pending_amount || 0);
-    const totalFees = Number(fee.total_fees || 0);
-    const paymentCount = history.length;
-    const lastPayment = history.length > 0 ? history[0] : null;
-
-    // Format due date
-    const dueDate = fee.due_date ? new Date(fee.due_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }) : 'Not Set';
-    const isDueOverdue = fee.due_date && new Date(fee.due_date) < new Date() && fee.status !== 'Paid';
-
-    // Build comprehensive WhatsApp message
-    let message = `*FosterKids - My Fee Status*\n`;
-    message += `_Chhatrapati Sambhajinagar_\n\n`;
-    message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-    message += `💰 *Fee Summary*\n`;
-    message += `Academic Year: ${new Date().getFullYear()}-${new Date().getFullYear() + 1}\n`;
-    message += `Total Annual Fees: ₹${totalFees.toLocaleString()}\n`;
-    message += `Amount Paid: ₹${totalPaid.toLocaleString()} ✅\n`;
-    message += `Amount Pending: ₹${totalPending.toLocaleString()} ${totalPending > 0 ? '⚠️' : ''}\n`;
-    message += `Status: ${fee.status === 'Paid' ? '✅ FULLY PAID' : '⏳ PAYMENT PENDING'}\n\n`;
-
-    if (totalPending > 0) {
-      message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-      message += `📅 *Payment Due Date*\n`;
-      message += `${dueDate}${isDueOverdue ? ' ⚠️ *OVERDUE*' : ''}\n\n`;
-      if (isDueOverdue) {
-        message += `⚠️ *URGENT: Payment is overdue!*\n`;
-        message += `Please submit the pending amount of ₹${totalPending.toLocaleString()} at the earliest.\n\n`;
-      } else {
-        message += `Please ensure payment of ₹${totalPending.toLocaleString()} before the due date.\n\n`;
-      }
-    }
-
-    if (paymentCount > 0) {
-      message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-      message += `📊 *Payment History* (${paymentCount} payment${paymentCount > 1 ? 's' : ''})\n\n`;
+  const sendStudentWhatsAppNotification = async (fee: any, history: any[]) => {
+    try {
+      setLoading(true);
+      setError('');
       
-      history.slice(0, 5).forEach((payment: any, idx: number) => {
-        const paymentDate = new Date(payment.payment_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-        message += `${idx + 1}. ₹${Number(payment.amount).toLocaleString()} - ${paymentDate}\n`;
-        message += `   Mode: ${payment.payment_mode} | ${payment.month} ${payment.year}\n`;
-        if (payment.remarks) message += `   Note: ${payment.remarks}\n`;
-        message += `\n`;
-      });
-
-      if (history.length > 5) {
-        message += `_...and ${history.length - 5} more payment${history.length - 5 > 1 ? 's' : ''}_\n\n`;
+      const sid = studentId || userId;
+      const academicYear = `${new Date().getFullYear()}-${(new Date().getFullYear() + 1).toString().slice(-2)}`;
+      
+      // Call backend API to send WhatsApp notification
+      const res = await feesApi.sendWhatsAppNotification(sid, academicYear);
+      
+      if (res.success) {
+        setSuccess(`✅ Fee report prepared! Check your WhatsApp.`);
+        setTimeout(() => setSuccess(''), 5000);
+        
+        // In development mode, if wa.me link is returned, open it
+        if (res.data?.waLink) {
+          window.open(res.data.waLink, '_blank');
+        }
+      } else {
+        setError(res.error || 'Failed to send WhatsApp notification');
       }
-
-      const totalPaidFromHistory = history.reduce((sum, p) => sum + Number(p.amount || 0), 0);
-      message += `Total Paid: ₹${totalPaidFromHistory.toLocaleString()}\n\n`;
+    } catch (err: any) {
+      setError(err.message || 'Error sending WhatsApp notification');
+    } finally {
+      setLoading(false);
     }
-
-    message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-    message += `📞 *Contact School*\n`;
-    message += `For queries: +91 9730238574\n`;
-    message += `Office Hours: 8:00 AM - 4:00 PM\n\n`;
-    message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-    message += `_Fee report from FosterKids_\n`;
-    message += `_Generated: ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}_`;
-
-    // URL encode the message
-    const encodedMessage = encodeURIComponent(message);
-    
-    // Open WhatsApp with the message (can be sent to parents or shared)
-    const whatsappUrl = `https://wa.me/?text=${encodedMessage}`;
-    window.open(whatsappUrl, '_blank');
   };
 
   // ─── STUDENT VIEW ────────────────────────────────────────────────────────────
