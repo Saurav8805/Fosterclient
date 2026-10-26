@@ -228,6 +228,61 @@ export default function FeesPage() {
     return 'bg-gray-100 text-gray-500 border border-gray-200';
   };
 
+  const sendWhatsAppNotification = async (fee: any) => {
+    try {
+      setLoading(true);
+      setError('');
+      
+      // Call backend API to send WhatsApp notification
+      const res = await feesApi.sendWhatsAppNotification(fee.studentId, filterYear);
+      
+      if (res.success) {
+        setSuccess(`✅ WhatsApp notification sent to ${res.data?.sentTo || fee.mobile}!`);
+        setTimeout(() => setSuccess(''), 5000);
+        
+        // In development mode, if wa.me link is returned, open it
+        if (res.data?.waLink) {
+          window.open(res.data.waLink, '_blank');
+        }
+      } else {
+        setError(res.error || 'Failed to send WhatsApp notification');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Error sending WhatsApp notification');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const sendStudentWhatsAppNotification = async (fee: any, history: any[]) => {
+    try {
+      setLoading(true);
+      setError('');
+      
+      const sid = studentId || userId;
+      const academicYear = `${new Date().getFullYear()}-${(new Date().getFullYear() + 1).toString().slice(-2)}`;
+      
+      // Call backend API to send WhatsApp notification
+      const res = await feesApi.sendWhatsAppNotification(sid, academicYear);
+      
+      if (res.success) {
+        setSuccess(`✅ Fee report prepared! Check your WhatsApp.`);
+        setTimeout(() => setSuccess(''), 5000);
+        
+        // In development mode, if wa.me link is returned, open it
+        if (res.data?.waLink) {
+          window.open(res.data.waLink, '_blank');
+        }
+      } else {
+        setError(res.error || 'Failed to send WhatsApp notification');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Error sending WhatsApp notification');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // ─── STUDENT VIEW ────────────────────────────────────────────────────────────
   if (userRole === 19) {
     const fee = myFees[0];
@@ -295,9 +350,18 @@ export default function FeesPage() {
               <div className="bg-gray-50 border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4">
                 <div className="flex items-center justify-between">
                   <h2 className="text-base sm:text-lg font-bold text-gray-800">Payment History</h2>
-                  <span className="px-2.5 py-1 bg-blue-100 text-blue-700 rounded-lg text-xs font-semibold">
-                    {myPaymentHistory.length} {myPaymentHistory.length === 1 ? 'Payment' : 'Payments'}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => sendStudentWhatsAppNotification(fee, myPaymentHistory)}
+                      className="p-1.5 hover:opacity-80 transition"
+                      title="Share fee status via WhatsApp"
+                    >
+                      <img src="/whatsapp.png" alt="WhatsApp" className="w-12 h-12" />
+                    </button>
+                    <span className="px-2.5 py-1 bg-blue-100 text-blue-700 rounded-lg text-xs font-semibold">
+                      {myPaymentHistory.length} {myPaymentHistory.length === 1 ? 'Payment' : 'Payments'}
+                    </span>
+                  </div>
                 </div>
               </div>
               
@@ -515,6 +579,13 @@ export default function FeesPage() {
                         <button onClick={() => openEdit(fee)} className="px-2 py-1 bg-[#5e3a9e]/10 text-[#5e3a9e] rounded hover:bg-[#5e3a9e]/20 transition text-[10px] font-bold whitespace-nowrap">Edit</button>
                         <button onClick={() => openHistory(fee)} className="px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition text-[10px] font-bold whitespace-nowrap">
                           History
+                        </button>
+                        <button 
+                          onClick={() => sendWhatsAppNotification(fee)} 
+                          className="p-1 hover:opacity-80 transition"
+                          title="Send fee status via WhatsApp"
+                        >
+                          <img src="/whatsapp.png" alt="WhatsApp" className="w-10 h-10" />
                         </button>
                       </div>
                     </td>

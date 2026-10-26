@@ -203,6 +203,8 @@ export const feesApi = {
     }
     return apiClient.get(url);
   },
+  sendWhatsAppNotification: (studentId: string, academicYear: string) => 
+    apiClient.post('/fees/send-whatsapp-notification', { studentId, academicYear }),
 };
 
 // ─── Progress ─────────────────────────────────────────────────────────────────
