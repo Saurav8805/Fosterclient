@@ -440,12 +440,11 @@ export default function StaffListPage() {
 
   // Filter staff by designation and role-based access
   const filteredStaff = staffMembers.filter(staff => {
-    // If Principal (role 6) is viewing, hide Admin (role 5) and other Principals (role 6)
-    if (userRole === 6) {
-      const staffRole = staff.user?.role;
-      if (staffRole === 5 || staffRole === 6) {
-        return false; // Hide Admin and Principal from Principal's view
-      }
+    const staffRole = staff.user?.role;
+    
+    // Hide Admin (role 5) from both Principal (role 6) AND Admin (role 5) views
+    if ((userRole === 6 || userRole === 5) && staffRole === 5) {
+      return false; // Hide Admin from Principal and Admin views
     }
     
     // Apply designation filter
