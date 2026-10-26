@@ -438,13 +438,22 @@ export default function StaffListPage() {
     }
   }
 
-  // Filter staff by designation
+  // Filter staff by designation and role-based access
   const filteredStaff = staffMembers.filter(staff => {
-    if (filterDesignation !== 'All') {
-      return staff.designation === filterDesignation
+    // If Principal (role 6) is viewing, hide Admin (role 5) and other Principals (role 6)
+    if (userRole === 6) {
+      const staffRole = staff.user?.role;
+      if (staffRole === 5 || staffRole === 6) {
+        return false; // Hide Admin and Principal from Principal's view
+      }
     }
-    return true
-  })
+    
+    // Apply designation filter
+    if (filterDesignation !== 'All') {
+      return staff.designation === filterDesignation;
+    }
+    return true;
+  });
 
   return (
     <div className="min-h-screen bg-white">
