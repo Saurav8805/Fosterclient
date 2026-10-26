@@ -560,7 +560,13 @@ export default function StaffListPage() {
                           <div className="space-y-1">
                             {staff.class_assignments.map((assignment: any, idx: number) => (
                               <div key={idx}>
-                                <div>{assignment.class} - {assignment.section}</div>
+                                <button
+                                  onClick={() => router.push(`/dashboard/student-list?class=${assignment.class}&section=${assignment.section}`)}
+                                  className="text-blue-700 hover:text-blue-900 hover:underline cursor-pointer font-semibold"
+                                  title={`View students in ${assignment.class} - ${assignment.section}`}
+                                >
+                                  {assignment.class} - {assignment.section}
+                                </button>
                                 {(() => {
                                   const coTeachers = assignedClasses.filter(a => 
                                     a.assignedClass === assignment.class && 
@@ -580,7 +586,13 @@ export default function StaffListPage() {
                             ))}
                           </div>
                         ) : (staff.assigned_class || staff.assignedClass) ? (
-                          <div>{staff.assigned_class || staff.assignedClass} - {staff.assigned_section || staff.assignedSection || 'A'}</div>
+                          <button
+                            onClick={() => router.push(`/dashboard/student-list?class=${staff.assigned_class || staff.assignedClass}&section=${staff.assigned_section || staff.assignedSection || 'A'}`)}
+                            className="text-blue-700 hover:text-blue-900 hover:underline cursor-pointer font-semibold"
+                            title={`View students in ${staff.assigned_class || staff.assignedClass} - ${staff.assigned_section || staff.assignedSection || 'A'}`}
+                          >
+                            {staff.assigned_class || staff.assignedClass} - {staff.assigned_section || staff.assignedSection || 'A'}
+                          </button>
                         ) : (staff.designation === 'Teacher' || staff.department === 'Teaching' ? 'Unassigned' : '-')}
                       </td>
                       <td className="px-6 py-4">
