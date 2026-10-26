@@ -228,6 +228,158 @@ export default function FeesPage() {
     return 'bg-gray-100 text-gray-500 border border-gray-200';
   };
 
+  const sendWhatsAppNotification = async (fee: any) => {
+    // Fetch payment history for the student
+    const historyRes = await feesApi.getHistory(fee.studentId);
+    const history = historyRes.success ? historyRes.data || [] : [];
+
+    // Calculate payment summary
+    const totalPaid = Number(fee.paidAmount || 0);
+    const totalPending = Number(fee.pendingAmount || 0);
+    const totalFees = Number(fee.totalFees || 0);
+    const paymentCount = history.length;
+    const lastPayment = history.length > 0 ? history[0] : null;
+
+    // Format due date
+    const dueDate = fee.dueDate ? new Date(fee.dueDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }) : 'Not Set';
+    const isDueOverdue = fee.dueDate && new Date(fee.dueDate) < new Date() && fee.status !== 'Paid';
+
+    // Build comprehensive WhatsApp message
+    let message = `*FosterKids - Fee Status Report*\n`;
+    message += `_Chhatrapati Sambhajinagar_\n\n`;
+    message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+    message += `👤 *Student Details*\n`;
+    message += `Name: ${fee.studentName}\n`;
+    message += `Class: ${fee.class} (${fee.section})\n`;
+    message += `Academic Year: ${filterYear}\n\n`;
+    message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+    message += `💰 *Fee Summary*\n`;
+    message += `Total Annual Fees: ₹${totalFees.toLocaleString()}\n`;
+    message += `Amount Paid: ₹${totalPaid.toLocaleString()} ✅\n`;
+    message += `Amount Pending: ₹${totalPending.toLocaleString()} ${totalPending > 0 ? '⚠️' : ''}\n`;
+    message += `Status: ${fee.status === 'Paid' ? '✅ FULLY PAID' : '⏳ PAYMENT PENDING'}\n\n`;
+
+    if (totalPending > 0) {
+      message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+      message += `📅 *Payment Due Date*\n`;
+      message += `${dueDate}${isDueOverdue ? ' ⚠️ *OVERDUE*' : ''}\n\n`;
+      if (isDueOverdue) {
+        message += `⚠️ *URGENT: Payment is overdue!*\n`;
+        message += `Please submit the pending amount of ₹${totalPending.toLocaleString()} at the earliest to avoid late fees.\n\n`;
+      } else {
+        message += `Please ensure payment of ₹${totalPending.toLocaleString()} before the due date.\n\n`;
+      }
+    }
+
+    if (paymentCount > 0) {
+      message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+      message += `📊 *Payment History* (${paymentCount} payment${paymentCount > 1 ? 's' : ''})\n\n`;
+      
+      history.slice(0, 5).forEach((payment: any, idx: number) => {
+        const paymentDate = new Date(payment.payment_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+        message += `${idx + 1}. ₹${Number(payment.amount).toLocaleString()} - ${paymentDate}\n`;
+        message += `   Mode: ${payment.payment_mode} | ${payment.month} ${payment.year}\n`;
+        if (payment.remarks) message += `   Note: ${payment.remarks}\n`;
+        message += `\n`;
+      });
+
+      if (history.length > 5) {
+        message += `_...and ${history.length - 5} more payment${history.length - 5 > 1 ? 's' : ''}_\n\n`;
+      }
+
+      if (lastPayment) {
+        message += `Last Payment: ₹${Number(lastPayment.amount).toLocaleString()} on ${new Date(lastPayment.payment_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}\n\n`;
+      }
+    }
+
+    message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+    message += `📞 *Contact Information*\n`;
+    message += `For any queries, please contact:\n`;
+    message += `Phone: +91 9730238574\n`;
+    message += `School Office Hours: 8:00 AM - 4:00 PM\n\n`;
+    message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+    message += `_This is an automated fee notification from FosterKids School Management System._\n`;
+    message += `_Generated on: ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}_`;
+
+    // URL encode the message
+    const encodedMessage = encodeURIComponent(message);
+    
+    // Open WhatsApp with the message
+    const whatsappUrl = `https://wa.me/919730238574?text=${encodedMessage}`;
+    window.open(whatsappUrl, '_blank');
+  };
+
+  const sendStudentWhatsAppNotification = (fee: any, history: any[]) => {
+    // Calculate payment summary
+    const totalPaid = Number(fee.paid_amount || 0);
+    const totalPending = Number(fee.pending_amount || 0);
+    const totalFees = Number(fee.total_fees || 0);
+    const paymentCount = history.length;
+    const lastPayment = history.length > 0 ? history[0] : null;
+
+    // Format due date
+    const dueDate = fee.due_date ? new Date(fee.due_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }) : 'Not Set';
+    const isDueOverdue = fee.due_date && new Date(fee.due_date) < new Date() && fee.status !== 'Paid';
+
+    // Build comprehensive WhatsApp message
+    let message = `*FosterKids - My Fee Status*\n`;
+    message += `_Chhatrapati Sambhajinagar_\n\n`;
+    message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+    message += `💰 *Fee Summary*\n`;
+    message += `Academic Year: ${new Date().getFullYear()}-${new Date().getFullYear() + 1}\n`;
+    message += `Total Annual Fees: ₹${totalFees.toLocaleString()}\n`;
+    message += `Amount Paid: ₹${totalPaid.toLocaleString()} ✅\n`;
+    message += `Amount Pending: ₹${totalPending.toLocaleString()} ${totalPending > 0 ? '⚠️' : ''}\n`;
+    message += `Status: ${fee.status === 'Paid' ? '✅ FULLY PAID' : '⏳ PAYMENT PENDING'}\n\n`;
+
+    if (totalPending > 0) {
+      message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+      message += `📅 *Payment Due Date*\n`;
+      message += `${dueDate}${isDueOverdue ? ' ⚠️ *OVERDUE*' : ''}\n\n`;
+      if (isDueOverdue) {
+        message += `⚠️ *URGENT: Payment is overdue!*\n`;
+        message += `Please submit the pending amount of ₹${totalPending.toLocaleString()} at the earliest.\n\n`;
+      } else {
+        message += `Please ensure payment of ₹${totalPending.toLocaleString()} before the due date.\n\n`;
+      }
+    }
+
+    if (paymentCount > 0) {
+      message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+      message += `📊 *Payment History* (${paymentCount} payment${paymentCount > 1 ? 's' : ''})\n\n`;
+      
+      history.slice(0, 5).forEach((payment: any, idx: number) => {
+        const paymentDate = new Date(payment.payment_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+        message += `${idx + 1}. ₹${Number(payment.amount).toLocaleString()} - ${paymentDate}\n`;
+        message += `   Mode: ${payment.payment_mode} | ${payment.month} ${payment.year}\n`;
+        if (payment.remarks) message += `   Note: ${payment.remarks}\n`;
+        message += `\n`;
+      });
+
+      if (history.length > 5) {
+        message += `_...and ${history.length - 5} more payment${history.length - 5 > 1 ? 's' : ''}_\n\n`;
+      }
+
+      const totalPaidFromHistory = history.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+      message += `Total Paid: ₹${totalPaidFromHistory.toLocaleString()}\n\n`;
+    }
+
+    message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+    message += `📞 *Contact School*\n`;
+    message += `For queries: +91 9730238574\n`;
+    message += `Office Hours: 8:00 AM - 4:00 PM\n\n`;
+    message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+    message += `_Fee report from FosterKids_\n`;
+    message += `_Generated: ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}_`;
+
+    // URL encode the message
+    const encodedMessage = encodeURIComponent(message);
+    
+    // Open WhatsApp with the message (can be sent to parents or shared)
+    const whatsappUrl = `https://wa.me/?text=${encodedMessage}`;
+    window.open(whatsappUrl, '_blank');
+  };
+
   // ─── STUDENT VIEW ────────────────────────────────────────────────────────────
   if (userRole === 19) {
     const fee = myFees[0];
@@ -295,9 +447,19 @@ export default function FeesPage() {
               <div className="bg-gray-50 border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4">
                 <div className="flex items-center justify-between">
                   <h2 className="text-base sm:text-lg font-bold text-gray-800">Payment History</h2>
-                  <span className="px-2.5 py-1 bg-blue-100 text-blue-700 rounded-lg text-xs font-semibold">
-                    {myPaymentHistory.length} {myPaymentHistory.length === 1 ? 'Payment' : 'Payments'}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => sendStudentWhatsAppNotification(fee, myPaymentHistory)}
+                      className="px-3 py-1.5 bg-[#25D366] text-white rounded-lg hover:bg-[#20BA5A] transition text-xs font-bold flex items-center gap-1.5"
+                      title="Share fee status via WhatsApp"
+                    >
+                      <img src="/whatsapp.png" alt="WhatsApp" className="w-4 h-4" />
+                      Share Report
+                    </button>
+                    <span className="px-2.5 py-1 bg-blue-100 text-blue-700 rounded-lg text-xs font-semibold">
+                      {myPaymentHistory.length} {myPaymentHistory.length === 1 ? 'Payment' : 'Payments'}
+                    </span>
+                  </div>
                 </div>
               </div>
               
@@ -515,6 +677,14 @@ export default function FeesPage() {
                         <button onClick={() => openEdit(fee)} className="px-2 py-1 bg-[#5e3a9e]/10 text-[#5e3a9e] rounded hover:bg-[#5e3a9e]/20 transition text-[10px] font-bold whitespace-nowrap">Edit</button>
                         <button onClick={() => openHistory(fee)} className="px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition text-[10px] font-bold whitespace-nowrap">
                           History
+                        </button>
+                        <button 
+                          onClick={() => sendWhatsAppNotification(fee)} 
+                          className="px-2 py-1 bg-[#25D366] text-white rounded hover:bg-[#20BA5A] transition text-[10px] font-bold whitespace-nowrap flex items-center gap-1"
+                          title="Send fee status via WhatsApp"
+                        >
+                          <img src="/whatsapp.png" alt="WhatsApp" className="w-3 h-3" />
+                          Notify
                         </button>
                       </div>
                     </td>
