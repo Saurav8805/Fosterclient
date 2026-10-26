@@ -268,3 +268,19 @@
   color: #dc2626;
   font-weight: 600;
 }
+
+
+/* Hide Vercel Toolbar completely */
+#vercel-live-toolbar,
+[data-vercel-toolbar],
+iframe[src*="vercel.live"],
+button[aria-label*="Vercel"],
+div[class*="vercel-toolbar"],
+div[id*="vercel-toolbar"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}

@@ -6,6 +6,9 @@
   "regions": ["bom1"],
   "env": {
     "NEXT_PUBLIC_VERCEL_ANALYTICS_ID": "",
-    "VERCEL_SPEED_INSIGHTS_ENABLED": "0"
+    "VERCEL_SPEED_INSIGHTS_ENABLED": "0",
+    "VERCEL_TOOLBAR": "0",
+    "NEXT_PUBLIC_VERCEL_TOOLBAR": "0",
+    "FLAGS_SECRET": ""
   }
 }
