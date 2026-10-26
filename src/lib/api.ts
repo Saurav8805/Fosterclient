@@ -28,7 +28,10 @@ class ApiClient {
   ): Promise<ApiResponse<T>> {
     const cacheKey = this.getCacheKey(endpoint, options);
 
-    if (this.pendingRequests.has(cacheKey)) {
+    // Don't cache GET requests for staff list - always fetch fresh data
+    const shouldCache = options.method !== 'GET' || !endpoint.includes('/staff/list');
+    
+    if (shouldCache && this.pendingRequests.has(cacheKey)) {
       return this.pendingRequests.get(cacheKey);
     }
 
@@ -38,6 +41,9 @@ class ApiClient {
           ...options,
           headers: {
             'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
             ...options.headers,
           },
         });
@@ -69,7 +75,10 @@ class ApiClient {
   }
 
   async get<T = any>(endpoint: string): Promise<ApiResponse<T>> {
-    return this.request<T>(endpoint, { method: 'GET' });
+    return this.request<T>(endpoint, { 
+      method: 'GET',
+      cache: 'no-store'
+    });
   }
 
   async post<T = any>(endpoint: string, data: any): Promise<ApiResponse<T>> {
