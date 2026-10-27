@@ -637,7 +637,7 @@ export default function AdmitStudentPage() {
                 <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
                   Class {userRole !== 6 && <span className="text-[10px] sm:text-xs text-blue-600 font-normal">(ðŸ”’ Pre-filled)</span>}
                 </label>
-                {userRole === 6 ? (
+                {userRole === 6 || true ? (
                   <select 
                     required
                     className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base touch-manipulation"
@@ -677,7 +677,7 @@ export default function AdmitStudentPage() {
                 <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
                   Section {userRole !== 6 && <span className="text-[10px] sm:text-xs text-blue-600 font-normal">(ðŸ”’ Pre-filled)</span>}
                 </label>
-                {userRole === 6 ? (
+                {userRole === 6 || true ? (
                   <select 
                     required
                     className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base touch-manipulation"
