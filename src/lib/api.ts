@@ -28,8 +28,9 @@ class ApiClient {
   ): Promise<ApiResponse<T>> {
     const cacheKey = this.getCacheKey(endpoint, options);
 
-    // Don't cache GET requests for staff list - always fetch fresh data
-    const shouldCache = options.method !== 'GET' || !endpoint.includes('/staff/list');
+    // Only deduplicate concurrent identical GET requests.
+    // POST / PUT / DELETE mutations must NEVER be deduplicated — each call must hit the server.
+    const shouldCache = options.method === 'GET';
     
     if (shouldCache && this.pendingRequests.has(cacheKey)) {
       return this.pendingRequests.get(cacheKey);
@@ -70,7 +71,9 @@ class ApiClient {
       }
     })();
 
-    this.pendingRequests.set(cacheKey, requestPromise);
+    if (shouldCache) {
+      this.pendingRequests.set(cacheKey, requestPromise);
+    }
     return requestPromise;
   }
 

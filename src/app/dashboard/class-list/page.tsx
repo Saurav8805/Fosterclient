@@ -229,24 +229,34 @@ export default function ClassListPage() {
     try {
       setLoadingClasses(true)
       setError(null)
-      const result = await configApi.getClasses()
+      const result = await configApi.getClassStats()
       
-      if (result.success) {
-        // Convert array of class names to ClassStats format
-        const classNames = Array.isArray(result.data) ? result.data : []
-        const classStatsList: ClassStats[] = classNames.map(name => ({
-          name: name,
-          studentCount: 0,
-          sections: [],
-          teachers: []
+      if (result.success && Array.isArray(result.data)) {
+        const classStatsList: ClassStats[] = result.data.map((c: any) => ({
+          name: c.name || '',
+          studentCount: typeof c.studentCount === 'number' ? c.studentCount : 0,
+          sections: Array.isArray(c.sections) ? c.sections : [],
+          teachers: Array.isArray(c.teachers) ? c.teachers : []
         }))
         setClasses(classStatsList)
       } else {
-        setError(result.error || 'Failed to fetch classes')
-        setClasses([])
+        // Fallback to getClasses if class-stats has an issue
+        const fallbackRes = await configApi.getClasses()
+        if (fallbackRes.success && Array.isArray(fallbackRes.data)) {
+          const classStatsList: ClassStats[] = fallbackRes.data.map((name: string) => ({
+            name: name,
+            studentCount: 0,
+            sections: [],
+            teachers: []
+          }))
+          setClasses(classStatsList)
+        } else {
+          setError(result.error || 'Failed to fetch classes')
+          setClasses([])
+        }
       }
     } catch (err: any) {
-      console.error('Failed to fetch classes:', err)
+      console.error('Failed to fetch class stats:', err)
       setError(err.message || 'Failed to fetch classes')
       setClasses([])
     } finally {
@@ -725,8 +735,11 @@ export default function ClassListPage() {
         emergencyContact: editStudentForm.emergencyContact,
       }
 
+      const targetClass = (editStudentForm.studentClass || editingStudent.class || selectedClass || '').trim()
+
       const res = await studentsApi.update(editingStudent.id, {
         student_name: editStudentForm.studentName,
+        class: targetClass,
         dob: editStudentForm.dob || null,
         age: editStudentForm.age ? Number(editStudentForm.age) : null,
         gender: editStudentForm.gender || null,
@@ -746,10 +759,19 @@ export default function ClassListPage() {
       })
 
       if (res.success) {
-        setEditStudentMessage({ type: 'success', text: 'Student details updated successfully!' })
+        const isClassChanged = selectedClass && targetClass && targetClass.toLowerCase() !== selectedClass.toLowerCase()
+        const successMsg = isClassChanged
+          ? `Student updated and moved to Class ${targetClass}!`
+          : 'Student details updated successfully!'
+
+        setActionMessage({ type: 'success', text: successMsg })
         setShowEditStudentModal(false)
         if (selectedClass) await fetchStudentsForClass(selectedClass)
-        setTimeout(() => setEditStudentMessage(null), 4000)
+        await fetchClassStats()
+        setTimeout(() => {
+          setActionMessage(null)
+          setEditStudentMessage(null)
+        }, 4000)
       } else {
         setEditStudentMessage({ type: 'error', text: res.error || 'Failed to update student details' })
       }
@@ -774,6 +796,7 @@ export default function ClassListPage() {
         setStudents(prev => prev.filter(s => s.id !== studentToDelete.id))
         setShowDeleteStudentModal(false)
         setStudentToDelete(null)
+        await fetchClassStats()
       } else {
         alert(res.error || 'Failed to delete student')
       }
@@ -794,7 +817,10 @@ export default function ClassListPage() {
             {/* Breadcrumb Navigation */}
             <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 mb-1">
               <span
-                onClick={() => setViewMode('classList')}
+                onClick={() => {
+                  setViewMode('classList')
+                  fetchClassStats()
+                }}
                 className="hover:text-[#5e3a9e] cursor-pointer transition flex items-center gap-1"
               >
                 🏫 Class List
@@ -815,7 +841,10 @@ export default function ClassListPage() {
           <div className="flex items-center gap-3">
             {viewMode === 'studentList' && (
               <button
-                onClick={() => setViewMode('classList')}
+                onClick={() => {
+                  setViewMode('classList')
+                  fetchClassStats()
+                }}
                 className="px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-100 rounded-xl text-xs font-semibold transition"
               >
                 ← Back to Classes
@@ -1115,50 +1144,47 @@ export default function ClassListPage() {
                           </td>
                           <td className="px-6 py-4 text-right">
                             <div className="flex items-center justify-end gap-1.5">
-                              {(userRole === 6 || userRole === 8) && (
-                                <>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      setEditingStudent(student)
-                                      setEditStudentForm({
-                                        studentName: student.student_name || '',
-                                        dob: student.dob || '',
-                                        age: student.age || '',
-                                        gender: student.gender || 'Male',
-                                        parentName: student.parent_name || '',
-                                        motherName: student.mother_name || '',
-                                        mobile: student.mobile || '',
-                                        email: student.email || '',
-                                        address: student.address || '',
-                                        city: student.city || '',
-                                        state: student.state || '',
-                                        pincode: student.pincode || '',
-                                        bloodGroup: student.blood_group || '',
-                                        aadharNumber: student.aadhar_number || '',
-                                        rollNo: student.roll_no || '',
-                                        section: student.section || 'A',
-                                        emergencyContact: student.emergency_contact || '',
-                                      })
-                                      setEditStudentMessage(null)
-                                      setShowEditStudentModal(true)
-                                    }}
-                                    className="px-2 py-0.5 border border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded text-[10px] font-medium transition cursor-pointer whitespace-nowrap"
-                                  >
-                                    Edit
-                                  </button>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      setStudentToDelete(student)
-                                      setShowDeleteStudentModal(true)
-                                    }}
-                                    className="px-2 py-0.5 border border-red-300 bg-red-50 text-red-700 hover:bg-red-100 rounded text-[10px] font-medium transition cursor-pointer whitespace-nowrap"
-                                  >
-                                    Delete
-                                  </button>
-                                </>
-                              )}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setEditingStudent(student)
+                                  setEditStudentForm({
+                                    studentName: student.student_name || '',
+                                    studentClass: student.class || selectedClass || '',
+                                    dob: student.dob || '',
+                                    age: student.age || '',
+                                    gender: student.gender || 'Male',
+                                    parentName: student.parent_name || '',
+                                    motherName: student.mother_name || '',
+                                    mobile: student.mobile || '',
+                                    email: student.email || '',
+                                    address: student.address || '',
+                                    city: student.city || '',
+                                    state: student.state || '',
+                                    pincode: student.pincode || '',
+                                    bloodGroup: student.blood_group || '',
+                                    aadharNumber: student.aadhar_number || '',
+                                    rollNo: student.roll_no || '',
+                                    section: student.section || 'A',
+                                    emergencyContact: student.emergency_contact || '',
+                                  })
+                                  setEditStudentMessage(null)
+                                  setShowEditStudentModal(true)
+                                }}
+                                className="px-2 py-0.5 border border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded text-[10px] font-medium transition cursor-pointer whitespace-nowrap"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setStudentToDelete(student)
+                                  setShowDeleteStudentModal(true)
+                                }}
+                                className="px-2 py-0.5 border border-red-300 bg-red-50 text-red-700 hover:bg-red-100 rounded text-[10px] font-medium transition cursor-pointer whitespace-nowrap"
+                              >
+                                Delete
+                              </button>
                             </div>
                           </td>
                         </tr>
@@ -2276,7 +2302,7 @@ export default function ClassListPage() {
               <div>
                 <h2 className="text-lg font-bold">Edit Student Details</h2>
                 <p className="text-xs text-purple-200 mt-0.5">
-                  ✏️ {editingStudent.student_name || 'Student'} — Class {selectedClass}
+                  ✏️ {editingStudent.student_name || 'Student'} — Class {editStudentForm.studentClass || editingStudent.class || selectedClass}
                 </p>
               </div>
               <button onClick={() => setShowEditStudentModal(false)} className="text-white/70 hover:text-white transition text-xl font-light">✕</button>
@@ -2302,6 +2328,39 @@ export default function ClassListPage() {
                   <div className="col-span-2">
                     <label className="block text-xs font-semibold text-gray-700 mb-1">Full Name *</label>
                     <input required value={editStudentForm.studentName || ''} onChange={e => setEditStudentForm((p: any) => ({ ...p, studentName: e.target.value }))} className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#5e3a9e]/30 outline-none" placeholder="Student full name" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">
+                      Class <span className="text-rose-500">*</span>
+                    </label>
+                    <select
+                      required
+                      value={editStudentForm.studentClass || ''}
+                      onChange={e => setEditStudentForm((p: any) => ({ ...p, studentClass: e.target.value }))}
+                      className="w-full px-3.5 py-2 border border-purple-200 bg-purple-50/50 rounded-xl text-sm font-semibold text-[#5e3a9e] focus:ring-2 focus:ring-[#5e3a9e]/30 outline-none"
+                    >
+                      <option value="">Select Class</option>
+                      {Array.from(new Set([
+                        ...classes.map(c => c.name),
+                        editStudentForm.studentClass,
+                        selectedClass,
+                        editingStudent.class
+                      ].filter(Boolean))).map((className: any) => (
+                        <option key={className} value={className}>
+                          Class {className}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Section</label>
+                    <select value={editStudentForm.section || 'A'} onChange={e => setEditStudentForm((p: any) => ({ ...p, section: e.target.value }))} className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-[#5e3a9e]/30 outline-none">
+                      {['A','B','C','D','E'].map(s => <option key={s}>{s}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Roll No.</label>
+                    <input type="number" value={editStudentForm.rollNo || ''} onChange={e => setEditStudentForm((p: any) => ({ ...p, rollNo: e.target.value }))} className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#5e3a9e]/30 outline-none" placeholder="Roll number" />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 mb-1">Date of Birth</label>
@@ -2335,17 +2394,7 @@ export default function ClassListPage() {
                       {['A+','A-','B+','B-','O+','O-','AB+','AB-'].map(bg => <option key={bg}>{bg}</option>)}
                     </select>
                   </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">Roll No.</label>
-                    <input type="number" value={editStudentForm.rollNo || ''} onChange={e => setEditStudentForm((p: any) => ({ ...p, rollNo: e.target.value }))} className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#5e3a9e]/30 outline-none" placeholder="Roll number" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">Section</label>
-                    <select value={editStudentForm.section || 'A'} onChange={e => setEditStudentForm((p: any) => ({ ...p, section: e.target.value }))} className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-[#5e3a9e]/30 outline-none">
-                      {['A','B','C','D','E'].map(s => <option key={s}>{s}</option>)}
-                    </select>
-                  </div>
-                  <div>
+                  <div className="col-span-2">
                     <label className="block text-xs font-semibold text-gray-700 mb-1">Aadhar Number</label>
                     <input value={editStudentForm.aadharNumber || ''} onChange={e => setEditStudentForm((p: any) => ({ ...p, aadharNumber: e.target.value }))} className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#5e3a9e]/30 outline-none" placeholder="12-digit Aadhar" />
                   </div>
