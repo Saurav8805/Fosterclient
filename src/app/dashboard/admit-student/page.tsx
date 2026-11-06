@@ -252,74 +252,50 @@ export default function AdmitStudentPage() {
     setErrors({})
     setMessage(null)
     
-    // Validate all fields
+    // Minimal validation - only check truly required fields
     const validationErrors: Record<string, string> = {}
     
-    // Validate mobile number (required)
-    const mobileResult = validateMobile(formData.mobile)
-    if (!mobileResult.valid) {
-      validationErrors.mobile = mobileResult.error!
+    // Only validate mobile number format (required)
+    if (!formData.mobile) {
+      validationErrors.mobile = 'Mobile number is required'
+    } else if (formData.mobile.length !== 10) {
+      validationErrors.mobile = 'Mobile number must be 10 digits'
+    } else if (!/^[6-9]/.test(formData.mobile)) {
+      validationErrors.mobile = 'Mobile number must start with 6, 7, 8, or 9'
     }
     
-    // Validate emergency contact (optional, but if provided must be valid)
-    if (formData.emergencyContact) {
-      const emergencyResult = validateMobile(formData.emergencyContact)
-      if (!emergencyResult.valid) {
-        validationErrors.emergencyContact = emergencyResult.error!
-      }
+    // Check if student name is provided
+    if (!formData.studentName || !formData.studentName.trim()) {
+      validationErrors.studentName = 'Student name is required'
     }
     
-    // Validate email (optional, but if provided must be valid)
-    if (formData.email) {
-      const emailResult = validateEmail(formData.email, false)
-      if (!emailResult.valid) {
-        validationErrors.email = emailResult.error!
-      }
+    // Check if DOB is provided
+    if (!formData.dob) {
+      validationErrors.dob = 'Date of birth is required'
     }
     
-    // Validate DOB (required, must be in past, reasonable age range)
-    const dobResult = validateDOB(formData.dob, 1, 18)
-    if (!dobResult.valid) {
-      validationErrors.dob = dobResult.error!
-    }
-    
-    // Validate age for selected class (NEP 2020)
-    if (formData.age && formData.studentClass) {
-      const ageForClassResult = validateAgeForClass(parseInt(formData.age), formData.studentClass)
-      if (!ageForClassResult.valid) {
-        validationErrors.age = ageForClassResult.error!
-      }
-    }
-    
-    // Validate admission date (required, can't be in future)
-    const admissionResult = validateDate(formData.admissionDate, {
-      required: true,
-      maxDate: new Date(),
-      label: 'Admission date'
-    })
-    if (!admissionResult.valid) {
-      validationErrors.admissionDate = admissionResult.error!
-    }
-    
-    // Validate aadhar (if provided, must be 12 digits)
-    if (formData.aadharNumber && !/^\d{12}$/.test(formData.aadharNumber)) {
-      validationErrors.aadharNumber = 'Aadhar must be exactly 12 digits'
-    }
-    
-    // Validate pincode (required, must be 6 digits)
-    if (!formData.pincode) {
-      validationErrors.pincode = 'Pincode is required'
-    } else if (!/^\d{6}$/.test(formData.pincode)) {
-      validationErrors.pincode = 'Pincode must be exactly 6 digits'
+    // Check if admission date is provided
+    if (!formData.admissionDate) {
+      validationErrors.admissionDate = 'Admission date is required'
     }
     
     // If there are validation errors, show them and stop
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors)
+      
+      // Log validation errors to console for debugging
+      console.error('❌ Validation Errors:', validationErrors)
+      
+      // Create detailed error message
+      const errorList = Object.entries(validationErrors)
+        .map(([field, error]) => `• ${field}: ${error}`)
+        .join('\n')
+      
       setMessage({ 
         type: 'error', 
-        text: 'Please fix the validation errors before submitting.' 
+        text: `Please fix the following validation errors:\n${errorList}` 
       })
+      
       // Scroll to first error
       const firstErrorField = Object.keys(validationErrors)[0]
       document.getElementById(firstErrorField)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
@@ -458,7 +434,21 @@ export default function AdmitStudentPage() {
               ? 'bg-green-50 text-green-800 border-green-200' 
               : 'bg-red-50 text-red-800 border-red-200'
           }`}>
-            <p className="font-semibold">{message.text}</p>
+            <p className="font-semibold whitespace-pre-line">{message.text}</p>
+            {/* Show individual field errors */}
+            {message.type === 'error' && Object.keys(errors).length > 0 && (
+              <ul className="mt-3 space-y-1 text-xs">
+                {Object.entries(errors).map(([field, error]) => (
+                  <li key={field} className="flex items-start gap-2">
+                    <span className="text-red-600 font-bold">❌</span>
+                    <span>
+                      <span className="font-semibold capitalize">{field.replace(/([A-Z])/g, ' $1').trim()}:</span>
+                      {' '}{error}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
             {message.credentials && (
               <div className="mt-2 sm:mt-3 p-2 sm:p-3 bg-white rounded border border-green-300">
                 <p className="text-xs sm:text-sm font-semibold text-gray-900 mb-2">Login Credentials:</p>
@@ -883,12 +873,11 @@ export default function AdmitStudentPage() {
               </div>
 
               {/* Pincode */}
-              <div className="required-field">
+              <div>
                 <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Pincode</label>
                 <input 
                   id="pincode"
                   type="text" 
-                  required
                   maxLength={6}
                   className={`w-full px-3 sm:px-4 py-2 sm:py-2.5 border rounded-lg focus:outline-none focus:ring-2 text-sm sm:text-base touch-manipulation ${
                     errors.pincode ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500'
